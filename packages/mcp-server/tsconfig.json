@@ -1,0 +1,22 @@
+{
+    "extends": "../../tsconfig.base.json",
+    "compilerOptions": {
+        "outDir": "./dist",
+        "rootDir": "../../",
+        "baseUrl": ".",
+        "paths": {
+            "@genome/core": [
+                "../../packages/core/src/index.ts"
+            ],
+            "@genome/parser": [
+                "../../packages/parser/src/index.ts"
+            ],
+            "@genome/graph": [
+                "../../packages/graph/src/index.ts"
+            ]
+        }
+    },
+    "include": [
+        "src/**/*"
+    ]
+}

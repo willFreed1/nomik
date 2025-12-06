@@ -1,0 +1,36 @@
+{
+  "name": "genome",
+  "version": "0.1.0",
+  "private": true,
+  "description": "The Autonomous Knowledge Supervisor — AI-native code intelligence graph",
+  "author": "willFreed1",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/willFreed1/genome"
+  },
+  "engines": {
+    "node": ">=20.0.0",
+    "pnpm": ">=9.0.0"
+  },
+  "scripts": {
+    "build": "turbo run build",
+    "dev": "turbo run dev",
+    "lint": "turbo run lint",
+    "test": "turbo run test",
+    "typecheck": "turbo run typecheck",
+    "clean": "turbo run clean",
+    "genome": "node packages/cli/dist/index.js",
+    "build:mcp": "turbo run build --filter=@genome/mcp-server"
+  },
+  "devDependencies": {
+    "@types/node": "^20.11.0",
+    "eslint": "^9.0.0",
+    "prettier": "^3.2.0",
+    "tsup": "^8.0.0",
+    "turbo": "^2.3.0",
+    "typescript": "^5.7.0",
+    "vitest": "^2.1.0"
+  },
+  "packageManager": "pnpm@9.15.0"
+}
