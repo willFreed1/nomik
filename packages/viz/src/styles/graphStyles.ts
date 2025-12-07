@@ -86,7 +86,18 @@ export const graphStyles: any[] = [
             // 'label': 'data(label)', // HIDDEN by default to reduce clutter
         }
     },
-    // Hover effects
+    // CALLS edges
+    {
+        selector: 'edge[label="CALLS"]',
+        style: {
+            'line-color': '#f59e0b',
+            'target-arrow-color': '#f59e0b',
+            'line-style': 'solid',
+            'opacity': 0.5,
+            'width': 1.5,
+        }
+    },
+    // Selection
     {
         selector: 'node:selected',
         style: {
@@ -106,5 +117,70 @@ export const graphStyles: any[] = [
             'opacity': 1,
             'z-index': 999
         }
-    }
+    },
+    // Impact highlight : noeuds impactes
+    {
+        selector: 'node.impact-source',
+        style: {
+            'border-color': '#ef4444',
+            'border-width': 4,
+            'shadow-blur': 50,
+            'shadow-color': '#ef4444',
+            'z-index': 1000,
+        }
+    },
+    {
+        selector: 'node.impact-callee',
+        style: {
+            'border-color': '#f59e0b',
+            'border-width': 3,
+            'shadow-blur': 30,
+            'shadow-color': '#f59e0b',
+            'z-index': 900,
+        }
+    },
+    {
+        selector: 'node.impact-caller',
+        style: {
+            'border-color': '#3b82f6',
+            'border-width': 3,
+            'shadow-blur': 30,
+            'shadow-color': '#3b82f6',
+            'z-index': 900,
+        }
+    },
+    {
+        selector: 'edge.impact-edge',
+        style: {
+            'line-color': '#f59e0b',
+            'target-arrow-color': '#f59e0b',
+            'width': 3,
+            'opacity': 1,
+            'z-index': 900,
+        }
+    },
+    // Noeuds fades quand impact actif
+    {
+        selector: 'node.faded',
+        style: {
+            'opacity': 0.15,
+        }
+    },
+    {
+        selector: 'edge.faded',
+        style: {
+            'opacity': 0.05,
+        }
+    },
+    // Search highlight
+    {
+        selector: 'node.search-match',
+        style: {
+            'border-color': '#22d3ee',
+            'border-width': 4,
+            'shadow-blur': 40,
+            'shadow-color': '#22d3ee',
+            'z-index': 1000,
+        }
+    },
 ];

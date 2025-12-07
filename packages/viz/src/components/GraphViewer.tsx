@@ -1,14 +1,20 @@
-import { useEffect, useState, useRef } from 'react';
+import { useEffect, useState, useRef, useCallback } from 'react';
 import CytoscapeComponent from 'react-cytoscapejs';
 import cytoscape from 'cytoscape';
 import { fetchGraphData } from '../neo4j';
 import { graphStyles } from '../styles/graphStyles';
 import { graphLayout } from '../styles/graphLayout';
+import { SearchBar } from './SearchBar';
+import { FilterPanel } from './FilterPanel';
+import { NodeDetail } from './NodeDetail';
 
+/** Composant principal du visualiseur de graphe */
 export function GraphViewer() {
     const [elements, setElements] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
+    const [selectedNode, setSelectedNode] = useState<cytoscape.NodeSingular | null>(null);
+    const [, setCyReady] = useState(false);
     const cyRef = useRef<cytoscape.Core | null>(null);
 
     useEffect(() => {
@@ -17,48 +23,109 @@ export function GraphViewer() {
                 const nodes = data.nodes;
                 const edges = data.edges;
 
-                // Integrity Check
                 const nodeIds = new Set(nodes.map((n: any) => n.data.id));
-                const validEdges = edges.filter((e: any) => {
-                    return nodeIds.has(e.data.source) && nodeIds.has(e.data.target);
-                });
+                const validEdges = edges.filter((e: any) =>
+                    nodeIds.has(e.data.source) && nodeIds.has(e.data.target)
+                );
 
-                const flatElements = [...nodes, ...validEdges];
-                console.log(`Graph loaded. Nodes: ${nodes.length}, Edges: ${validEdges.length}`);
-                setElements(flatElements);
+                setElements([...nodes, ...validEdges]);
                 setLoading(false);
             })
             .catch(err => {
-                console.error("Failed to fetch graph:", err);
                 setError(err.message);
                 setLoading(false);
             });
     }, []);
+
+    /** Activation de l'impact overlay au clic sur un noeud */
+    const handleNodeTap = useCallback((node: cytoscape.NodeSingular) => {
+        const cy = cyRef.current;
+        if (!cy) return;
+
+        // Nettoyage precedent
+        cy.elements().removeClass('impact-source impact-callee impact-caller impact-edge faded search-match');
+
+        setSelectedNode(node);
+
+        // Impact overlay : highlight des appels
+        const callees = node.outgoers('edge[label="CALLS"]');
+        const callers = node.incomers('edge[label="CALLS"]');
+        const containsEdges = node.outgoers('edge[label="CONTAINS"]');
+        const containedEdges = node.incomers('edge[label="CONTAINS"]');
+
+        const impactedEdges = callees.union(callers).union(containsEdges).union(containedEdges);
+        // Fade tout, puis highlight les impactes
+        cy.elements().addClass('faded');
+        node.removeClass('faded').addClass('impact-source');
+        callees.targets().removeClass('faded').addClass('impact-callee');
+        callers.sources().removeClass('faded').addClass('impact-caller');
+        impactedEdges.removeClass('faded').addClass('impact-edge');
+        containsEdges.targets().removeClass('faded');
+        containedEdges.sources().removeClass('faded');
+    }, []);
+
+    /** Nettoyage au clic sur le fond */
+    const handleBgTap = useCallback(() => {
+        const cy = cyRef.current;
+        if (!cy) return;
+        cy.elements().removeClass('impact-source impact-callee impact-caller impact-edge faded search-match');
+        setSelectedNode(null);
+    }, []);
+
+    const handleCloseDetail = useCallback(() => {
+        handleBgTap();
+    }, [handleBgTap]);
 
     if (loading) return <div className="text-cyan-400 font-mono flex items-center justify-center h-full">INITIALIZING SYSTEM...</div>;
     if (error) return <div className="text-red-500 font-mono flex items-center justify-center h-full">SYSTEM ERROR: {error}</div>;
     if (!elements || elements.length === 0) return <div className="text-gray-500 font-mono flex items-center justify-center h-full">NO DATA DETECTED. SCAN REQUIRED.</div>;
 
     return (
-        <div className="w-full h-full border border-slate-800 bg-[#020617] rounded-lg overflow-hidden relative shadow-2xl shadow-cyan-900/20">
-            <div className="absolute top-4 left-4 z-10 pointer-events-none">
-                <h2 className="text-xs font-mono text-cyan-500/50 tracking-[0.2em] uppercase">System Visualization</h2>
+        <div className="w-full h-full flex flex-col gap-3">
+            {/* Toolbar */}
+            <div className="flex items-center justify-between gap-4 flex-wrap">
+                <SearchBar cy={cyRef.current} />
+                <FilterPanel cy={cyRef.current} />
             </div>
-            <CytoscapeComponent
-                elements={elements}
-                style={{ width: '100%', height: '100%' }}
-                layout={graphLayout}
-                stylesheet={graphStyles}
-                cy={(cy: cytoscape.Core) => {
-                    cyRef.current = cy;
-                    cy.on('tap', 'node', (evt: any) => {
-                        console.log('Selected:', evt.target.data());
-                    });
-                }}
-                minZoom={0.1}
-                maxZoom={4}
-                wheelSensitivity={0.3}
-            />
+
+            {/* Graph + Detail panel */}
+            <div className="flex-1 border border-slate-800 bg-[#020617] rounded-lg overflow-hidden relative shadow-2xl shadow-cyan-900/20">
+                <div className="absolute top-4 left-4 z-10 pointer-events-none">
+                    <h2 className="text-xs font-mono text-cyan-500/50 tracking-[0.2em] uppercase">System Visualization</h2>
+                </div>
+
+                {/* Legend */}
+                <div className="absolute bottom-4 left-4 z-10 flex items-center gap-4 text-[10px] font-mono pointer-events-none">
+                    <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-cyan-500 inline-block" /> File</span>
+                    <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-emerald-500 inline-block" /> Function</span>
+                    <span className="flex items-center gap-1"><span className="w-2 h-2 rounded bg-purple-500 inline-block" style={{ transform: 'rotate(45deg)', width: 8, height: 8 }} /> Class</span>
+                    <span className="text-slate-600">|</span>
+                    <span className="flex items-center gap-1"><span className="w-3 h-0.5 bg-slate-500 inline-block" /> CONTAINS</span>
+                    <span className="flex items-center gap-1"><span className="w-3 h-0.5 bg-amber-500 inline-block" /> CALLS</span>
+                </div>
+
+                <CytoscapeComponent
+                    elements={elements}
+                    style={{ width: '100%', height: '100%' }}
+                    layout={graphLayout}
+                    stylesheet={graphStyles}
+                    cy={(cy: cytoscape.Core) => {
+                        if (cyRef.current === cy) return;
+                        cyRef.current = cy;
+                        setCyReady(true);
+
+                        cy.on('tap', 'node', (evt) => handleNodeTap(evt.target));
+                        cy.on('tap', (evt) => {
+                            if (evt.target === cy) handleBgTap();
+                        });
+                    }}
+                    minZoom={0.1}
+                    maxZoom={4}
+                    wheelSensitivity={0.3}
+                />
+
+                <NodeDetail node={selectedNode} onClose={handleCloseDetail} />
+            </div>
         </div>
     );
 }
