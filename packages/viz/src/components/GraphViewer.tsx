@@ -7,6 +7,7 @@ import { graphLayout } from '../styles/graphLayout';
 import { SearchBar } from './SearchBar';
 import { FilterPanel } from './FilterPanel';
 import { NodeDetail } from './NodeDetail';
+import { HelpButton } from './HelpModal';
 
 /** Composant principal du visualiseur de graphe */
 export function GraphViewer() {
@@ -84,7 +85,10 @@ export function GraphViewer() {
         <div className="w-full h-full flex flex-col gap-3">
             {/* Toolbar */}
             <div className="flex items-center justify-between gap-4 flex-wrap">
-                <SearchBar cy={cyRef.current} />
+                <div className="flex items-center gap-2">
+                    <SearchBar cy={cyRef.current} />
+                    <HelpButton />
+                </div>
                 <FilterPanel cy={cyRef.current} />
             </div>
 
@@ -117,6 +121,19 @@ export function GraphViewer() {
                         cy.on('tap', 'node', (evt) => handleNodeTap(evt.target));
                         cy.on('tap', (evt) => {
                             if (evt.target === cy) handleBgTap();
+                        });
+                        // Affiche le label d'edge au survol
+                        cy.on('mouseover', 'edge', (evt) => {
+                            evt.target.style('label', evt.target.data('label'));
+                            evt.target.style('font-size', '9px');
+                            evt.target.style('color', '#94a3b8');
+                            evt.target.style('text-background-color', '#020617');
+                            evt.target.style('text-background-opacity', 0.8);
+                            evt.target.style('text-background-padding', '2px');
+                            evt.target.style('text-rotation', 'autorotate');
+                        });
+                        cy.on('mouseout', 'edge', (evt) => {
+                            evt.target.style('label', '');
                         });
                     }}
                     minZoom={0.1}

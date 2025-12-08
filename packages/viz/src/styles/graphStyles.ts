@@ -8,13 +8,14 @@ export const graphStyles: any[] = [
             'text-valign': 'bottom',
             'text-halign': 'center',
             'text-margin-y': 6,
-            'font-size': '12px', // Larger base font
+            'font-size': '12px',
             'font-family': 'monospace',
             'width': 20,
             'height': 20,
             'border-width': 1,
             'border-color': '#475569',
             'overlay-padding': '4px',
+            'overlay-opacity': 0,
             'z-index': 10,
             'text-background-color': '#020617',
             'text-background-opacity': 0.7,
@@ -22,50 +23,46 @@ export const graphStyles: any[] = [
             'text-background-shape': 'roundrectangle'
         }
     },
-    // FILE NODES: The "Cities" of our map (Visual Anchors)
+    // FILE : ancres visuelles du graphe
     {
         selector: 'node[label="File"]',
         style: {
-            'background-color': '#0f172a',
-            'border-color': '#06b6d4', // Cyan 500
-            'border-width': 2,
-            'shadow-blur': 30, // Strong glow
-            'shadow-color': '#06b6d4',
-            'color': '#22d3ee', // Cyan 400
+            'background-color': '#083344',
+            'border-color': '#06b6d4',
+            'border-width': 3,
+            'color': '#22d3ee',
             'shape': 'round-rectangle',
-            'width': 'label',
-            'height': 32, // Taller
-            'padding': '12px', // More padding
-            'font-size': '14px', // Larger font for files
+            'width': 50,
+            'height': 32,
+            'padding': '12px',
+            'font-size': '14px',
             'font-weight': 'bold',
             'text-valign': 'center',
             'text-margin-y': 0,
-            'z-index': 20 // Always on top
+            'z-index': 20
         }
     },
-    // FUNCTION NODES: The "Streets" (Details)
+    // FUNCTION : noeuds detail
     {
         selector: 'node[label="Function"]',
         style: {
-            'background-color': '#0f172a',
-            'border-color': '#10b981', // Emerald 500
-            'shadow-blur': 10,
-            'shadow-color': '#10b981',
-            'color': '#86efac', // Emerald 300 (lighter text)
-            'width': 12, // Much smaller
+            'background-color': '#064e3b',
+            'border-color': '#10b981',
+            'border-width': 1.5,
+            'color': '#86efac',
+            'width': 12,
             'height': 12,
-            'font-size': '10px' // Smaller font
+            'font-size': '10px'
         }
     },
-    // CLASS NODES: The "Landmarks"
+    // CLASS : noeuds marqueurs
     {
         selector: 'node[label="Class"]',
         style: {
-            'background-color': '#0f172a',
-            'border-color': '#a855f7', // Purple 500
-            'shadow-blur': 20,
-            'shadow-color': '#a855f7',
-            'color': '#d8b4fe', // Purple 300
+            'background-color': '#3b0764',
+            'border-color': '#a855f7',
+            'border-width': 2,
+            'color': '#d8b4fe',
             'shape': 'diamond',
             'width': 24,
             'height': 24,
@@ -77,16 +74,15 @@ export const graphStyles: any[] = [
         selector: 'edge',
         style: {
             'width': 2,
-            'line-color': '#334155', // Slate 700
+            'line-color': '#334155',
             'target-arrow-color': '#334155',
             'target-arrow-shape': 'triangle',
             'curve-style': 'bezier',
             'arrow-scale': 0.8,
-            'opacity': 0.4 // Reduced opacity to reduce clutter
-            // 'label': 'data(label)', // HIDDEN by default to reduce clutter
+            'opacity': 0.4,
         }
     },
-    // CALLS edges
+    // CALLS : edges amber
     {
         selector: 'edge[label="CALLS"]',
         style: {
@@ -103,8 +99,9 @@ export const graphStyles: any[] = [
         style: {
             'border-width': 4,
             'border-color': '#fff',
-            'shadow-blur': 40,
-            'shadow-color': '#fff',
+            'overlay-color': '#fff',
+            'overlay-opacity': 0.15,
+            'overlay-padding': 6,
             'z-index': 999
         }
     },
@@ -118,34 +115,39 @@ export const graphStyles: any[] = [
             'z-index': 999
         }
     },
-    // Impact highlight : noeuds impactes
+    // Impact : source (rouge)
     {
         selector: 'node.impact-source',
         style: {
             'border-color': '#ef4444',
-            'border-width': 4,
-            'shadow-blur': 50,
-            'shadow-color': '#ef4444',
+            'border-width': 5,
+            'overlay-color': '#ef4444',
+            'overlay-opacity': 0.2,
+            'overlay-padding': 8,
             'z-index': 1000,
         }
     },
+    // Impact : callees downstream (amber)
     {
         selector: 'node.impact-callee',
         style: {
             'border-color': '#f59e0b',
             'border-width': 3,
-            'shadow-blur': 30,
-            'shadow-color': '#f59e0b',
+            'overlay-color': '#f59e0b',
+            'overlay-opacity': 0.15,
+            'overlay-padding': 6,
             'z-index': 900,
         }
     },
+    // Impact : callers upstream (bleu)
     {
         selector: 'node.impact-caller',
         style: {
             'border-color': '#3b82f6',
             'border-width': 3,
-            'shadow-blur': 30,
-            'shadow-color': '#3b82f6',
+            'overlay-color': '#3b82f6',
+            'overlay-opacity': 0.15,
+            'overlay-padding': 6,
             'z-index': 900,
         }
     },
@@ -172,14 +174,15 @@ export const graphStyles: any[] = [
             'opacity': 0.05,
         }
     },
-    // Search highlight
+    // Recherche : highlight cyan
     {
         selector: 'node.search-match',
         style: {
             'border-color': '#22d3ee',
             'border-width': 4,
-            'shadow-blur': 40,
-            'shadow-color': '#22d3ee',
+            'overlay-color': '#22d3ee',
+            'overlay-opacity': 0.2,
+            'overlay-padding': 6,
             'z-index': 1000,
         }
     },

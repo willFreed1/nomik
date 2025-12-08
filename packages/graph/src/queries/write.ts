@@ -10,10 +10,27 @@ export async function upsertNode(driver: GraphDriver, node: GraphNode): Promise<
     await driver.runWrite(cypher, { id: node.id, props: nodeToProps(node) });
 }
 
+/** Upsert par lots avec UNWIND pour la performance */
 export async function upsertNodes(driver: GraphDriver, nodes: GraphNode[]): Promise<void> {
-    for (const node of nodes) {
-        await upsertNode(driver, node);
+    const grouped = groupByType(nodes);
+    for (const [type, batch] of Object.entries(grouped)) {
+        const label = nodeTypeToLabel(type);
+        const cypher = `
+      UNWIND $batch AS item
+      MERGE (n:${label} {id: item.id})
+      SET n += item.props, n.updatedAt = datetime()
+    `;
+        const items = batch.map(n => ({ id: n.id, props: nodeToProps(n) }));
+        await driver.runWrite(cypher, { batch: items });
     }
+}
+
+function groupByType(nodes: GraphNode[]): Record<string, GraphNode[]> {
+    const map: Record<string, GraphNode[]> = {};
+    for (const n of nodes) {
+        (map[n.type] ??= []).push(n);
+    }
+    return map;
 }
 
 export async function createEdge(driver: GraphDriver, edge: GraphEdge): Promise<void> {
@@ -30,9 +47,21 @@ export async function createEdge(driver: GraphDriver, edge: GraphEdge): Promise<
     });
 }
 
+/** Création d'edges par lots groupés par type de relation */
 export async function createEdges(driver: GraphDriver, edges: GraphEdge[]): Promise<void> {
-    for (const edge of edges) {
-        await createEdge(driver, edge);
+    const grouped: Record<string, GraphEdge[]> = {};
+    for (const e of edges) {
+        (grouped[e.type] ??= []).push(e);
+    }
+    for (const [relType, batch] of Object.entries(grouped)) {
+        const cypher = `
+      UNWIND $batch AS item
+      MATCH (a {id: item.sourceId}), (b {id: item.targetId})
+      MERGE (a)-[r:${relType} {id: item.edgeId}]->(b)
+      SET r += item.props
+    `;
+        const items = batch.map(e => ({ sourceId: e.sourceId, targetId: e.targetId, edgeId: e.id, props: edgeToProps(e) }));
+        await driver.runWrite(cypher, { batch: items });
     }
 }
 
