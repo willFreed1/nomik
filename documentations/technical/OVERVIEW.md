@@ -27,9 +27,9 @@ graph TD
 The monorepo is divided into the following strictly scoped packages:
 
 ### 1. [CLI](./cli/README.md) (`@genome/cli`)
-The command-line interface for interacting with GENOME.
+Interface en ligne de commande.
 - **Responsibilities**: Command parsing, user feedback, process orchestration.
-- **Key Commands**: `scan`, `status`, `impact`, `init`.
+- **Key Commands**: `scan`, `status`, `impact`, `init`, `watch`, `serve`, `query`.
 
 ### 2. [Core](./core/README.md) (`@genome/core`)
 Shared infrastructure and types.
@@ -47,15 +47,21 @@ The persistence and query layer.
 - **Tech**: Neo4j Driver (Bolt protocol).
 
 ### 5. [MCP Server](./mcp-server/README.md) (`@genome/mcp-server`)
-The AI interface.
-- **Responsibilities**: Exposing graph capabilities to LLMs via Model Context Protocol.
+Interface AI via Model Context Protocol.
+- **Responsibilities**: Exposing graph capabilities to LLMs via MCP.
 - **Resources**: `genome://stats`.
-- **Tools**: `kb_search`, `kb_impact`.
+- **Tools**: `kb_search`, `kb_impact`, `kb_dependency_trace`, `kb_get_context`, `kb_graph_stats`, `kb_find_path`.
 
 ### 6. [Visualization](./viz/README.md) (`@genome/viz`)
-The human interface.
-- **Responsibilities**: Interactive graph exploration dashboard.
-- **Tech**: React, Cytoscape.js.
+Interface humaine.
+- **Responsibilities**: Dashboard interactif d'exploration du graphe.
+- **Tech**: React, Cytoscape.js, TailwindCSS.
+- **Components**: GraphViewer, SearchBar, FilterPanel, NodeDetail, HelpModal.
+
+### 7. Watcher (`@genome/watcher`)
+Surveillance de fichiers pour reindexation incrementale.
+- **Responsibilities**: File system watching, debounce, incremental re-parsing.
+- **Tech**: chokidar, integration avec `@genome/parser` et `@genome/graph`.
 
 
 ## Design Principles

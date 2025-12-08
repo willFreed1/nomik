@@ -111,7 +111,7 @@ pnpm genome scan ./path/to/your/project
 pnpm genome serve
 
 # 6. Open visualization
-# Dashboard at http://localhost:3333
+# Dashboard at http://localhost:3000
 ```
 
 ## Environment Configuration
@@ -163,7 +163,7 @@ export default defineConfig({
 
   // Visualization dashboard
   viz: {
-    port: 3333,
+    port: 3000,
     theme: 'dark',
   },
 });

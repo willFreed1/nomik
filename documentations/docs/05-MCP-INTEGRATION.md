@@ -61,12 +61,12 @@ Or if GENOME is installed globally:
 
 | Tool Name | Description | Example Prompt |
 |---|---|---|
-| `genome_impact_analysis` | What breaks if I change this function/file? | "What's the impact of changing `processPayment()`?" |
-| `genome_dependency_trace` | Full dependency chain for a symbol | "Show me everything that depends on `UserService`" |
-| `genome_search_nodes` | Find nodes by name, type, or pattern | "Find all API route handlers" |
-| `genome_get_context` | Get rich context for a file or function | "Give me context for `auth.middleware.ts`" |
-| `genome_graph_stats` | Codebase health metrics | "Are there any God Objects or dependency cycles?" |
-| `genome_find_path` | Shortest path between two code entities | "How does `LoginButton` connect to `users` DB table?" |
+| `kb_search` | Recherche de noeuds par nom, type ou pattern | "Find all API route handlers" |
+| `kb_impact` | Analyse d'impact : quoi casse si on modifie ce symbole ? | "What's the impact of changing `processPayment()`?" |
+| `kb_dependency_trace` | Chaine de dependances complete entre deux symboles | "Show me everything that depends on `UserService`" |
+| `kb_get_context` | Contexte riche d'un fichier ou fonction (calls, calledBy, imports, contains) | "Give me context for `auth.middleware.ts`" |
+| `kb_graph_stats` | Metriques de sante du graphe (dead code, god objects, counts) | "Are there any God Objects or dependency cycles?" |
+| `kb_find_path` | Plus court chemin entre deux entites du code | "How does `LoginButton` connect to `users` DB table?" |
 
 ### Example: What Cursor Sees
 
@@ -74,12 +74,12 @@ When you ask Cursor: *"What happens if I modify the payment processing function?
 
 **Without GENOME** — Cursor searches files for "payment", finds 47 matches, stuffs them into context, likely misses the cron job dependency.
 
-**With GENOME** — Cursor calls `genome_impact_analysis`:
+**With GENOME** — Cursor calls `kb_impact`:
 
 ```json
 // Tool call from Cursor
 {
-  "tool": "genome_impact_analysis",
+  "tool": "kb_impact",
   "arguments": {
     "symbol": "processPayment",
     "depth": 3

@@ -60,6 +60,11 @@ cd packages/mcp-server
 pnpm dev
 ```
 
+### Or via CLI
+```bash
+pnpm genome serve
+```
+
 ### AI Client Configuration
 Add the following to your AI client's MCP configuration (e.g., Claude Desktop):
 
@@ -72,4 +77,30 @@ Add the following to your AI client's MCP configuration (e.g., Claude Desktop):
     }
   }
 }
+```
+
+---
+
+## Step 6: Watch for Changes (Optional)
+
+Auto-reindex files as you edit them:
+
+```bash
+pnpm genome watch .
+```
+
+Le watcher utilise `chokidar` avec debounce (500ms par defaut) pour re-parser et re-ingerer les fichiers modifies.
+
+---
+
+## Step 7: Query the Graph (Optional)
+
+Execute raw Cypher queries directement depuis le terminal:
+
+```bash
+# Format tableau
+pnpm genome query "MATCH (n:Function) RETURN n.name, n.filePath LIMIT 10"
+
+# Format JSON
+pnpm genome query "MATCH (n)-[r]->(m) RETURN type(r), count(*)" --json
 ```

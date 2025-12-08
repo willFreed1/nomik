@@ -17,6 +17,8 @@ GENOME is an independent sidecar **Knowledge Graph** that gives AI assistants a 
 | 07 | [Graph Schema](documentations/docs/07-GRAPH-SCHEMA.md) | Node types, edge types, Cypher queries, indexes |
 | 08 | [MVP Roadmap](documentations/docs/08-MVP-ROADMAP.md) | 16-week build plan with weekly milestones |
 | 09 | [Go-To-Market](documentations/docs/09-GO-TO-MARKET.md) | Positioning, revenue model, pitch strategy |
+| 10 | [Progress Tracker](documentations/docs/10-PROGRESS-TRACKER.md) | Living MVP progress document with scores |
+| — | [Local Setup](documentations/docs/04-LOCAL-SETUP.md) | Zero-cost local dev setup, Docker, config |
 
 ## 🚀 Quick Start
 
@@ -40,6 +42,16 @@ cd packages/viz && pnpm dev
 # 5. Connect AI (Cursor/Claude)
 # Add packages/mcp-server/dist/index.js to your MCP config
 # (See .cursor/mcp.json or claude_desktop_config.json)
+
+# --- Additional CLI commands ---
+# Watch for file changes and auto-reindex
+pnpm genome watch .
+
+# Execute raw Cypher queries
+pnpm genome query "MATCH (n:Function) RETURN n.name LIMIT 10"
+
+# Start MCP server (for AI integration)
+pnpm genome serve
 ```
 
 ## 💡 Key Decisions
