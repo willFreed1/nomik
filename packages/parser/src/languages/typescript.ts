@@ -24,7 +24,8 @@ const javascriptGrammar: LanguageGrammar = {
     },
 };
 
-export const grammars: Record<SupportedLanguage, LanguageGrammar> = {
+/** Grammaires tree-sitter par langage (markdown n'utilise pas tree-sitter) */
+export const grammars: Partial<Record<SupportedLanguage, LanguageGrammar>> = {
     typescript: typescriptGrammar,
     javascript: javascriptGrammar,
 };

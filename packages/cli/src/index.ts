@@ -6,6 +6,7 @@ import { initCommand } from './commands/init.js';
 import { watchCommand } from './commands/watch.js';
 import { serveCommand } from './commands/serve.js';
 import { queryCommand } from './commands/query.js';
+import { recentCommand } from './commands/recent.js';
 
 const program = new Command();
 
@@ -21,5 +22,6 @@ program.addCommand(impactCommand);
 program.addCommand(watchCommand);
 program.addCommand(serveCommand);
 program.addCommand(queryCommand);
+program.addCommand(recentCommand);
 
 program.parse();

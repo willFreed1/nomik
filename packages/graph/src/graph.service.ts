@@ -3,7 +3,7 @@ import type { GraphNode, GraphEdge } from '@genome/core';
 import { createNeo4jDriver } from './drivers/neo4j.driver.js';
 import type { GraphDriver } from './drivers/driver.interface.js';
 import { upsertNodes, createEdges, clearFileData } from './queries/write.js';
-import { impactAnalysis, findDeadCode, findGodObjects, graphStats, findDependencyChain } from './queries/read.js';
+import { impactAnalysis, findDeadCode, findGodObjects, graphStats, findDependencyChain, recentChanges } from './queries/read.js';
 import { initializeSchema } from './schema/init.js';
 import type { ImpactResult } from './queries/read.js';
 
@@ -17,6 +17,7 @@ export interface GraphService {
     getGodObjects(threshold?: number): Promise<Array<{ name: string; filePath: string; depCount: number }>>;
     getStats(): Promise<{ nodeCount: number; edgeCount: number; fileCount: number; functionCount: number; classCount: number; routeCount: number }>;
     getDependencyChain(from: string, to: string): Promise<string[][]>;
+    getRecentChanges(since: string, limit?: number): Promise<Array<{ name: string; type: string; filePath: string; updatedAt: string; createdAt: string | null }>>;
     healthCheck(): Promise<boolean>;
     executeQuery<T>(query: string, params?: Record<string, any>): Promise<T[]>;
 }
@@ -64,6 +65,10 @@ export function createGraphService(config: GraphConfig): GraphService {
 
         async getDependencyChain(from: string, to: string) {
             return findDependencyChain(driver, from, to);
+        },
+
+        async getRecentChanges(since: string, limit = 50) {
+            return recentChanges(driver, since, limit);
         },
 
         async healthCheck() {

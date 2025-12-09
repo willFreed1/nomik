@@ -76,6 +76,25 @@ genome query "MATCH (n)-[r]->(m) RETURN type(r), count(*)" --json
 - **Arguments** : `<cypher>` — requete Cypher
 - **Options** : `--json` / `-j` — sortie JSON brute
 
+### `genome recent`
+Affiche les noeuds recemment modifies dans le knowledge graph.
+
+```bash
+# Changements des 24 dernieres heures
+genome recent
+
+# Changements depuis une date
+genome recent --since 2026-02-10T00:00:00Z
+
+# Format JSON
+genome recent --json --limit 50
+```
+
+- **Options** :
+  - `--since` / `-s` — date ISO (defaut : 24h ago)
+  - `--limit` / `-l` — nombre max de resultats (defaut : 30)
+  - `--json` / `-j` — sortie JSON brute
+
 ## Architecture
 
 Le CLI utilise `commander` pour le parsing d'arguments et delegue la logique aux services (`@genome/parser`, `@genome/graph`, `@genome/watcher`). Logging structure via `pino`.

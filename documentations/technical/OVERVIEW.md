@@ -29,7 +29,7 @@ The monorepo is divided into the following strictly scoped packages:
 ### 1. [CLI](./cli/README.md) (`@genome/cli`)
 Interface en ligne de commande.
 - **Responsibilities**: Command parsing, user feedback, process orchestration.
-- **Key Commands**: `scan`, `status`, `impact`, `init`, `watch`, `serve`, `query`.
+- **Key Commands**: `scan`, `status`, `impact`, `init`, `watch`, `serve`, `query`, `recent`.
 
 ### 2. [Core](./core/README.md) (`@genome/core`)
 Shared infrastructure and types.

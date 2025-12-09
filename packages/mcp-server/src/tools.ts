@@ -76,6 +76,17 @@ const TOOLS = {
             required: ['from', 'to'],
         },
     },
+    kb_recent_changes: {
+        name: 'kb_recent_changes',
+        description: 'Show nodes that changed recently. Use to answer "what changed today/this week?"',
+        inputSchema: {
+            type: 'object',
+            properties: {
+                since: { type: 'string', description: 'ISO date string (e.g. 2026-02-05T00:00:00Z). Default: 24h ago' },
+                limit: { type: 'number', description: 'Max results', default: 30 },
+            },
+        },
+    },
 };
 
 export async function handleListTools() {
@@ -200,6 +211,13 @@ export async function handleCallTool(graph: GraphService, name: string, args: an
                 return [{ type: 'text', text: JSON.stringify({ error: 'No path found', from, to }) }];
             }
             return [{ type: 'text', text: JSON.stringify({ paths, from, to }, null, 2) }];
+        }
+
+        case 'kb_recent_changes': {
+            const since = args.since ?? new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+            const limit = Number(args.limit) || 30;
+            const changes = await graph.getRecentChanges(since, limit);
+            return [{ type: 'text', text: JSON.stringify(changes, null, 2) }];
         }
 
         default:

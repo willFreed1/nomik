@@ -17,6 +17,7 @@ Serveur Model Context Protocol (MCP) pour GENOME. Expose le knowledge graph aux 
 | `kb_get_context` | Contexte riche d'un fichier ou fonction | `name` (string) |
 | `kb_graph_stats` | Metriques de sante (dead code, god objects, counts) | `includeDeadCode` (bool), `includeGodObjects` (bool), `godObjectThreshold` (number) |
 | `kb_find_path` | Plus court chemin entre deux entites | `from` (string), `to` (string) |
+| `kb_recent_changes` | Noeuds modifies recemment ("quoi a change ?") | `since` (ISO date), `limit` (number) |
 
 ## Configuration
 

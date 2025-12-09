@@ -10,6 +10,7 @@ import { extractImports, importsToEdges } from './extractors/imports';
 import { extractRoutes } from './extractors/routes';
 import { extractExports } from './extractors/exports';
 import { extractCalls } from './extractors/calls';
+import { parseMarkdown } from './extractors/markdown';
 import { createNodeId, createFileHash } from './utils';
 import type { ImportInfo } from './extractors/imports';
 import type { ExportInfo } from './extractors/exports';
@@ -54,6 +55,14 @@ export function createParserEngine(): ParserEngine {
         if (!language) throw new ParseError(`Cannot detect language for: ${filePath}`, filePath);
 
         const content = fs.readFileSync(absolutePath, 'utf-8');
+
+        // Fichiers markdown : parsing sans tree-sitter
+        if (language === 'markdown') {
+            const md = parseMarkdown(absolutePath, content);
+            logger.debug({ filePath: absolutePath, nodes: md.nodes.length, edges: md.edges.length }, 'parsed markdown');
+            return { file: md.file, nodes: md.nodes, edges: md.edges, imports: [], exports: [], calls: [] };
+        }
+
         const hash = createFileHash(content);
 
         const parser = await getParser(language);

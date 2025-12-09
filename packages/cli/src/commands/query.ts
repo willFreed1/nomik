@@ -1,16 +1,21 @@
 import { Command } from 'commander';
-import { loadConfig, getLogger } from '@genome/core';
+import { loadConfigFromEnv, createLogger, setLogger } from '@genome/core';
 import { createGraphService } from '@genome/graph';
 
-/** Commande CLI pour exécuter du Cypher brut */
+/** Commande CLI pour executer du Cypher brut */
 export const queryCommand = new Command('query')
     .description('Execute a raw Cypher query against the knowledge graph')
     .argument('<cypher>', 'Cypher query string')
     .option('-j, --json', 'Output raw JSON')
     .action(async (cypher: string, opts: { json?: boolean }) => {
-        const logger = getLogger();
-        const config = loadConfig();
-        const graph = createGraphService(config.graph);
+        const logger = createLogger({ level: 'info', pretty: true });
+        setLogger(logger);
+        const envConfig = loadConfigFromEnv();
+        if (!envConfig.graph) {
+            logger.error('Graph config missing. Set NEO4J_URI, NEO4J_USER, NEO4J_PASSWORD env vars.');
+            process.exit(1);
+        }
+        const graph = createGraphService(envConfig.graph);
 
         try {
             await graph.connect();
@@ -23,11 +28,10 @@ export const queryCommand = new Command('query')
                     console.log('(no results)');
                     return;
                 }
-                const keys = Object.keys(results[0]);
-                // En-tête
+                const first = results[0]!;
+                const keys = Object.keys(first);
                 console.log(keys.map(k => k.padEnd(30)).join(' | '));
                 console.log(keys.map(() => '-'.repeat(30)).join('-+-'));
-                // Lignes
                 for (const row of results) {
                     console.log(keys.map(k => {
                         const v = row[k];

@@ -5,6 +5,7 @@ export async function upsertNode(driver: GraphDriver, node: GraphNode): Promise<
     const label = nodeTypeToLabel(node.type);
     const cypher = `
     MERGE (n:${label} {id: $id})
+    ON CREATE SET n.createdAt = datetime()
     SET n += $props, n.updatedAt = datetime()
   `;
     await driver.runWrite(cypher, { id: node.id, props: nodeToProps(node) });
@@ -18,6 +19,7 @@ export async function upsertNodes(driver: GraphDriver, nodes: GraphNode[]): Prom
         const cypher = `
       UNWIND $batch AS item
       MERGE (n:${label} {id: item.id})
+      ON CREATE SET n.createdAt = datetime()
       SET n += item.props, n.updatedAt = datetime()
     `;
         const items = batch.map(n => ({ id: n.id, props: nodeToProps(n) }));
@@ -37,6 +39,7 @@ export async function createEdge(driver: GraphDriver, edge: GraphEdge): Promise<
     const cypher = `
     MATCH (a {id: $sourceId}), (b {id: $targetId})
     MERGE (a)-[r:${edge.type} {id: $edgeId}]->(b)
+    ON CREATE SET r.createdAt = datetime()
     SET r += $props
   `;
     await driver.runWrite(cypher, {
@@ -58,6 +61,7 @@ export async function createEdges(driver: GraphDriver, edges: GraphEdge[]): Prom
       UNWIND $batch AS item
       MATCH (a {id: item.sourceId}), (b {id: item.targetId})
       MERGE (a)-[r:${relType} {id: item.edgeId}]->(b)
+      ON CREATE SET r.createdAt = datetime()
       SET r += item.props
     `;
         const items = batch.map(e => ({ sourceId: e.sourceId, targetId: e.targetId, edgeId: e.id, props: edgeToProps(e) }));

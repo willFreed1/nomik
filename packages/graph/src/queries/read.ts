@@ -121,3 +121,25 @@ export async function graphStats(driver: GraphDriver): Promise<{
     );
     return result ?? { nodeCount: 0, edgeCount: 0, fileCount: 0, functionCount: 0, classCount: 0, routeCount: 0 };
 }
+
+/** Noeuds modifies depuis une date donnee */
+export async function recentChanges(
+    driver: GraphDriver,
+    since: string,
+    limit: number = 50,
+): Promise<Array<{ name: string; type: string; filePath: string; updatedAt: string; createdAt: string | null }>> {
+    return driver.runQuery(
+        `
+    MATCH (n)
+    WHERE n.updatedAt >= datetime($since)
+    RETURN COALESCE(n.name, n.path) as name,
+           labels(n)[0] as type,
+           COALESCE(n.filePath, n.path) as filePath,
+           toString(n.updatedAt) as updatedAt,
+           toString(n.createdAt) as createdAt
+    ORDER BY n.updatedAt DESC
+    LIMIT toInteger($limit)
+    `,
+        { since, limit },
+    );
+}
