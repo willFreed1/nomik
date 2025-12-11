@@ -141,13 +141,39 @@ export function createParserEngine(): ParserEngine {
             }
         }
 
-        // Resolution cross-fichier des CALLS apres parsing de tous les fichiers
+        // Resolution cross-fichier : DEPENDS_ON (imports), CALLS, EXTENDS
         const globalFuncMap = new Map<string, string>();
         const globalClassMap = new Map<string, string>();
+        const filePathToId = new Map<string, string>();
         for (const r of results) {
+            filePathToId.set(r.file.path, r.file.id);
             for (const n of r.nodes) {
                 if (n.type === 'function') globalFuncMap.set(n.name, n.id);
                 if (n.type === 'class') globalClassMap.set(n.name, n.id);
+            }
+        }
+
+        // Resolution DEPENDS_ON : File → File via imports relatifs
+        let dependsOnCount = 0;
+        for (const r of results) {
+            for (const imp of r.imports) {
+                if (!imp.source.startsWith('.')) continue;
+                const resolved = resolveImportPath(r.file.path, imp.source, filePathToId);
+                if (resolved) {
+                    const edgeId = `${r.file.id}->depends_on->${resolved}`;
+                    const exists = r.edges.some(e => e.id === edgeId);
+                    if (!exists) {
+                        r.edges.push({
+                            id: edgeId,
+                            type: 'DEPENDS_ON' as const,
+                            sourceId: r.file.id,
+                            targetId: resolved,
+                            confidence: 1.0,
+                            kind: 'import' as const,
+                        });
+                        dependsOnCount++;
+                    }
+                }
             }
         }
 
@@ -197,6 +223,7 @@ export function createParserEngine(): ParserEngine {
                 total: filePaths.length,
                 parsed: results.length,
                 failed,
+                dependsOn: dependsOnCount,
                 crossFileCalls: crossFileCallCount,
                 crossFileExtends: crossFileExtendsCount,
             },
@@ -288,4 +315,32 @@ function resolveImplementsEdges(
         }
     }
     return edges;
+}
+
+/** Resolution d'un import relatif vers l'id du fichier cible */
+function resolveImportPath(
+    importerPath: string,
+    importSource: string,
+    filePathToId: Map<string, string>,
+): string | null {
+    const dir = path.dirname(importerPath);
+    const base = path.resolve(dir, importSource);
+
+    const candidates = [
+        base + '.ts',
+        base + '.tsx',
+        base + '.js',
+        base + '.jsx',
+        base + '/index.ts',
+        base + '/index.tsx',
+        base + '/index.js',
+        base,
+    ];
+
+    for (const candidate of candidates) {
+        const normalized = path.resolve(candidate);
+        const id = filePathToId.get(normalized);
+        if (id) return id;
+    }
+    return null;
 }

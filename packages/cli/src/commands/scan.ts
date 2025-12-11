@@ -1,6 +1,6 @@
 import { Command } from 'commander';
 import { createLogger, loadConfigFromEnv, validateConfig } from '@genome/core';
-import { createParserEngine, discoverFiles } from '@genome/parser';
+import { createParserEngine, discoverFiles, getGitInfo } from '@genome/parser';
 import { createGraphService } from '@genome/graph';
 
 export const scanCommand = new Command('scan')
@@ -19,7 +19,8 @@ export const scanCommand = new Command('scan')
             },
         });
 
-        logger.info({ path: targetPath }, 'GENOME — Scanning target');
+        const gitInfo = getGitInfo();
+        logger.info({ path: targetPath, gitSha: gitInfo?.shortSha ?? 'n/a' }, 'GENOME — Scanning target');
 
         const files = await discoverFiles(config.target);
         logger.info({ count: files.length }, 'Files discovered');
@@ -48,6 +49,28 @@ export const scanCommand = new Command('scan')
 
             for (const result of results) {
                 await graph.ingestFileData(result.nodes, result.edges, result.file.path);
+            }
+
+            // Stocker les metadonnees du scan (git SHA, timestamp)
+            if (gitInfo) {
+                await graph.executeQuery(
+                    `MERGE (s:ScanMeta {sha: $sha})
+                     ON CREATE SET s.createdAt = datetime()
+                     SET s.shortSha = $shortSha, s.message = $message, s.author = $author,
+                         s.gitDate = $gitDate, s.scannedAt = datetime(),
+                         s.fileCount = $fileCount, s.nodeCount = $nodeCount, s.edgeCount = $edgeCount`,
+                    {
+                        sha: gitInfo.sha,
+                        shortSha: gitInfo.shortSha,
+                        message: gitInfo.message,
+                        author: gitInfo.author,
+                        gitDate: gitInfo.date,
+                        fileCount: results.length,
+                        nodeCount: results.reduce((s, r) => s + r.nodes.length, 0),
+                        edgeCount: results.reduce((s, r) => s + r.edges.length, 0),
+                    },
+                );
+                logger.info({ gitSha: gitInfo.shortSha, message: gitInfo.message }, 'scan tagged with git commit');
             }
 
             const stats = await graph.getStats();

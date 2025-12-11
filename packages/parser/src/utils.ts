@@ -1,4 +1,5 @@
 import { createHash } from 'node:crypto';
+import { execSync } from 'node:child_process';
 
 export function createNodeId(type: string, filePath: string, name: string): string {
     const raw = `${type}:${filePath}:${name}`;
@@ -7,4 +8,27 @@ export function createNodeId(type: string, filePath: string, name: string): stri
 
 export function createFileHash(content: string): string {
     return createHash('sha256').update(content).digest('hex');
+}
+
+/** Retourne le SHA court du commit git courant (ou null si pas un repo git) */
+export function getGitSha(): string | null {
+    try {
+        return execSync('git rev-parse --short HEAD', { encoding: 'utf-8', stdio: ['pipe', 'pipe', 'pipe'] }).trim();
+    } catch {
+        return null;
+    }
+}
+
+/** Retourne le SHA complet + info du commit courant */
+export function getGitInfo(): { sha: string; shortSha: string; message: string; author: string; date: string } | null {
+    try {
+        const sha = execSync('git rev-parse HEAD', { encoding: 'utf-8', stdio: ['pipe', 'pipe', 'pipe'] }).trim();
+        const shortSha = sha.substring(0, 7);
+        const message = execSync('git log -1 --format=%s', { encoding: 'utf-8', stdio: ['pipe', 'pipe', 'pipe'] }).trim();
+        const author = execSync('git log -1 --format=%an', { encoding: 'utf-8', stdio: ['pipe', 'pipe', 'pipe'] }).trim();
+        const date = execSync('git log -1 --format=%aI', { encoding: 'utf-8', stdio: ['pipe', 'pipe', 'pipe'] }).trim();
+        return { sha, shortSha, message, author, date };
+    } catch {
+        return null;
+    }
 }
