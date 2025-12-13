@@ -12,11 +12,11 @@ export async function fetchGraphData() {
     const session = driver.session();
     try {
         console.log('Connecting to Neo4j...');
-        // Fetch nodes and relationships, ensuring we get a valid subgraph
+        // Recupere le graphe complet sans node_modules ni metadonnees
         const result = await session.run(`
       MATCH (n)-[r]->(m)
+      WHERE NOT n:ScanMeta AND NOT m:ScanMeta
       RETURN n, r, m
-      LIMIT 1000
     `);
         console.log('Query executed. Records:', result.records.length);
 

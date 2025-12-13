@@ -93,6 +93,17 @@ export const graphStyles: any[] = [
             'width': 1.5,
         }
     },
+    // DEPENDS_ON : edges sky dashed (imports entre fichiers)
+    {
+        selector: 'edge[label="DEPENDS_ON"]',
+        style: {
+            'line-color': '#38bdf8',
+            'target-arrow-color': '#38bdf8',
+            'line-style': 'dashed',
+            'opacity': 0.6,
+            'width': 2,
+        }
+    },
     // Selection
     {
         selector: 'node:selected',

@@ -30,9 +30,19 @@ export function createWatcher(
 
     const pendingFiles = new Map<string, NodeJS.Timeout>();
 
+    /** Exclut les chemins node_modules, dist, .git, docker meme si les symlinks passent le glob chokidar */
+    function isExcludedPath(filePath: string): boolean {
+        const normalized = filePath.replace(/\\/g, '/');
+        return /\bnode_modules\b/.test(normalized)
+            || /\bdist\b/.test(normalized)
+            || /\b\.git\b/.test(normalized)
+            || /\bdocker\b/.test(normalized);
+    }
+
     /** Re-parse et re-ingere un fichier modifie */
     async function handleFileChange(filePath: string): Promise<void> {
         const abs = path.resolve(filePath);
+        if (isExcludedPath(abs)) return;
         if (!isSupportedFile(abs)) return;
 
         try {

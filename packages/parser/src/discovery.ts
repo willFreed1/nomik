@@ -4,6 +4,9 @@ import { glob } from 'glob';
 import type { TargetConfig } from '@genome/core';
 import { isSupportedFile } from './languages/index';
 
+/** Chemins a exclure meme si le glob les laisse passer (symlinks pnpm) */
+const HARD_EXCLUDE = /[\\/](node_modules|dist|\.git|docker)[\\/]/;
+
 export async function discoverFiles(config: TargetConfig): Promise<string[]> {
     const root = path.resolve(config.root);
 
@@ -16,7 +19,11 @@ export async function discoverFiles(config: TargetConfig): Promise<string[]> {
         ignore: config.exclude,
         absolute: true,
         nodir: true,
+        follow: false,
     });
 
-    return files.filter(isSupportedFile).sort();
+    return files
+        .filter(f => !HARD_EXCLUDE.test(f))
+        .filter(isSupportedFile)
+        .sort();
 }

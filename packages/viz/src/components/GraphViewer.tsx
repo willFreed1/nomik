@@ -48,13 +48,15 @@ export function GraphViewer() {
 
         setSelectedNode(node);
 
-        // Impact overlay : highlight des appels
+        // Impact overlay : highlight des appels et dependances
         const callees = node.outgoers('edge[label="CALLS"]');
         const callers = node.incomers('edge[label="CALLS"]');
         const containsEdges = node.outgoers('edge[label="CONTAINS"]');
         const containedEdges = node.incomers('edge[label="CONTAINS"]');
+        const dependsOut = node.outgoers('edge[label="DEPENDS_ON"]');
+        const dependsIn = node.incomers('edge[label="DEPENDS_ON"]');
 
-        const impactedEdges = callees.union(callers).union(containsEdges).union(containedEdges);
+        const impactedEdges = callees.union(callers).union(containsEdges).union(containedEdges).union(dependsOut).union(dependsIn);
         // Fade tout, puis highlight les impactes
         cy.elements().addClass('faded');
         node.removeClass('faded').addClass('impact-source');
@@ -63,6 +65,8 @@ export function GraphViewer() {
         impactedEdges.removeClass('faded').addClass('impact-edge');
         containsEdges.targets().removeClass('faded');
         containedEdges.sources().removeClass('faded');
+        dependsOut.targets().removeClass('faded').addClass('impact-callee');
+        dependsIn.sources().removeClass('faded').addClass('impact-caller');
     }, []);
 
     /** Nettoyage au clic sur le fond */
@@ -106,6 +110,7 @@ export function GraphViewer() {
                     <span className="text-slate-600">|</span>
                     <span className="flex items-center gap-1"><span className="w-3 h-0.5 bg-slate-500 inline-block" /> CONTAINS</span>
                     <span className="flex items-center gap-1"><span className="w-3 h-0.5 bg-amber-500 inline-block" /> CALLS</span>
+                    <span className="flex items-center gap-1"><span className="w-3 h-0.5 bg-sky-400 inline-block" style={{ borderTop: '1px dashed #38bdf8' }} /> DEPENDS_ON</span>
                 </div>
 
                 <CytoscapeComponent

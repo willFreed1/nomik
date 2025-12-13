@@ -11,6 +11,7 @@ interface FilterState {
     Class: boolean;
     CONTAINS: boolean;
     CALLS: boolean;
+    DEPENDS_ON: boolean;
 }
 
 const LABEL_COLORS: Record<string, string> = {
@@ -19,6 +20,7 @@ const LABEL_COLORS: Record<string, string> = {
     Class: '#a855f7',
     CONTAINS: '#334155',
     CALLS: '#f59e0b',
+    DEPENDS_ON: '#38bdf8',
 };
 
 /** Panneau de filtres pour masquer/afficher les types de noeuds et edges */
@@ -29,6 +31,7 @@ export function FilterPanel({ cy }: FilterPanelProps) {
         Class: true,
         CONTAINS: true,
         CALLS: true,
+        DEPENDS_ON: true,
     });
     const [counts, setCounts] = useState<Record<string, number>>({});
 
@@ -38,7 +41,7 @@ export function FilterPanel({ cy }: FilterPanelProps) {
         ['File', 'Function', 'Class'].forEach((label) => {
             c[label] = cy.nodes(`[label="${label}"]`).length;
         });
-        ['CONTAINS', 'CALLS'].forEach((type) => {
+        ['CONTAINS', 'CALLS', 'DEPENDS_ON'].forEach((type) => {
             c[type] = cy.edges(`[label="${type}"]`).length;
         });
         setCounts(c);
