@@ -8,6 +8,7 @@ import { SearchBar } from './SearchBar';
 import { FilterPanel } from './FilterPanel';
 import { NodeDetail } from './NodeDetail';
 import { HelpButton } from './HelpModal';
+import { LayoutSelector } from './LayoutSelector';
 
 /** Composant principal du visualiseur de graphe */
 export function GraphViewer() {
@@ -92,6 +93,7 @@ export function GraphViewer() {
                 <div className="flex items-center gap-2">
                     <SearchBar cy={cyRef.current} />
                     <HelpButton />
+                    <LayoutSelector cy={cyRef.current} />
                 </div>
                 <FilterPanel cy={cyRef.current} />
             </div>

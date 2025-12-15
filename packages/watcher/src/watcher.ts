@@ -33,10 +33,10 @@ export function createWatcher(
     /** Exclut les chemins node_modules, dist, .git, docker meme si les symlinks passent le glob chokidar */
     function isExcludedPath(filePath: string): boolean {
         const normalized = filePath.replace(/\\/g, '/');
-        return /\bnode_modules\b/.test(normalized)
-            || /\bdist\b/.test(normalized)
-            || /\b\.git\b/.test(normalized)
-            || /\bdocker\b/.test(normalized);
+        return /\/node_modules\//.test(normalized)
+            || /\/dist\//.test(normalized)
+            || /\/\.git\//.test(normalized)
+            || /\/docker\//.test(normalized);
     }
 
     /** Re-parse et re-ingere un fichier modifie */
