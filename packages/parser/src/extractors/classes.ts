@@ -2,6 +2,7 @@ import type Parser from 'tree-sitter';
 import type { ClassNode } from '@genome/core';
 import { createNodeId } from '../utils';
 
+/** Extrait les classes, interfaces, types et enums comme noeuds Class */
 export function extractClasses(tree: Parser.Tree, filePath: string): ClassNode[] {
     const results: ClassNode[] = [];
     const cursor = tree.walk();
@@ -12,6 +13,15 @@ export function extractClasses(tree: Parser.Tree, filePath: string): ClassNode[]
         if (node.type === 'class_declaration' || node.type === 'abstract_class_declaration') {
             const cls = buildClassNode(node, filePath);
             if (cls) results.push(cls);
+        } else if (node.type === 'interface_declaration') {
+            const iface = buildInterfaceNode(node, filePath);
+            if (iface) results.push(iface);
+        } else if (node.type === 'type_alias_declaration') {
+            const alias = buildTypeAliasNode(node, filePath);
+            if (alias) results.push(alias);
+        } else if (node.type === 'enum_declaration') {
+            const en = buildEnumNode(node, filePath);
+            if (en) results.push(en);
         }
 
         if (cursor.gotoFirstChild()) {
@@ -51,6 +61,97 @@ function buildClassNode(node: Parser.SyntaxNode, filePath: string): ClassNode | 
         decorators,
         methods,
         properties,
+    };
+}
+
+/** Construit un noeud Class a partir d'une interface TS */
+function buildInterfaceNode(node: Parser.SyntaxNode, filePath: string): ClassNode | null {
+    const nameNode = node.childForFieldName('name');
+    if (!nameNode) return null;
+    const name = nameNode.text;
+    const isExported = node.parent?.type === 'export_statement';
+
+    const extendsClause = findChild(node, 'extends_type_clause');
+    const superClass = extendsClause?.namedChildren[0]?.text;
+
+    const body = node.childForFieldName('body');
+    const methods = body ? body.namedChildren
+        .filter(c => c.type === 'method_signature')
+        .map(c => c.childForFieldName('name')?.text)
+        .filter((n): n is string => n !== undefined) : [];
+    const properties = body ? body.namedChildren
+        .filter(c => c.type === 'property_signature')
+        .map(c => c.childForFieldName('name')?.text)
+        .filter((n): n is string => n !== undefined) : [];
+
+    return {
+        id: createNodeId('class', filePath, name),
+        type: 'class',
+        name,
+        filePath,
+        startLine: node.startPosition.row + 1,
+        endLine: node.endPosition.row + 1,
+        isExported,
+        isAbstract: false,
+        superClass,
+        interfaces: [],
+        decorators: [],
+        methods,
+        properties,
+    };
+}
+
+/** Construit un noeud Class a partir d'un type alias TS */
+function buildTypeAliasNode(node: Parser.SyntaxNode, filePath: string): ClassNode | null {
+    const nameNode = node.childForFieldName('name');
+    if (!nameNode) return null;
+    const name = nameNode.text;
+    const isExported = node.parent?.type === 'export_statement';
+
+    return {
+        id: createNodeId('class', filePath, name),
+        type: 'class',
+        name,
+        filePath,
+        startLine: node.startPosition.row + 1,
+        endLine: node.endPosition.row + 1,
+        isExported,
+        isAbstract: false,
+        superClass: undefined,
+        interfaces: [],
+        decorators: [],
+        methods: [],
+        properties: [],
+    };
+}
+
+/** Construit un noeud Class a partir d'un enum TS */
+function buildEnumNode(node: Parser.SyntaxNode, filePath: string): ClassNode | null {
+    const nameNode = node.childForFieldName('name');
+    if (!nameNode) return null;
+    const name = nameNode.text;
+    const isExported = node.parent?.type === 'export_statement';
+
+    const body = node.childForFieldName('body');
+    const members = body ? body.namedChildren
+        .filter(c => c.type === 'enum_assignment' || c.type === 'property_identifier')
+        .map(c => c.childForFieldName('name')?.text ?? c.text)
+        .filter((n): n is string => n !== undefined) : [];
+
+    return {
+        id: createNodeId('class', filePath, name),
+        type: 'class',
+        name,
+        filePath,
+        startLine: node.startPosition.row + 1,
+        endLine: node.endPosition.row + 1,
+        isExported,
+        isAbstract: false,
+        superClass: undefined,
+        interfaces: [],
+        decorators: [],
+        methods: [],
+        properties: members,
     };
 }
 
