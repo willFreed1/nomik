@@ -2,6 +2,30 @@ import neo4j, { type Driver, type Session } from 'neo4j-driver';
 import { type GraphConfig, GraphConnectionError, getLogger } from '@genome/core';
 import type { GraphDriver } from './driver.interface.js';
 
+const MAX_RETRIES = 3;
+const RETRY_BASE_MS = 500;
+
+/** Retry avec backoff exponentiel pour les erreurs transientes Neo4j */
+async function withRetry<T>(fn: () => Promise<T>, label: string, logger: ReturnType<typeof getLogger>): Promise<T> {
+    let lastError: Error | undefined;
+    for (let attempt = 0; attempt < MAX_RETRIES; attempt++) {
+        try {
+            return await fn();
+        } catch (err) {
+            lastError = err instanceof Error ? err : new Error(String(err));
+            const isTransient = lastError.message.includes('connection')
+                || lastError.message.includes('timeout')
+                || lastError.message.includes('UNAVAILABLE')
+                || lastError.message.includes('ServiceUnavailable');
+            if (!isTransient || attempt === MAX_RETRIES - 1) throw lastError;
+            const delay = RETRY_BASE_MS * Math.pow(2, attempt);
+            logger.warn({ attempt: attempt + 1, delay, label, error: lastError.message }, 'neo4j retry');
+            await new Promise(r => setTimeout(r, delay));
+        }
+    }
+    throw lastError;
+}
+
 export function createNeo4jDriver(config: GraphConfig): GraphDriver {
     const logger = getLogger();
     let driver: Driver | null = null;
@@ -49,25 +73,29 @@ export function createNeo4jDriver(config: GraphConfig): GraphDriver {
         cypher: string,
         params: Record<string, unknown> = {},
     ): Promise<T[]> {
-        const session = getSession();
-        try {
-            const result = await session.run(cypher, params);
-            return result.records.map((r) => r.toObject() as T);
-        } finally {
-            await session.close();
-        }
+        return withRetry(async () => {
+            const session = getSession();
+            try {
+                const result = await session.run(cypher, params);
+                return result.records.map((r) => r.toObject() as T);
+            } finally {
+                await session.close();
+            }
+        }, 'runQuery', logger);
     }
 
     async function runWrite(
         cypher: string,
         params: Record<string, unknown> = {},
     ): Promise<void> {
-        const session = getSession();
-        try {
-            await session.executeWrite((tx) => tx.run(cypher, params));
-        } finally {
-            await session.close();
-        }
+        return withRetry(async () => {
+            const session = getSession();
+            try {
+                await session.executeWrite((tx) => tx.run(cypher, params));
+            } finally {
+                await session.close();
+            }
+        }, 'runWrite', logger);
     }
 
     async function healthCheck(): Promise<boolean> {

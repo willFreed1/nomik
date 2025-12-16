@@ -5,6 +5,7 @@ import type { GraphDriver } from './drivers/driver.interface.js';
 import { upsertNodes, createEdges, clearFileData } from './queries/write.js';
 import { impactAnalysis, findDeadCode, findGodObjects, graphStats, findDependencyChain, recentChanges } from './queries/read.js';
 import { initializeSchema } from './schema/init.js';
+import { QueryCache } from './cache.js';
 import type { ImpactResult } from './queries/read.js';
 
 export interface GraphService {
@@ -22,9 +23,23 @@ export interface GraphService {
     executeQuery<T>(query: string, params?: Record<string, any>): Promise<T[]>;
 }
 
+/** Cree un service graph avec cache TTL sur les lectures */
 export function createGraphService(config: GraphConfig): GraphService {
     const logger = getLogger();
     const driver: GraphDriver = createNeo4jDriver(config);
+    const cache = new QueryCache(30_000, 200);
+
+    /** Helper cache : retourne le cache si dispo, sinon execute et stocke */
+    async function cached<T>(key: string, fn: () => Promise<T>): Promise<T> {
+        const hit = cache.get<T>(key);
+        if (hit !== undefined) {
+            logger.debug({ cacheKey: key }, 'cache hit');
+            return hit;
+        }
+        const result = await fn();
+        cache.set(key, result);
+        return result;
+    }
 
     return {
         async connect() {
@@ -44,31 +59,33 @@ export function createGraphService(config: GraphConfig): GraphService {
             await clearFileData(driver, filePath);
             await upsertNodes(driver, nodes);
             await createEdges(driver, edges);
+            // Invalide le cache apres une ecriture
+            cache.invalidateAll();
             logger.debug({ filePath, nodes: nodes.length, edges: edges.length }, 'ingested file data');
         },
 
         async getImpact(symbolName: string, depth = 5) {
-            return impactAnalysis(driver, symbolName, depth);
+            return cached(`impact:${symbolName}:${depth}`, () => impactAnalysis(driver, symbolName, depth));
         },
 
         async getDeadCode() {
-            return findDeadCode(driver);
+            return cached('deadCode', () => findDeadCode(driver));
         },
 
         async getGodObjects(threshold = 10) {
-            return findGodObjects(driver, threshold);
+            return cached(`godObjects:${threshold}`, () => findGodObjects(driver, threshold));
         },
 
         async getStats() {
-            return graphStats(driver);
+            return cached('stats', () => graphStats(driver));
         },
 
         async getDependencyChain(from: string, to: string) {
-            return findDependencyChain(driver, from, to);
+            return cached(`depChain:${from}:${to}`, () => findDependencyChain(driver, from, to));
         },
 
         async getRecentChanges(since: string, limit = 50) {
-            return recentChanges(driver, since, limit);
+            return cached(`recent:${since}:${limit}`, () => recentChanges(driver, since, limit));
         },
 
         async healthCheck() {

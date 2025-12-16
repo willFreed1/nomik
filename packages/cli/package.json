@@ -1,29 +1,63 @@
 {
-    "name": "@genome/cli",
+    "name": "@genome-ai/cli",
     "version": "0.1.0",
-    "private": true,
+    "description": "GENOME — AI-native code intelligence graph CLI. Scan, watch, query your codebase knowledge graph.",
     "type": "module",
     "main": "./dist/index.js",
     "bin": {
         "genome": "./dist/index.js"
+    },
+    "files": [
+        "dist"
+    ],
+    "keywords": [
+        "code-intelligence",
+        "knowledge-graph",
+        "neo4j",
+        "ast",
+        "parser",
+        "codebase-analysis",
+        "ai",
+        "mcp",
+        "tree-sitter"
+    ],
+    "author": "willFreed1",
+    "license": "MIT",
+    "repository": {
+        "type": "git",
+        "url": "https://github.com/willFreed1/GENOME",
+        "directory": "packages/cli"
+    },
+    "engines": {
+        "node": ">=20.0.0"
     },
     "scripts": {
         "build": "tsup",
         "dev": "tsup src/index.ts --format esm --watch",
         "typecheck": "tsc --noEmit",
         "test": "vitest run",
-        "clean": "node -e \"require('fs').rmSync('dist',{recursive:true,force:true})\""
+        "clean": "node -e \"require('fs').rmSync('dist',{recursive:true,force:true})\"",
+        "prepublishOnly": "pnpm run build"
     },
     "dependencies": {
+        "commander": "^13.1.0",
+        "chalk": "^5.4.0",
+        "ora": "^8.1.0",
+        "neo4j-driver": "^5.12.0",
+        "tree-sitter": "^0.22.0",
+        "tree-sitter-typescript": "^0.23.0",
+        "tree-sitter-javascript": "^0.23.0",
+        "pino": "^9.0.0",
+        "pino-pretty": "^13.0.0",
+        "chokidar": "^4.0.0",
+        "glob": "^11.0.0",
+        "zod": "^3.22.0"
+    },
+    "devDependencies": {
         "@genome/core": "workspace:*",
         "@genome/parser": "workspace:*",
         "@genome/graph": "workspace:*",
         "@genome/watcher": "workspace:*",
-        "commander": "^13.1.0",
-        "chalk": "^5.4.0",
-        "ora": "^8.1.0"
-    },
-    "devDependencies": {
         "tsup": "^8.0.0",
         "typescript": "^5.7.0"
     }
