@@ -7,6 +7,7 @@ import { watchCommand } from './commands/watch.js';
 import { serveCommand } from './commands/serve.js';
 import { queryCommand } from './commands/query.js';
 import { recentCommand } from './commands/recent.js';
+import { setupCursorCommand } from './commands/setup-cursor.js';
 
 const program = new Command();
 
@@ -23,5 +24,6 @@ program.addCommand(watchCommand);
 program.addCommand(serveCommand);
 program.addCommand(queryCommand);
 program.addCommand(recentCommand);
+program.addCommand(setupCursorCommand);
 
 program.parse();

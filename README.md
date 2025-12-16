@@ -1,70 +1,128 @@
-# 🧬 GENOME — The Autonomous Knowledge Supervisor
+# GENOME — The Autonomous Knowledge Supervisor
 
-> **"The Operating System for AI-Assisted Engineering"**
+> **AI-native code intelligence graph. Scan once, query everything.**
 
-GENOME is an independent sidecar **Knowledge Graph** that gives AI assistants a persistent, semantic understanding of your codebase. Instead of dumping files into a prompt, the AI queries a graph to retrieve only the precise nodes it needs.
+GENOME builds a persistent **Knowledge Graph** of your codebase (functions, classes, interfaces, imports, call chains) in Neo4j, then exposes it to AI assistants via **MCP** (Model Context Protocol). Instead of dumping files into a prompt, the AI queries a graph to retrieve exactly what it needs.
 
-## 📖 Documentation
-
-| # | Document | Description |
-|---|---|---|
-| 01 | [Vision](documentations/docs/01-VISION.md) | Problem statement, core concepts, value proposition |
-| 02 | [Technology Stack](documentations/docs/02-TECHNOLOGY-STACK.md) | Why TypeScript — comparison with Python, Go, Rust |
-| 03 | [Architecture](documentations/docs/03-ARCHITECTURE.md) | System diagram, monorepo structure, module boundaries |
-| 04 | [Running Guide](documentations/docs/04-RUNNING_GUIDE.md) | Step-by-step: Docker, Scan, Viz, MCP |
-| 05 | [MCP Integration](documentations/docs/05-MCP-INTEGRATION.md) | How Cursor AI, Claude Desktop connect to GENOME |
-| 06 | [Security](documentations/docs/06-SECURITY.md) | Threat model, injection prevention, network isolation |
-| 07 | [Graph Schema](documentations/docs/07-GRAPH-SCHEMA.md) | Node types, edge types, Cypher queries, indexes |
-| 08 | [MVP Roadmap](documentations/docs/08-MVP-ROADMAP.md) | 16-week build plan with weekly milestones |
-| 09 | [Go-To-Market](documentations/docs/09-GO-TO-MARKET.md) | Positioning, revenue model, pitch strategy |
-| 10 | [Progress Tracker](documentations/docs/10-PROGRESS-TRACKER.md) | Living MVP progress document with scores |
-| — | [Local Setup](documentations/docs/04-LOCAL-SETUP.md) | Zero-cost local dev setup, Docker, config |
-
-## 🚀 Quick Start
+## Quick Start (2 minutes)
 
 ```bash
-# Prerequisites: Node.js 20+, pnpm 9+, Docker
+# Prerequisites: Node.js 20+, Docker
 
-# 1. Clone & install
-git clone <repo> genome && cd genome
-pnpm install
-pnpm build
+# 1. Install
+npm install -g @genome-ai/cli
 
-# 2. Start graph database
-docker compose up -d
+# 2. Initialize (creates config + starts Neo4j)
+cd your-project/
+genome init
 
-# 3. Scan your project (populates the knowledge graph)
-pnpm genome scan .
+# 3. Scan your codebase
+genome scan .
 
-# 4. Start Visualization Dashboard (http://localhost:3000)
-cd packages/viz && pnpm dev
+# 4. Connect to Cursor AI
+genome setup-cursor
 
-# 5. Connect AI (Cursor/Claude)
-# Add packages/mcp-server/dist/index.js to your MCP config
-# (See .cursor/mcp.json or claude_desktop_config.json)
-
-# --- Additional CLI commands ---
-# Watch for file changes and auto-reindex
-pnpm genome watch .
-
-# Execute raw Cypher queries
-pnpm genome query "MATCH (n:Function) RETURN n.name LIMIT 10"
-
-# Start MCP server (for AI integration)
-pnpm genome serve
+# 5. (Optional) Live graph updates
+genome watch .
 ```
 
-## 💡 Key Decisions
+**That's it.** Restart Cursor and the AI now has full graph-powered context of your codebase.
 
-| Decision | Choice | Rationale |
+## What Can the AI Do With GENOME?
+
+Once connected, Cursor AI gets these tools automatically:
+
+| Tool | What it does | Example prompt |
 |---|---|---|
-| Language | **TypeScript** | MCP reference SDK, single-language stack, type-safe graph schema |
-| Graph DB | **Neo4j Community** (free) | Industry standard, Cypher, APOC, visual browser |
-| Parser | **Tree-sitter** | Battle-tested, multi-language, incremental parsing |
-| Protocol | **MCP (stdio)** | Direct Cursor/Claude integration, Anthropic-backed standard |
-| Monorepo | **Turborepo + pnpm** | Fast builds, workspace isolation, caching |
-| Viz | **Cytoscape.js + React** | Force-directed layouts, rich interaction, React integration |
+| `kb_search` | Find nodes by name/path | "Find all auth-related functions" |
+| `kb_impact` | Impact analysis | "What breaks if I change `parseFile`?" |
+| `kb_get_context` | Full context for a symbol | "Show me everything about `GraphService`" |
+| `kb_graph_stats` | Codebase health metrics | "Any dead code or god objects?" |
+| `kb_find_path` | Shortest path between symbols | "How does `scanCommand` connect to `neo4j`?" |
+| `kb_recent_changes` | Recently modified nodes | "What changed in the last hour?" |
 
-## 📜 License
+## CLI Commands
+
+```bash
+genome init                    # Setup config + Neo4j Docker
+genome scan <path>             # Parse & index codebase into graph
+genome watch [path]            # Live file watcher, auto-reindex
+genome status                  # Graph health & stats
+genome impact <symbol>         # Impact analysis for a symbol
+genome query "<cypher>"        # Raw Cypher query
+genome recent                  # Recently changed nodes
+genome setup-cursor            # Auto-configure Cursor MCP
+genome serve                   # Start MCP server + viz dashboard
+```
+
+## 3D Visualization
+
+GENOME includes a **3D interactive graph** (Three.js) with rotating neural-network style visualization:
+
+- **Cyan** = Files, **Green** = Functions, **Purple** = Classes/Interfaces
+- **Amber lines** = CALLS (animated particles), **Blue dashed** = DEPENDS_ON
+- Click any node to zoom + inspect, toggle between 3D/2D modes
+
+```bash
+# Start the dashboard
+cd packages/viz && pnpm dev
+# Open http://localhost:3000
+```
+
+## Architecture
+
+```
+@genome/core        - Types, config (Zod), errors, logger (Pino)
+@genome/parser      - Tree-sitter extraction (TS/JS/MD), file discovery
+@genome/graph       - Neo4j driver, read/write queries, cache, retry
+@genome/watcher     - Chokidar file watcher, incremental reindex
+@genome/mcp-server  - MCP protocol server (stdio), 6 AI tools
+@genome/viz         - React + 3d-force-graph + Cytoscape.js dashboard
+@genome-ai/cli      - Commander CLI, all commands, standalone bundle
+```
+
+## Tech Stack
+
+| Component | Technology |
+|---|---|
+| Language | TypeScript (ESM) |
+| Graph DB | Neo4j 5 Community + APOC |
+| Parser | Tree-sitter |
+| AI Protocol | MCP (Model Context Protocol) |
+| Monorepo | Turborepo + pnpm |
+| 3D Viz | Three.js (3d-force-graph) |
+| 2D Viz | Cytoscape.js |
+| Tests | Vitest (59 tests) |
+
+## Development (contributors)
+
+```bash
+# Clone & setup
+git clone https://github.com/willFreed1/GENOME.git
+cd GENOME
+pnpm install
+docker compose up -d
+pnpm build
+
+# Run all tests
+pnpm test
+
+# Dev mode (watch)
+pnpm genome scan .
+pnpm genome watch .
+```
+
+## Documentation
+
+| Doc | Description |
+|---|---|
+| [Vision](documentations/docs/01-VISION.md) | Problem statement, core concepts |
+| [Architecture](documentations/docs/03-ARCHITECTURE.md) | System diagram, module boundaries |
+| [Running Guide](documentations/docs/04-RUNNING_GUIDE.md) | Step-by-step local setup |
+| [MCP Integration](documentations/docs/05-MCP-INTEGRATION.md) | Cursor/Claude connection |
+| [Graph Schema](documentations/docs/07-GRAPH-SCHEMA.md) | Node/edge types, Cypher examples |
+| [Progress Tracker](documentations/docs/10-PROGRESS-TRACKER.md) | Living MVP progress (97%) |
+
+## License
 
 MIT
