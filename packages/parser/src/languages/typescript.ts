@@ -24,8 +24,28 @@ const javascriptGrammar: LanguageGrammar = {
     },
 };
 
+const pythonGrammar: LanguageGrammar = {
+    language: 'python',
+    extensions: ['.py', '.pyw'],
+    async load() {
+        const { default: Python } = await import('tree-sitter-python');
+        return Python;
+    },
+};
+
+const rustGrammar: LanguageGrammar = {
+    language: 'rust',
+    extensions: ['.rs'],
+    async load() {
+        const { default: Rust } = await import('tree-sitter-rust');
+        return Rust;
+    },
+};
+
 /** Grammaires tree-sitter par langage (markdown n'utilise pas tree-sitter) */
 export const grammars: Partial<Record<SupportedLanguage, LanguageGrammar>> = {
     typescript: typescriptGrammar,
     javascript: javascriptGrammar,
+    python: pythonGrammar,
+    rust: rustGrammar,
 };

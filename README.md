@@ -73,7 +73,7 @@ cd packages/viz && pnpm dev
 
 ```
 @genome/core        - Types, config (Zod), errors, logger (Pino)
-@genome/parser      - Tree-sitter extraction (TS/JS/MD), file discovery
+@genome/parser      - Tree-sitter extraction (TS/JS/Python/Rust/MD), file discovery
 @genome/graph       - Neo4j driver, read/write queries, cache, retry
 @genome/watcher     - Chokidar file watcher, incremental reindex
 @genome/mcp-server  - MCP protocol server (stdio), 6 AI tools
@@ -86,13 +86,14 @@ cd packages/viz && pnpm dev
 | Component | Technology |
 |---|---|
 | Language | TypeScript (ESM) |
+| Supported Languages | TypeScript, JavaScript, Python, Rust, Markdown |
 | Graph DB | Neo4j 5 Community + APOC |
-| Parser | Tree-sitter |
+| Parser | Tree-sitter (multi-lang) |
 | AI Protocol | MCP (Model Context Protocol) |
 | Monorepo | Turborepo + pnpm |
 | 3D Viz | Three.js (3d-force-graph) |
 | 2D Viz | Cytoscape.js |
-| Tests | Vitest (59 tests) |
+| Tests | Vitest (75+ tests) |
 
 ## Development (contributors)
 

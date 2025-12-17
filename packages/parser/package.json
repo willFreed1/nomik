@@ -20,10 +20,12 @@
     },
     "dependencies": {
         "@genome/core": "workspace:*",
+        "glob": "^11.0.0",
         "tree-sitter": "^0.22.4",
-        "tree-sitter-typescript": "^0.23.2",
         "tree-sitter-javascript": "^0.23.1",
-        "glob": "^11.0.0"
+        "tree-sitter-python": "0.21.0",
+        "tree-sitter-rust": "0.21.0",
+        "tree-sitter-typescript": "^0.23.2"
     },
     "devDependencies": {
         "tsup": "^8.0.0",

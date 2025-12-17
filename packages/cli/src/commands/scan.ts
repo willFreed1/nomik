@@ -14,8 +14,8 @@ export const scanCommand = new Command('scan')
             ...envConfig,
             target: {
                 root: targetPath,
-                include: ['**/*.ts', '**/*.tsx', '**/*.js', '**/*.jsx', '**/*.md'],
-                exclude: ['**/node_modules/**', '**/dist/**', '**/*.test.*', '**/*.d.ts'],
+                include: ['**/*.ts', '**/*.tsx', '**/*.js', '**/*.jsx', '**/*.md', '**/*.py', '**/*.rs'],
+                exclude: ['**/node_modules/**', '**/dist/**', '**/*.test.*', '**/*.d.ts', '**/__pycache__/**', '**/target/**', '**/.venv/**', '**/venv/**'],
             },
         });
 

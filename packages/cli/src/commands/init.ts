@@ -8,8 +8,8 @@ const CONFIG_TEMPLATE = `import { defineConfig } from '@genome/core';
 export default defineConfig({
   target: {
     root: './src',
-    include: ['**/*.ts', '**/*.tsx', '**/*.js', '**/*.jsx', '**/*.md'],
-    exclude: ['**/node_modules/**', '**/dist/**', '**/*.test.*', '**/*.spec.*', '**/*.d.ts'],
+    include: ['**/*.ts', '**/*.tsx', '**/*.js', '**/*.jsx', '**/*.md', '**/*.py', '**/*.rs'],
+    exclude: ['**/node_modules/**', '**/dist/**', '**/*.test.*', '**/*.spec.*', '**/*.d.ts', '**/__pycache__/**', '**/target/**', '**/.venv/**'],
   },
   graph: {
     driver: 'neo4j',
@@ -17,7 +17,7 @@ export default defineConfig({
     auth: { username: 'neo4j', password: 'genome_local' },
   },
   parser: {
-    languages: ['typescript'],
+    languages: ['typescript', 'python', 'rust'],
   },
 });
 `;

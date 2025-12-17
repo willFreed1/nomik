@@ -9,7 +9,7 @@ export default defineConfig([
         dts: false,
         banner: { js: '#!/usr/bin/env node' },
         noExternal: ['@genome/core', '@genome/parser', '@genome/graph', '@genome/watcher'],
-        external: ['neo4j-driver', 'tree-sitter', 'tree-sitter-typescript', 'tree-sitter-javascript', 'pino', 'pino-pretty', 'chokidar', 'glob', 'zod'],
+        external: ['neo4j-driver', 'tree-sitter', 'tree-sitter-typescript', 'tree-sitter-javascript', 'tree-sitter-python', 'tree-sitter-rust', 'pino', 'pino-pretty', 'chokidar', 'glob', 'zod'],
     },
     {
         entry: { 'mcp-server': '../mcp-server/src/index.ts' },

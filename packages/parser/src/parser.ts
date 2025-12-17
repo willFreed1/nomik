@@ -1,7 +1,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import Parser from 'tree-sitter';
-import { type ClassNode, type GraphNode, type GraphEdge, type CallsEdge, type ExtendsEdge, type ImplementsEdge, ParseError, getLogger } from '@genome/core';
+import { type ClassNode, type FunctionNode, type GraphNode, type GraphEdge, type CallsEdge, type ExtendsEdge, type ImplementsEdge, ParseError, getLogger } from '@genome/core';
 import type { FileNode } from '@genome/core';
 import { detectLanguage, grammars } from './languages/index';
 import { extractFunctions } from './extractors/functions';
@@ -11,6 +11,8 @@ import { extractRoutes } from './extractors/routes';
 import { extractExports } from './extractors/exports';
 import { extractCalls } from './extractors/calls';
 import { parseMarkdown } from './extractors/markdown';
+import { extractPythonFunctions, extractPythonClasses, extractPythonImports, extractPythonCalls } from './extractors/python';
+import { extractRustFunctions, extractRustClasses, extractRustImports, extractRustCalls } from './extractors/rust';
 import { createNodeId, createFileHash } from './utils';
 import type { ImportInfo } from './extractors/imports';
 import type { ExportInfo } from './extractors/exports';
@@ -78,12 +80,31 @@ export function createParserEngine(): ParserEngine {
             lastParsed: new Date().toISOString(),
         };
 
-        const functions = extractFunctions(tree, absolutePath);
-        const classes = extractClasses(tree, absolutePath);
-        const imports = extractImports(tree, absolutePath);
-        const routes = extractRoutes(tree, absolutePath);
-        const exports = extractExports(tree, absolutePath);
-        const calls = extractCalls(tree, absolutePath);
+        // Dispatch vers les extracteurs specifiques au langage
+        let functions: FunctionNode[], classes: ClassNode[], imports: ImportInfo[], exports: ExportInfo[], calls: CallInfo[], routes: GraphNode[];
+
+        if (language === 'python') {
+            functions = extractPythonFunctions(tree, absolutePath);
+            classes = extractPythonClasses(tree, absolutePath);
+            imports = extractPythonImports(tree, absolutePath);
+            calls = extractPythonCalls(tree, absolutePath);
+            routes = [];
+            exports = [];
+        } else if (language === 'rust') {
+            functions = extractRustFunctions(tree, absolutePath);
+            classes = extractRustClasses(tree, absolutePath);
+            imports = extractRustImports(tree, absolutePath);
+            calls = extractRustCalls(tree, absolutePath);
+            routes = [];
+            exports = [];
+        } else {
+            functions = extractFunctions(tree, absolutePath);
+            classes = extractClasses(tree, absolutePath);
+            imports = extractImports(tree, absolutePath);
+            routes = extractRoutes(tree, absolutePath);
+            exports = extractExports(tree, absolutePath);
+            calls = extractCalls(tree, absolutePath);
+        }
 
         const nodes: GraphNode[] = [fileNode, ...functions, ...classes, ...routes];
 
