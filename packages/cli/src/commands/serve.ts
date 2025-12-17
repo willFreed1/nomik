@@ -1,6 +1,6 @@
 import { Command } from 'commander';
 import { createLogger, setLogger } from '@genome/core';
-import { execSync, spawn } from 'node:child_process';
+import { spawn } from 'node:child_process';
 import path from 'node:path';
 
 /** Commande serve : lance le MCP server et optionnellement le dashboard viz */

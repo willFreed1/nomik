@@ -24,23 +24,6 @@ function findMcpServerPath(): string {
     return localPath;
 }
 
-/** Genere la configuration MCP pour Cursor */
-function generateMcpConfig(mcpPath: string): Record<string, unknown> {
-    return {
-        mcpServers: {
-            genome: {
-                command: 'node',
-                args: [mcpPath],
-                env: {
-                    NEO4J_URI: 'bolt://localhost:7687',
-                    NEO4J_USER: 'neo4j',
-                    NEO4J_PASSWORD: 'genome_local',
-                },
-            },
-        },
-    };
-}
-
 /** Commande setup-cursor : configure automatiquement .cursor/mcp.json */
 export const setupCursorCommand = new Command('setup-cursor')
     .description('Auto-configure Cursor IDE to use GENOME MCP server')

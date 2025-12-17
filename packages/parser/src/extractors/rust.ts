@@ -1,5 +1,5 @@
 import type Parser from 'tree-sitter';
-import type { FunctionNode, ClassNode, GraphEdge } from '@genome/core';
+import type { FunctionNode, ClassNode, ParameterInfo } from '@genome/core';
 import { createNodeId } from '../utils';
 import type { ImportInfo } from './imports';
 import type { CallInfo } from './calls';
@@ -32,19 +32,20 @@ function buildFunctionNode(node: Parser.SyntaxNode, filePath: string): FunctionN
     if (!nameNode) return null;
     const name = nameNode.text;
 
-    const params = node.childForFieldName('parameters');
-    const paramNames = params ? params.namedChildren
+    const paramsNode = node.childForFieldName('parameters');
+    const paramInfos: ParameterInfo[] = paramsNode ? paramsNode.namedChildren
         .filter(c => c.type === 'parameter' || c.type === 'self_parameter')
         .map(c => {
             const pattern = c.childForFieldName('pattern');
-            return pattern?.text ?? c.text;
+            const pName = pattern?.text ?? c.text;
+            const pType = c.childForFieldName('type')?.text;
+            return { name: pName, type: pType, optional: false } as ParameterInfo;
         })
-        .filter(n => n !== 'self' && n !== '&self' && n !== '&mut self') : [];
+        .filter(p => p.name !== 'self' && p.name !== '&self' && p.name !== '&mut self') : [];
 
     const isPub = node.children.some(c => c.type === 'visibility_modifier');
     const isAsync = node.text.trimStart().startsWith('async') || node.text.trimStart().startsWith('pub async');
 
-    // Attributs (#[...])
     const attrs = extractAttributes(node);
 
     return {
@@ -56,7 +57,7 @@ function buildFunctionNode(node: Parser.SyntaxNode, filePath: string): FunctionN
         endLine: node.endPosition.row + 1,
         isExported: isPub,
         isAsync,
-        params: paramNames,
+        params: paramInfos,
         isGenerator: false,
         decorators: attrs,
         confidence: 1.0,
@@ -190,7 +191,7 @@ function buildTraitNode(node: Parser.SyntaxNode, filePath: string): ClassNode | 
 }
 
 /** Extrait les use statements Rust */
-export function extractRustImports(tree: Parser.Tree, filePath: string): ImportInfo[] {
+export function extractRustImports(tree: Parser.Tree, _filePath: string): ImportInfo[] {
     const results: ImportInfo[] = [];
     const cursor = tree.walk();
 
@@ -205,7 +206,7 @@ export function extractRustImports(tree: Parser.Tree, filePath: string): ImportI
                 const specifiers = last.startsWith('{')
                     ? last.replace(/[{}]/g, '').split(',').map(s => s.trim()).filter(Boolean)
                     : [last];
-                results.push({ source, specifiers, isDefault: false, filePath, line: node.startPosition.row + 1 });
+                results.push({ source, specifiers, isDefault: false, isDynamic: false, isTypeOnly: false, line: node.startPosition.row + 1 });
             }
         }
 
@@ -220,7 +221,7 @@ export function extractRustImports(tree: Parser.Tree, filePath: string): ImportI
 }
 
 /** Extrait les appels de fonctions Rust */
-export function extractRustCalls(tree: Parser.Tree, filePath: string): CallInfo[] {
+export function extractRustCalls(tree: Parser.Tree, _filePath: string): CallInfo[] {
     const results: CallInfo[] = [];
     const cursor = tree.walk();
 
@@ -231,11 +232,14 @@ export function extractRustCalls(tree: Parser.Tree, filePath: string): CallInfo[
             const funcNode = node.childForFieldName('function');
             if (funcNode) {
                 const callerNode = findEnclosingFunction(node);
+                const calleeName = funcNode.text;
                 results.push({
                     callerName: callerNode?.childForFieldName('name')?.text ?? '<module>',
-                    calleeName: funcNode.text,
-                    filePath,
+                    calleeName,
                     line: node.startPosition.row + 1,
+                    column: node.startPosition.column,
+                    isMethodCall: calleeName.includes('.') || calleeName.includes('::'),
+                    isConstructor: calleeName.endsWith('::new'),
                 });
             }
         }

@@ -1,5 +1,5 @@
 import type Parser from 'tree-sitter';
-import type { FunctionNode, ClassNode, GraphEdge } from '@genome/core';
+import type { FunctionNode, ClassNode, ParameterInfo } from '@genome/core';
 import { createNodeId } from '../utils';
 import type { ImportInfo } from './imports';
 import type { CallInfo } from './calls';
@@ -32,19 +32,22 @@ function buildFunctionNode(node: Parser.SyntaxNode, filePath: string): FunctionN
     if (!nameNode) return null;
     const name = nameNode.text;
 
-    const params = node.childForFieldName('parameters');
-    const paramNames = params ? params.namedChildren
+    const paramsNode = node.childForFieldName('parameters');
+    const paramInfos: ParameterInfo[] = paramsNode ? paramsNode.namedChildren
         .filter(c => c.type === 'identifier' || c.type === 'typed_parameter' || c.type === 'default_parameter')
         .map(c => {
-            if (c.type === 'typed_parameter') return c.namedChildren.find(cc => cc.type === 'identifier')?.text ?? c.text;
-            if (c.type === 'default_parameter') return c.childForFieldName('name')?.text ?? c.text;
-            return c.text;
+            if (c.type === 'typed_parameter') {
+                const pName = c.namedChildren.find(cc => cc.type === 'identifier')?.text ?? c.text;
+                const pType = c.childForFieldName('type')?.text;
+                return { name: pName, type: pType, optional: false } as ParameterInfo;
+            }
+            if (c.type === 'default_parameter') {
+                const pName = c.childForFieldName('name')?.text ?? c.text;
+                return { name: pName, optional: true } as ParameterInfo;
+            }
+            return { name: c.text, optional: false } as ParameterInfo;
         })
-        .filter(n => n !== 'self' && n !== 'cls') : [];
-
-    const isAsync = node.parent?.type === 'decorated_definition'
-        ? node.previousNamedSibling?.type === 'decorator' && false
-        : node.text.startsWith('async');
+        .filter(p => p.name !== 'self' && p.name !== 'cls') : [];
 
     const decorators = extractDecorators(node);
     const isExported = !name.startsWith('_');
@@ -58,7 +61,7 @@ function buildFunctionNode(node: Parser.SyntaxNode, filePath: string): FunctionN
         endLine: node.endPosition.row + 1,
         isExported,
         isAsync: node.text.trimStart().startsWith('async'),
-        params: paramNames,
+        params: paramInfos,
         isGenerator: node.text.includes('yield'),
         decorators,
         confidence: 1.0,
@@ -139,7 +142,7 @@ function buildClassNode(node: Parser.SyntaxNode, filePath: string): ClassNode | 
 }
 
 /** Extrait les imports Python (import x, from x import y) */
-export function extractPythonImports(tree: Parser.Tree, filePath: string): ImportInfo[] {
+export function extractPythonImports(tree: Parser.Tree, _filePath: string): ImportInfo[] {
     const results: ImportInfo[] = [];
     const cursor = tree.walk();
 
@@ -150,7 +153,7 @@ export function extractPythonImports(tree: Parser.Tree, filePath: string): Impor
             const names = node.namedChildren.filter(c => c.type === 'dotted_name' || c.type === 'aliased_import');
             for (const n of names) {
                 const source = n.type === 'aliased_import' ? (n.childForFieldName('name')?.text ?? n.text) : n.text;
-                results.push({ source, specifiers: [source.split('.').pop() ?? source], isDefault: false, filePath, line: node.startPosition.row + 1 });
+                results.push({ source, specifiers: [source.split('.').pop() ?? source], isDefault: false, isDynamic: false, isTypeOnly: false, line: node.startPosition.row + 1 });
             }
         } else if (node.type === 'import_from_statement') {
             const module = node.childForFieldName('module_name')?.text ?? node.children.find(c => c.type === 'dotted_name' || c.type === 'relative_import')?.text ?? '';
@@ -159,7 +162,7 @@ export function extractPythonImports(tree: Parser.Tree, filePath: string): Impor
                 .slice(1)
                 .map(c => c.type === 'aliased_import' ? (c.childForFieldName('name')?.text ?? c.text) : c.text);
             if (names.length > 0) {
-                results.push({ source: module, specifiers: names, isDefault: false, filePath, line: node.startPosition.row + 1 });
+                results.push({ source: module, specifiers: names, isDefault: false, isDynamic: false, isTypeOnly: false, line: node.startPosition.row + 1 });
             }
         }
 
@@ -174,7 +177,7 @@ export function extractPythonImports(tree: Parser.Tree, filePath: string): Impor
 }
 
 /** Extrait les appels de fonctions Python */
-export function extractPythonCalls(tree: Parser.Tree, filePath: string): CallInfo[] {
+export function extractPythonCalls(tree: Parser.Tree, _filePath: string): CallInfo[] {
     const results: CallInfo[] = [];
     const cursor = tree.walk();
 
@@ -185,11 +188,14 @@ export function extractPythonCalls(tree: Parser.Tree, filePath: string): CallInf
             const funcNode = node.childForFieldName('function');
             if (funcNode) {
                 const callerNode = findEnclosingFunction(node);
+                const calleeName = funcNode.text;
                 results.push({
                     callerName: callerNode?.childForFieldName('name')?.text ?? '<module>',
-                    calleeName: funcNode.text,
-                    filePath,
+                    calleeName,
                     line: node.startPosition.row + 1,
+                    column: node.startPosition.column,
+                    isMethodCall: calleeName.includes('.'),
+                    isConstructor: /^[A-Z]/.test(calleeName.split('.').pop() ?? ''),
                 });
             }
         }

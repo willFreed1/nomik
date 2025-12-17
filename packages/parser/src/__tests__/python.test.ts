@@ -91,7 +91,8 @@ describe('extractPythonFunctions', () => {
         const fns = extractPythonFunctions(tree, '/app/main.py');
 
         const createApp = fns.find(f => f.name === 'create_app');
-        expect(createApp?.params).toContain('config');
+        expect(createApp?.params.map(p => p.name)).toContain('config');
+        expect(createApp?.params.find(p => p.name === 'config')?.type).toBe('dict');
     });
 });
 
