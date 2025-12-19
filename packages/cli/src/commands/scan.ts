@@ -2,7 +2,7 @@ import { Command } from 'commander';
 import { createLogger, loadConfigFromEnv, validateConfig } from '@genome/core';
 import { createParserEngine, discoverFiles, getGitInfo } from '@genome/parser';
 import { createGraphService } from '@genome/graph';
-import { readProjectConfig, writeProjectConfig, createProjectNode, defaultProjectName } from '../utils/project-config.js';
+import { readProjectConfig, writeProjectConfig, createProjectNode, defaultProjectName, PROJECT_CONFIG_VERSION } from '../utils/project-config.js';
 
 export const scanCommand = new Command('scan')
     .description('Parse and index a codebase into the GENOME knowledge graph')
@@ -38,7 +38,7 @@ export const scanCommand = new Command('scan')
             const name = defaultProjectName();
             const node = createProjectNode(name);
             projectId = node.id;
-            writeProjectConfig({ projectId: node.id, projectName: name, createdAt: new Date().toISOString() });
+            writeProjectConfig({ version: PROJECT_CONFIG_VERSION, projectId: node.id, projectName: name, createdAt: new Date().toISOString() });
             logger.info({ project: name, id: projectId }, 'auto-created project from directory name');
         }
 
@@ -69,11 +69,17 @@ export const scanCommand = new Command('scan')
             await graph.connect();
             await graph.initSchema();
 
-            // Creer le projet dans Neo4j s'il n'existe pas
+            // Creer le projet dans Neo4j s'il n'existe pas, ou mettre a jour rootPath si le dossier a ete renomme
             const existing = await graph.getProject(projectId);
             if (!existing) {
                 const projNode = createProjectNode(localConfig?.projectName ?? defaultProjectName());
                 await graph.createProject(projNode);
+            } else if (existing.rootPath !== process.cwd()) {
+                await graph.executeQuery(
+                    'MATCH (p:Project {id: $id}) SET p.rootPath = $rootPath, p.updatedAt = datetime()',
+                    { id: projectId, rootPath: process.cwd() },
+                );
+                logger.info({ old: existing.rootPath, new: process.cwd() }, 'project rootPath updated (folder rename detected)');
             }
 
             for (const result of results) {

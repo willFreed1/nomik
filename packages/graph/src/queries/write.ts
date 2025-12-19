@@ -92,21 +92,16 @@ export async function upsertProject(driver: GraphDriver, project: ProjectNode): 
     );
 }
 
-/** Supprime toutes les donnees d'un projet (noeuds + relations) */
+/** Supprime toutes les donnees d'un projet (noeuds + relations attachees) */
 export async function deleteProjectData(driver: GraphDriver, projectId: string): Promise<void> {
-    // Supprimer les relations du projet
-    await driver.runWrite(
-        `MATCH ()-[r {projectId: $projectId}]->() DELETE r`,
-        { projectId },
-    );
-    // Supprimer les noeuds du projet
+    // DETACH DELETE supprime les noeuds ET leurs relations attachees en une seule passe
     await driver.runWrite(
         `MATCH (n {projectId: $projectId}) DETACH DELETE n`,
         { projectId },
     );
-    // Supprimer le noeud Project lui-meme
+    // Le noeud Project a id = projectId (pas de propriete projectId sur lui-meme)
     await driver.runWrite(
-        `MATCH (p:Project {id: $projectId}) DETACH DELETE p`,
+        `MATCH (p:Project {id: $projectId}) DELETE p`,
         { projectId },
     );
 }

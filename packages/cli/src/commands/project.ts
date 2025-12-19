@@ -1,7 +1,7 @@
 import { Command } from 'commander';
 import { createLogger, setLogger, loadConfigFromEnv, validateConfig } from '@genome/core';
 import { createGraphService } from '@genome/graph';
-import { readProjectConfig, writeProjectConfig, createProjectNode } from '../utils/project-config.js';
+import { readProjectConfig, writeProjectConfig, createProjectNode, PROJECT_CONFIG_VERSION } from '../utils/project-config.js';
 
 /** Commande principale : genome project <sous-commande> */
 export const projectCommand = new Command('project')
@@ -64,7 +64,7 @@ projectCommand
                 console.log(`  \x1b[32m✓\x1b[0m Project "${name}" created (${project.id})`);
             }
 
-            writeProjectConfig({ projectId: project.id, projectName: name, createdAt: new Date().toISOString() });
+            writeProjectConfig({ version: PROJECT_CONFIG_VERSION, projectId: project.id, projectName: name, createdAt: new Date().toISOString() });
             console.log(`  \x1b[32m✓\x1b[0m .genome/project.json written`);
             console.log('');
             console.log(`  Run \x1b[33mgenome scan .\x1b[0m to index this project.`);
@@ -95,7 +95,7 @@ projectCommand
                 return;
             }
 
-            writeProjectConfig({ projectId: project.id, projectName: project.name, createdAt: project.createdAt });
+            writeProjectConfig({ version: PROJECT_CONFIG_VERSION, projectId: project.id, projectName: project.name, createdAt: project.createdAt });
             console.log(`  \x1b[32m✓\x1b[0m Switched to project "${project.name}" (${project.id})`);
             console.log('');
         } finally {

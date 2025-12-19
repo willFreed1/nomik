@@ -2,7 +2,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { execSync } from 'node:child_process';
 import { Command } from 'commander';
-import { readProjectConfig, writeProjectConfig, createProjectNode, defaultProjectName } from '../utils/project-config.js';
+import { readProjectConfig, writeProjectConfig, createProjectNode, defaultProjectName, PROJECT_CONFIG_VERSION } from '../utils/project-config.js';
 
 const CONFIG_TEMPLATE = `import { defineConfig } from '@genome/core';
 
@@ -114,7 +114,7 @@ export const initCommand = new Command('init')
         } else {
             const name = defaultProjectName();
             const node = createProjectNode(name);
-            writeProjectConfig({ projectId: node.id, projectName: name, createdAt: new Date().toISOString() });
+            writeProjectConfig({ version: PROJECT_CONFIG_VERSION, projectId: node.id, projectName: name, createdAt: new Date().toISOString() });
             console.log(`  \x1b[32m\u2713\x1b[0m Project created: ${name} (${node.id})`);
             console.log('  \x1b[2m  .genome/project.json written — commit this file to share with your team\x1b[0m');
         }

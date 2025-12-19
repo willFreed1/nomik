@@ -9,6 +9,8 @@ function createMockDriver(): GraphDriver {
     return {
         connect: vi.fn(),
         disconnect: vi.fn(),
+        getSession: vi.fn(),
+        isConnected: vi.fn(() => true),
         runQuery: vi.fn().mockResolvedValue([]),
         runWrite: vi.fn().mockResolvedValue(undefined),
         healthCheck: vi.fn().mockResolvedValue(true),
@@ -184,17 +186,16 @@ describe('deleteProjectData', () => {
         driver = createMockDriver();
     });
 
-    it('supprime relations, noeuds et le Project en 3 etapes', async () => {
+    it('supprime noeuds+relations puis le Project en 2 etapes', async () => {
         await deleteProjectData(driver, 'my-api');
 
-        expect(driver.runWrite).toHaveBeenCalledTimes(3);
+        expect(driver.runWrite).toHaveBeenCalledTimes(2);
         const calls = (driver.runWrite as any).mock.calls;
-        // Relations
+        // DETACH DELETE supprime noeuds + relations attachees
+        expect(calls[0][0]).toContain('DETACH DELETE');
         expect(calls[0][1].projectId).toBe('my-api');
-        // Noeuds
-        expect(calls[1][1].projectId).toBe('my-api');
-        // Le Project lui-meme
-        expect(calls[2][0]).toContain(':Project');
+        // Le Project meta-noeud lui-meme
+        expect(calls[1][0]).toContain(':Project');
     });
 });
 

@@ -4,8 +4,11 @@ import type { ProjectNode } from '@genome/core';
 
 const GENOME_DIR = '.genome';
 const PROJECT_FILE = 'project.json';
+/** Version actuelle du schema projet — incrementer lors de migrations futures */
+export const PROJECT_CONFIG_VERSION = 1;
 
 export interface LocalProjectConfig {
+    version: number;
     projectId: string;
     projectName: string;
     createdAt: string;
