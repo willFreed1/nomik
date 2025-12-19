@@ -9,6 +9,7 @@ export interface WatcherOptions {
     root: string;
     debounceMs?: number;
     ignored?: string[];
+    projectId: string;
 }
 
 export interface WatcherService {
@@ -47,7 +48,7 @@ export function createWatcher(
 
         try {
             const result = await parser.parseFile(abs);
-            await graph.ingestFileData(result.nodes, result.edges, result.file.path);
+            await graph.ingestFileData(result.nodes, result.edges, result.file.path, options.projectId);
             logger.info({ filePath: abs, nodes: result.nodes.length, edges: result.edges.length }, 'file re-indexed');
         } catch (err) {
             logger.warn({ filePath: abs, error: err instanceof Error ? err.message : String(err) }, 'watch re-index failed');

@@ -8,16 +8,20 @@ export const driver = neo4j.driver(
     )
 );
 
-export async function fetchGraphData() {
+/** Recupere le graphe filtre par projet si un projectId est fourni */
+export async function fetchGraphData(projectId?: string) {
     const session = driver.session();
     try {
-        console.log('Connecting to Neo4j...');
-        // Recupere le graphe complet sans node_modules ni metadonnees
+        console.log('Connecting to Neo4j...', projectId ? `(project: ${projectId})` : '(all projects)');
+        const projectFilter = projectId
+            ? 'AND n.projectId = $projectId AND m.projectId = $projectId'
+            : '';
         const result = await session.run(`
       MATCH (n)-[r]->(m)
-      WHERE NOT n:ScanMeta AND NOT m:ScanMeta
+      WHERE NOT n:ScanMeta AND NOT m:ScanMeta AND NOT n:Project AND NOT m:Project
+      ${projectFilter}
       RETURN n, r, m
-    `);
+    `, { projectId: projectId ?? null });
         console.log('Query executed. Records:', result.records.length);
 
         const nodes = new Map();
@@ -97,6 +101,23 @@ export async function fetchGraphData() {
     } catch (error) {
         console.error('Neo4j Driver Error:', error);
         throw error;
+    } finally {
+        await session.close();
+    }
+}
+
+/** Liste les projets disponibles dans le graphe */
+export async function fetchProjects(): Promise<Array<{ id: string; name: string; rootPath: string }>> {
+    const session = driver.session();
+    try {
+        const result = await session.run(
+            `MATCH (p:Project) RETURN p.id as id, p.name as name, p.rootPath as rootPath ORDER BY p.name`
+        );
+        return result.records.map(r => ({
+            id: r.get('id'),
+            name: r.get('name'),
+            rootPath: r.get('rootPath'),
+        }));
     } finally {
         await session.close();
     }

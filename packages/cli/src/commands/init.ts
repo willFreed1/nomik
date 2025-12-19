@@ -2,6 +2,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { execSync } from 'node:child_process';
 import { Command } from 'commander';
+import { readProjectConfig, writeProjectConfig, createProjectNode, defaultProjectName } from '../utils/project-config.js';
 
 const CONFIG_TEMPLATE = `import { defineConfig } from '@genome/core';
 
@@ -106,7 +107,19 @@ export const initCommand = new Command('init')
             console.log('  \x1b[2m  Skipping Docker setup (--no-docker)\x1b[0m');
         }
 
-        // 3. .gitignore check
+        // 3. Auto-creation du projet local (.genome/project.json)
+        const existing = readProjectConfig();
+        if (existing) {
+            console.log(`  \x1b[32m\u2713\x1b[0m Project already configured: ${existing.projectName} (${existing.projectId})`);
+        } else {
+            const name = defaultProjectName();
+            const node = createProjectNode(name);
+            writeProjectConfig({ projectId: node.id, projectName: name, createdAt: new Date().toISOString() });
+            console.log(`  \x1b[32m\u2713\x1b[0m Project created: ${name} (${node.id})`);
+            console.log('  \x1b[2m  .genome/project.json written — commit this file to share with your team\x1b[0m');
+        }
+
+        // 4. .gitignore check
         const gitignorePath = path.resolve('.gitignore');
         if (fs.existsSync(gitignorePath)) {
             const content = fs.readFileSync(gitignorePath, 'utf-8');

@@ -1,8 +1,8 @@
 import { type GraphConfig, getLogger } from '@genome/core';
-import type { GraphNode, GraphEdge } from '@genome/core';
+import type { GraphNode, GraphEdge, ProjectNode } from '@genome/core';
 import { createNeo4jDriver } from './drivers/neo4j.driver.js';
 import type { GraphDriver } from './drivers/driver.interface.js';
-import { upsertNodes, createEdges, clearFileData } from './queries/write.js';
+import { upsertNodes, createEdges, clearFileData, upsertProject, deleteProjectData, listProjects, getProject } from './queries/write.js';
 import { impactAnalysis, findDeadCode, findGodObjects, graphStats, findDependencyChain, recentChanges } from './queries/read.js';
 import { initializeSchema } from './schema/init.js';
 import { QueryCache } from './cache.js';
@@ -12,15 +12,20 @@ export interface GraphService {
     connect(): Promise<void>;
     disconnect(): Promise<void>;
     initSchema(): Promise<void>;
-    ingestFileData(nodes: GraphNode[], edges: GraphEdge[], filePath: string): Promise<void>;
-    getImpact(symbolName: string, depth?: number): Promise<ImpactResult[]>;
-    getDeadCode(): Promise<Array<{ name: string; filePath: string }>>;
-    getGodObjects(threshold?: number): Promise<Array<{ name: string; filePath: string; depCount: number }>>;
-    getStats(): Promise<{ nodeCount: number; edgeCount: number; fileCount: number; functionCount: number; classCount: number; routeCount: number }>;
-    getDependencyChain(from: string, to: string): Promise<string[][]>;
-    getRecentChanges(since: string, limit?: number): Promise<Array<{ name: string; type: string; filePath: string; updatedAt: string; createdAt: string | null }>>;
+    ingestFileData(nodes: GraphNode[], edges: GraphEdge[], filePath: string, projectId: string): Promise<void>;
+    getImpact(symbolName: string, depth?: number, projectId?: string): Promise<ImpactResult[]>;
+    getDeadCode(projectId?: string): Promise<Array<{ name: string; filePath: string }>>;
+    getGodObjects(threshold?: number, projectId?: string): Promise<Array<{ name: string; filePath: string; depCount: number }>>;
+    getStats(projectId?: string): Promise<{ nodeCount: number; edgeCount: number; fileCount: number; functionCount: number; classCount: number; routeCount: number }>;
+    getDependencyChain(from: string, to: string, projectId?: string): Promise<string[][]>;
+    getRecentChanges(since: string, limit?: number, projectId?: string): Promise<Array<{ name: string; type: string; filePath: string; updatedAt: string; createdAt: string | null }>>;
     healthCheck(): Promise<boolean>;
     executeQuery<T>(query: string, params?: Record<string, any>): Promise<T[]>;
+    // Gestion des projets
+    createProject(project: ProjectNode): Promise<void>;
+    listProjects(): Promise<ProjectNode[]>;
+    getProject(projectId: string): Promise<ProjectNode | null>;
+    deleteProject(projectId: string): Promise<void>;
 }
 
 /** Cree un service graph avec cache TTL sur les lectures */
@@ -55,37 +60,36 @@ export function createGraphService(config: GraphConfig): GraphService {
             logger.info('graph schema initialized');
         },
 
-        async ingestFileData(nodes: GraphNode[], edges: GraphEdge[], filePath: string) {
-            await clearFileData(driver, filePath);
-            await upsertNodes(driver, nodes);
-            await createEdges(driver, edges);
-            // Invalide le cache apres une ecriture
+        async ingestFileData(nodes: GraphNode[], edges: GraphEdge[], filePath: string, projectId: string) {
+            await clearFileData(driver, filePath, projectId);
+            await upsertNodes(driver, nodes, projectId);
+            await createEdges(driver, edges, projectId);
             cache.invalidateAll();
-            logger.debug({ filePath, nodes: nodes.length, edges: edges.length }, 'ingested file data');
+            logger.debug({ filePath, projectId, nodes: nodes.length, edges: edges.length }, 'ingested file data');
         },
 
-        async getImpact(symbolName: string, depth = 5) {
-            return cached(`impact:${symbolName}:${depth}`, () => impactAnalysis(driver, symbolName, depth));
+        async getImpact(symbolName: string, depth = 5, projectId?: string) {
+            return cached(`impact:${projectId}:${symbolName}:${depth}`, () => impactAnalysis(driver, symbolName, depth, projectId));
         },
 
-        async getDeadCode() {
-            return cached('deadCode', () => findDeadCode(driver));
+        async getDeadCode(projectId?: string) {
+            return cached(`deadCode:${projectId}`, () => findDeadCode(driver, projectId));
         },
 
-        async getGodObjects(threshold = 10) {
-            return cached(`godObjects:${threshold}`, () => findGodObjects(driver, threshold));
+        async getGodObjects(threshold = 10, projectId?: string) {
+            return cached(`godObjects:${projectId}:${threshold}`, () => findGodObjects(driver, threshold, projectId));
         },
 
-        async getStats() {
-            return cached('stats', () => graphStats(driver));
+        async getStats(projectId?: string) {
+            return cached(`stats:${projectId}`, () => graphStats(driver, projectId));
         },
 
-        async getDependencyChain(from: string, to: string) {
-            return cached(`depChain:${from}:${to}`, () => findDependencyChain(driver, from, to));
+        async getDependencyChain(from: string, to: string, projectId?: string) {
+            return cached(`depChain:${projectId}:${from}:${to}`, () => findDependencyChain(driver, from, to, projectId));
         },
 
-        async getRecentChanges(since: string, limit = 50) {
-            return cached(`recent:${since}:${limit}`, () => recentChanges(driver, since, limit));
+        async getRecentChanges(since: string, limit = 50, projectId?: string) {
+            return cached(`recent:${projectId}:${since}:${limit}`, () => recentChanges(driver, since, limit, projectId));
         },
 
         async healthCheck() {
@@ -94,6 +98,27 @@ export function createGraphService(config: GraphConfig): GraphService {
 
         async executeQuery<T>(query: string, params?: Record<string, any>) {
             return driver.runQuery<T>(query, params);
+        },
+
+        // Gestion des projets
+        async createProject(project: ProjectNode) {
+            await upsertProject(driver, project);
+            cache.invalidateAll();
+            logger.info({ projectId: project.id, name: project.name }, 'project created');
+        },
+
+        async listProjects() {
+            return cached('projects:list', () => listProjects(driver));
+        },
+
+        async getProject(projectId: string) {
+            return getProject(driver, projectId);
+        },
+
+        async deleteProject(projectId: string) {
+            await deleteProjectData(driver, projectId);
+            cache.invalidateAll();
+            logger.info({ projectId }, 'project deleted');
         },
     };
 }

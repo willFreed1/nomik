@@ -4,6 +4,11 @@ import { GenomeError } from '@genome/core';
 /** Labels Neo4j reconnus par le scan */
 const KNOWN_LABELS = ['File', 'Function', 'Class', 'Variable', 'Module', 'Route', 'DBTable', 'ExternalAPI', 'CronJob', 'Event', 'EnvVar'];
 
+/** Recupere le projectId depuis l'env (injecte par Cursor/IDE) */
+function getProjectId(): string | undefined {
+    return process.env.GENOME_PROJECT_ID || undefined;
+}
+
 const TOOLS = {
     kb_search: {
         name: 'kb_search',
@@ -87,6 +92,14 @@ const TOOLS = {
             },
         },
     },
+    kb_list_projects: {
+        name: 'kb_list_projects',
+        description: 'List all projects tracked in the GENOME knowledge graph.',
+        inputSchema: {
+            type: 'object',
+            properties: {},
+        },
+    },
 };
 
 export async function handleListTools() {
@@ -103,10 +116,13 @@ function extractNodeData(record: any): Record<string, unknown> {
 }
 
 export async function handleCallTool(graph: GraphService, name: string, args: any) {
+    const projectId = getProjectId();
+
     switch (name) {
         case 'kb_search': {
             const query = String(args.query ?? '');
             const limit = Number(args.limit) || 10;
+            const projectFilter = projectId ? 'AND n.projectId = $projectId' : '';
 
             const results = await graph.executeQuery<{ n: any }>(
                 `MATCH (n)
@@ -117,10 +133,11 @@ export async function handleCallTool(graph: GraphService, name: string, args: an
                      OR (n.path IS NOT NULL AND toLower(n.path) CONTAINS toLower($query))
                      OR (n.id IS NOT NULL AND n.id CONTAINS $query)
                    )
+                   ${projectFilter}
                  RETURN n
                  ORDER BY CASE WHEN n.name IS NOT NULL THEN n.name ELSE n.path END
                  LIMIT toInteger($limit)`,
-                { query, limit, labels: KNOWN_LABELS }
+                { query, limit, labels: KNOWN_LABELS, projectId }
             );
 
             const nodes = results.map(extractNodeData);
@@ -130,24 +147,24 @@ export async function handleCallTool(graph: GraphService, name: string, args: an
         case 'kb_impact': {
             const symId = String(args.symbolId);
             const depth = Number(args.depth) || 3;
-            const impacts = await graph.getImpact(symId, depth);
+            const impacts = await graph.getImpact(symId, depth, projectId);
             return [{ type: 'text', text: JSON.stringify(impacts, null, 2) }];
         }
 
         case 'kb_dependency_trace': {
             const from = String(args.from);
             const to = String(args.to);
-            const paths = await graph.getDependencyChain(from, to);
+            const paths = await graph.getDependencyChain(from, to, projectId);
             return [{ type: 'text', text: JSON.stringify(paths, null, 2) }];
         }
 
         case 'kb_get_context': {
             const target = String(args.name);
+            const projectFilter = projectId ? 'AND n.projectId = $projectId' : '';
 
-            // Contexte riche : le noeud + ses relations directes
             const results = await graph.executeQuery<any>(
                 `MATCH (n)
-                 WHERE n.name = $target OR n.path CONTAINS $target
+                 WHERE (n.name = $target OR n.path CONTAINS $target) ${projectFilter}
                  WITH n LIMIT 1
                  OPTIONAL MATCH (n)-[:CONTAINS]->(child)
                  WITH n, collect(DISTINCT {name: COALESCE(child.name, child.path), type: labels(child)[0]}) as children
@@ -160,7 +177,7 @@ export async function handleCallTool(graph: GraphService, name: string, args: an
                  OPTIONAL MATCH (n)-[:EXTENDS]->(parent)
                  WITH n, children, callees, callers, imports, collect(DISTINCT {name: parent.name}) as extends_
                  RETURN n, children, callees, callers, imports, extends_`,
-                { target }
+                { target, projectId }
             );
 
             if (results.length === 0) {
@@ -181,22 +198,23 @@ export async function handleCallTool(graph: GraphService, name: string, args: an
         }
 
         case 'kb_graph_stats': {
-            const stats = await graph.getStats();
+            const stats = await graph.getStats(projectId);
             const result: any = { ...stats };
 
             if (args.includeDeadCode) {
-                result.deadCode = await graph.getDeadCode();
+                result.deadCode = await graph.getDeadCode(projectId);
             }
             if (args.includeGodObjects) {
                 const threshold = Number(args.godObjectThreshold) || 8;
-                result.godObjects = await graph.getGodObjects(threshold);
+                result.godObjects = await graph.getGodObjects(threshold, projectId);
             }
 
-            // Comptage des types d'edges
+            const edgeFilter = projectId ? '{projectId: $projectId}' : '';
             const edgeCounts = await graph.executeQuery<{ type: string; count: number }>(
-                `MATCH ()-[r]->()
+                `MATCH ()-[r ${edgeFilter}]->()
                  RETURN type(r) as type, count(r) as count
-                 ORDER BY count DESC`
+                 ORDER BY count DESC`,
+                { projectId }
             );
             result.edgeTypes = edgeCounts;
 
@@ -206,7 +224,7 @@ export async function handleCallTool(graph: GraphService, name: string, args: an
         case 'kb_find_path': {
             const from = String(args.from);
             const to = String(args.to);
-            const paths = await graph.getDependencyChain(from, to);
+            const paths = await graph.getDependencyChain(from, to, projectId);
             if (paths.length === 0) {
                 return [{ type: 'text', text: JSON.stringify({ error: 'No path found', from, to }) }];
             }
@@ -216,8 +234,13 @@ export async function handleCallTool(graph: GraphService, name: string, args: an
         case 'kb_recent_changes': {
             const since = args.since ?? new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
             const limit = Number(args.limit) || 30;
-            const changes = await graph.getRecentChanges(since, limit);
+            const changes = await graph.getRecentChanges(since, limit, projectId);
             return [{ type: 'text', text: JSON.stringify(changes, null, 2) }];
+        }
+
+        case 'kb_list_projects': {
+            const projects = await graph.listProjects();
+            return [{ type: 'text', text: JSON.stringify(projects, null, 2) }];
         }
 
         default:

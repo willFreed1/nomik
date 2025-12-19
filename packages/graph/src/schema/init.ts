@@ -9,12 +9,20 @@ const SCHEMA_INIT = [
     'CREATE CONSTRAINT route_id IF NOT EXISTS FOR (r:Route) REQUIRE r.id IS UNIQUE',
     'CREATE CONSTRAINT module_id IF NOT EXISTS FOR (m:Module) REQUIRE m.id IS UNIQUE',
     'CREATE CONSTRAINT variable_id IF NOT EXISTS FOR (v:Variable) REQUIRE v.id IS UNIQUE',
+    'CREATE CONSTRAINT project_id IF NOT EXISTS FOR (p:Project) REQUIRE p.id IS UNIQUE',
     // Index de recherche
     'CREATE INDEX file_path IF NOT EXISTS FOR (f:File) ON (f.path)',
     'CREATE INDEX function_name IF NOT EXISTS FOR (f:Function) ON (f.name)',
     'CREATE INDEX function_filepath IF NOT EXISTS FOR (f:Function) ON (f.filePath)',
     'CREATE INDEX class_name IF NOT EXISTS FOR (c:Class) ON (c.name)',
     'CREATE INDEX route_path IF NOT EXISTS FOR (r:Route) ON (r.path)',
+    // Index projectId pour l'isolation multi-projet (critique pour la performance)
+    'CREATE INDEX file_project IF NOT EXISTS FOR (f:File) ON (f.projectId)',
+    'CREATE INDEX function_project IF NOT EXISTS FOR (f:Function) ON (f.projectId)',
+    'CREATE INDEX class_project IF NOT EXISTS FOR (c:Class) ON (c.projectId)',
+    'CREATE INDEX module_project IF NOT EXISTS FOR (m:Module) ON (m.projectId)',
+    'CREATE INDEX route_project IF NOT EXISTS FOR (r:Route) ON (r.projectId)',
+    'CREATE INDEX variable_project IF NOT EXISTS FOR (v:Variable) ON (v.projectId)',
 ];
 
 export async function initializeSchema(driver: GraphDriver): Promise<void> {

@@ -38,6 +38,9 @@
             ],
             "@genome/mcp-server": [
                 "./packages/mcp-server/src/index.ts"
+            ],
+            "@genome/watcher": [
+                "./packages/watcher/src/index.ts"
             ]
         }
     },

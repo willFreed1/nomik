@@ -3,6 +3,7 @@ import { loadConfigFromEnv, validateConfig, createLogger, setLogger } from '@gen
 import { createParserEngine } from '@genome/parser';
 import { createGraphService } from '@genome/graph';
 import { createWatcher } from '@genome/watcher';
+import { readProjectConfig, defaultProjectName, createProjectNode } from '../utils/project-config.js';
 
 /** Commande watch : surveille les fichiers et met a jour le graphe en temps reel */
 export const watchCommand = new Command('watch')
@@ -23,9 +24,12 @@ export const watchCommand = new Command('watch')
         await graph.connect();
         logger.info('Connected to Neo4j');
 
+        const local = readProjectConfig();
+        const projectId = local?.projectId ?? createProjectNode(defaultProjectName()).id;
+
         const parser = createParserEngine();
         const watcher = createWatcher(
-            { root: fullConfig.target.root, debounceMs: Number(opts.debounce) },
+            { root: fullConfig.target.root, debounceMs: Number(opts.debounce), projectId },
             parser,
             graph,
         );

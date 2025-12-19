@@ -110,6 +110,16 @@ export interface EnvVarNode {
     defaultValue?: string;
 }
 
+/** Noeud projet : isole les donnees par projet dans le graphe */
+export interface ProjectNode {
+    id: string;
+    type: 'project';
+    name: string;
+    rootPath: string;
+    createdAt: string;
+    lastScanAt?: string;
+}
+
 export interface ParameterInfo {
     name: string;
     type?: string;

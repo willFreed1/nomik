@@ -1,6 +1,7 @@
 import { Command } from 'commander';
 import { loadConfigFromEnv, validateConfig } from '@genome/core';
 import { createGraphService } from '@genome/graph';
+import { readProjectConfig } from '../utils/project-config.js';
 
 export const impactCommand = new Command('impact')
     .description('Analyze the impact of changing a function or symbol')
@@ -19,7 +20,8 @@ export const impactCommand = new Command('impact')
             await graph.connect();
 
             const depth = parseInt(opts.depth, 10);
-            const results = await graph.getImpact(symbol, depth);
+            const projectId = readProjectConfig()?.projectId;
+            const results = await graph.getImpact(symbol, depth, projectId);
 
             console.log(`\n🧬 Impact Analysis: ${symbol}\n`);
 

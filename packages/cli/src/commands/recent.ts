@@ -1,6 +1,7 @@
 import { Command } from 'commander';
 import { loadConfigFromEnv, createLogger, setLogger } from '@genome/core';
 import { createGraphService } from '@genome/graph';
+import { readProjectConfig } from '../utils/project-config.js';
 
 /** Commande CLI pour voir les changements recents dans le graphe */
 export const recentCommand = new Command('recent')
@@ -23,7 +24,8 @@ export const recentCommand = new Command('recent')
 
         try {
             await graph.connect();
-            const results = await graph.getRecentChanges(since, limit);
+            const projectId = readProjectConfig()?.projectId;
+            const results = await graph.getRecentChanges(since, limit, projectId);
 
             if (opts.json) {
                 console.log(JSON.stringify(results, null, 2));

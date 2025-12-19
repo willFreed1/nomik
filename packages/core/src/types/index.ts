@@ -11,6 +11,7 @@ export type {
     CronJobNode,
     EventNode,
     EnvVarNode,
+    ProjectNode,
     ParameterInfo,
 } from './nodes.js';
 

@@ -3,6 +3,7 @@ import path from 'node:path';
 import os from 'node:os';
 import { Command } from 'commander';
 import { createLogger, setLogger } from '@genome/core';
+import { readProjectConfig } from '../utils/project-config.js';
 
 /** Detecte le chemin du MCP server (installe globalement ou local) */
 function findMcpServerPath(): string {
@@ -37,16 +38,22 @@ export const setupCursorCommand = new Command('setup-cursor')
 
         const mcpPath = findMcpServerPath();
 
+        const local = readProjectConfig();
+        const envBlock: Record<string, string> = {
+            NEO4J_URI: opts.neo4jUri,
+            NEO4J_USER: opts.neo4jUser,
+            NEO4J_PASSWORD: opts.neo4jPassword,
+        };
+        if (local?.projectId) {
+            envBlock.GENOME_PROJECT_ID = local.projectId;
+        }
+
         const config = {
             mcpServers: {
                 genome: {
                     command: 'node',
                     args: [mcpPath],
-                    env: {
-                        NEO4J_URI: opts.neo4jUri,
-                        NEO4J_USER: opts.neo4jUser,
-                        NEO4J_PASSWORD: opts.neo4jPassword,
-                    },
+                    env: envBlock,
                 },
             },
         };

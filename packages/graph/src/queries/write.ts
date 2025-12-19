@@ -1,18 +1,18 @@
 import type { GraphDriver } from '../drivers/driver.interface.js';
-import type { GraphNode, GraphEdge } from '@genome/core';
+import type { GraphNode, GraphEdge, ProjectNode } from '@genome/core';
 
-export async function upsertNode(driver: GraphDriver, node: GraphNode): Promise<void> {
+export async function upsertNode(driver: GraphDriver, node: GraphNode, projectId: string): Promise<void> {
     const label = nodeTypeToLabel(node.type);
     const cypher = `
     MERGE (n:${label} {id: $id})
     ON CREATE SET n.createdAt = datetime()
-    SET n += $props, n.updatedAt = datetime()
+    SET n += $props, n.updatedAt = datetime(), n.projectId = $projectId
   `;
-    await driver.runWrite(cypher, { id: node.id, props: nodeToProps(node) });
+    await driver.runWrite(cypher, { id: node.id, props: nodeToProps(node), projectId });
 }
 
-/** Upsert par lots avec UNWIND pour la performance */
-export async function upsertNodes(driver: GraphDriver, nodes: GraphNode[]): Promise<void> {
+/** Upsert par lots avec UNWIND — chaque noeud reçoit le projectId */
+export async function upsertNodes(driver: GraphDriver, nodes: GraphNode[], projectId: string): Promise<void> {
     const grouped = groupByType(nodes);
     for (const [type, batch] of Object.entries(grouped)) {
         const label = nodeTypeToLabel(type);
@@ -20,10 +20,10 @@ export async function upsertNodes(driver: GraphDriver, nodes: GraphNode[]): Prom
       UNWIND $batch AS item
       MERGE (n:${label} {id: item.id})
       ON CREATE SET n.createdAt = datetime()
-      SET n += item.props, n.updatedAt = datetime()
+      SET n += item.props, n.updatedAt = datetime(), n.projectId = $projectId
     `;
         const items = batch.map(n => ({ id: n.id, props: nodeToProps(n) }));
-        await driver.runWrite(cypher, { batch: items });
+        await driver.runWrite(cypher, { batch: items, projectId });
     }
 }
 
@@ -35,23 +35,24 @@ function groupByType(nodes: GraphNode[]): Record<string, GraphNode[]> {
     return map;
 }
 
-export async function createEdge(driver: GraphDriver, edge: GraphEdge): Promise<void> {
+export async function createEdge(driver: GraphDriver, edge: GraphEdge, projectId: string): Promise<void> {
     const cypher = `
     MATCH (a {id: $sourceId}), (b {id: $targetId})
     MERGE (a)-[r:${edge.type} {id: $edgeId}]->(b)
     ON CREATE SET r.createdAt = datetime()
-    SET r += $props
+    SET r += $props, r.projectId = $projectId
   `;
     await driver.runWrite(cypher, {
         sourceId: edge.sourceId,
         targetId: edge.targetId,
         edgeId: edge.id,
         props: edgeToProps(edge),
+        projectId,
     });
 }
 
-/** Création d'edges par lots groupés par type de relation */
-export async function createEdges(driver: GraphDriver, edges: GraphEdge[]): Promise<void> {
+/** Creation d'edges par lots — chaque edge reçoit le projectId */
+export async function createEdges(driver: GraphDriver, edges: GraphEdge[], projectId: string): Promise<void> {
     const grouped: Record<string, GraphEdge[]> = {};
     for (const e of edges) {
         (grouped[e.type] ??= []).push(e);
@@ -62,22 +63,73 @@ export async function createEdges(driver: GraphDriver, edges: GraphEdge[]): Prom
       MATCH (a {id: item.sourceId}), (b {id: item.targetId})
       MERGE (a)-[r:${relType} {id: item.edgeId}]->(b)
       ON CREATE SET r.createdAt = datetime()
-      SET r += item.props
+      SET r += item.props, r.projectId = $projectId
     `;
         const items = batch.map(e => ({ sourceId: e.sourceId, targetId: e.targetId, edgeId: e.id, props: edgeToProps(e) }));
-        await driver.runWrite(cypher, { batch: items });
+        await driver.runWrite(cypher, { batch: items, projectId });
     }
 }
 
-export async function clearFileData(driver: GraphDriver, filePath: string): Promise<void> {
+/** Supprime les donnees d'un fichier dans un projet specifique */
+export async function clearFileData(driver: GraphDriver, filePath: string, projectId: string): Promise<void> {
     await driver.runWrite(
-        `MATCH (f:File {path: $path})-[:CONTAINS]->(n) DETACH DELETE n`,
-        { path: filePath },
+        `MATCH (f:File {path: $path, projectId: $projectId})-[:CONTAINS]->(n) DETACH DELETE n`,
+        { path: filePath, projectId },
     );
     await driver.runWrite(
-        `MATCH (f:File {path: $path}) DETACH DELETE f`,
-        { path: filePath },
+        `MATCH (f:File {path: $path, projectId: $projectId}) DETACH DELETE f`,
+        { path: filePath, projectId },
     );
+}
+
+/** Cree ou met a jour un noeud Project */
+export async function upsertProject(driver: GraphDriver, project: ProjectNode): Promise<void> {
+    await driver.runWrite(
+        `MERGE (p:Project {id: $id})
+         ON CREATE SET p.createdAt = datetime()
+         SET p.name = $name, p.rootPath = $rootPath, p.updatedAt = datetime()`,
+        { id: project.id, name: project.name, rootPath: project.rootPath },
+    );
+}
+
+/** Supprime toutes les donnees d'un projet (noeuds + relations) */
+export async function deleteProjectData(driver: GraphDriver, projectId: string): Promise<void> {
+    // Supprimer les relations du projet
+    await driver.runWrite(
+        `MATCH ()-[r {projectId: $projectId}]->() DELETE r`,
+        { projectId },
+    );
+    // Supprimer les noeuds du projet
+    await driver.runWrite(
+        `MATCH (n {projectId: $projectId}) DETACH DELETE n`,
+        { projectId },
+    );
+    // Supprimer le noeud Project lui-meme
+    await driver.runWrite(
+        `MATCH (p:Project {id: $projectId}) DETACH DELETE p`,
+        { projectId },
+    );
+}
+
+/** Liste tous les projets */
+export async function listProjects(driver: GraphDriver): Promise<ProjectNode[]> {
+    return driver.runQuery<ProjectNode>(
+        `MATCH (p:Project)
+         RETURN p.id as id, 'project' as type, p.name as name, p.rootPath as rootPath,
+                toString(p.createdAt) as createdAt, toString(p.updatedAt) as lastScanAt
+         ORDER BY p.name`,
+    );
+}
+
+/** Recupere un projet par ID */
+export async function getProject(driver: GraphDriver, projectId: string): Promise<ProjectNode | null> {
+    const results = await driver.runQuery<ProjectNode>(
+        `MATCH (p:Project {id: $id})
+         RETURN p.id as id, 'project' as type, p.name as name, p.rootPath as rootPath,
+                toString(p.createdAt) as createdAt, toString(p.updatedAt) as lastScanAt`,
+        { id: projectId },
+    );
+    return results[0] ?? null;
 }
 
 function nodeTypeToLabel(type: string): string {
