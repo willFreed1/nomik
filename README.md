@@ -40,19 +40,26 @@ Once connected, Cursor AI gets these tools automatically:
 | `kb_graph_stats` | Codebase health metrics | "Any dead code or god objects?" |
 | `kb_find_path` | Shortest path between symbols | "How does `scanCommand` connect to `neo4j`?" |
 | `kb_recent_changes` | Recently modified nodes | "What changed in the last hour?" |
+| `kb_dependency_trace` | Full dependency chain | "Show me the path from A to B" |
+| `kb_list_projects` | List all tracked projects | "What projects does GENOME know about?" |
 
 ## CLI Commands
 
 ```bash
-genome init                    # Setup config + Neo4j Docker
+genome init                    # Setup config + Neo4j Docker + create project
 genome scan <path>             # Parse & index codebase into graph
 genome watch [path]            # Live file watcher, auto-reindex
-genome status                  # Graph health & stats
+genome status                  # Graph health & stats (project-scoped)
 genome impact <symbol>         # Impact analysis for a symbol
 genome query "<cypher>"        # Raw Cypher query
 genome recent                  # Recently changed nodes
 genome setup-cursor            # Auto-configure Cursor MCP
 genome serve                   # Start MCP server + viz dashboard
+genome project list            # List all projects in Neo4j
+genome project create <name>   # Create a new project
+genome project switch <name>   # Switch to another project
+genome project delete <name>   # Delete project and all its data
+genome project info            # Show current project stats
 ```
 
 ## 3D Visualization
@@ -76,7 +83,7 @@ cd packages/viz && pnpm dev
 @genome/parser      - Tree-sitter extraction (TS/JS/Python/Rust/MD), file discovery
 @genome/graph       - Neo4j driver, read/write queries, cache, retry
 @genome/watcher     - Chokidar file watcher, incremental reindex
-@genome/mcp-server  - MCP protocol server (stdio), 6 AI tools
+@genome/mcp-server  - MCP protocol server (stdio), 8 AI tools
 @genome/viz         - React + 3d-force-graph + Cytoscape.js dashboard
 @genome-ai/cli      - Commander CLI, all commands, standalone bundle
 ```
@@ -93,7 +100,8 @@ cd packages/viz && pnpm dev
 | Monorepo | Turborepo + pnpm |
 | 3D Viz | Three.js (3d-force-graph) |
 | 2D Viz | Cytoscape.js |
-| Tests | Vitest (75+ tests) |
+| Tests | Vitest (80+ tests) |
+| Project Isolation | projectId on all nodes/edges, `.genome/project.json` |
 
 ## Development (contributors)
 

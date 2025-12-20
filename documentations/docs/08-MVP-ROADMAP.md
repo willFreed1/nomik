@@ -72,16 +72,19 @@
 
 ## Non-MVP (Post-Launch Backlog)
 
-| Feature | Phase | Priority |
-|---|---|---|
-| Python language support | Post-MVP | HIGH |
-| Go language support | Post-MVP | MEDIUM |
-| Cross-language edge resolution | Post-MVP | HIGH |
-| PR impact diff (GitHub integration) | Post-MVP | HIGH |
-| Graph time-travel (per-commit snapshots) | Post-MVP | MEDIUM |
-| Multi-repo federated graph | Enterprise | HIGH |
-| RBAC + multi-tenancy | Enterprise | HIGH |
-| SSO (OIDC/SAML) | Enterprise | MEDIUM |
-| Cloud-hosted SaaS offering | Enterprise | HIGH |
-| Infra integration (K8s, Terraform) | Phase 2 Vision | MEDIUM |
-| Business logic linking (Jira/ADRs) | Phase 3 Vision | LOW |
+| Feature | Phase | Priority | Status |
+|---|---|---|---|
+| Python language support | Post-MVP | HIGH | **FAIT** |
+| Rust language support | Post-MVP | HIGH | **FAIT** |
+| Multi-project isolation (projectId) | Post-MVP | HIGH | **FAIT** |
+| Go language support | Post-MVP | MEDIUM | Non commence |
+| Cross-language edge resolution | Post-MVP | HIGH | Non commence |
+| PR impact diff (GitHub integration) | Post-MVP | HIGH | Non commence |
+| Graph time-travel (per-commit snapshots) | Post-MVP | MEDIUM | Non commence |
+| Cross-project duplicate detection | Post-MVP | MEDIUM | Non commence |
+| Multi-repo federated graph | Enterprise | HIGH | Non commence |
+| RBAC + multi-tenancy | Enterprise | HIGH | Non commence |
+| SSO (OIDC/SAML) | Enterprise | MEDIUM | Non commence |
+| Cloud-hosted SaaS offering | Enterprise | HIGH | Non commence |
+| Infra integration (K8s, Terraform) | Phase 2 Vision | MEDIUM | Non commence |
+| Business logic linking (Jira/ADRs) | Phase 3 Vision | LOW | Non commence |

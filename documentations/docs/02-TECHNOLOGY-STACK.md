@@ -60,14 +60,25 @@ interface DependsOnEdge {
 }
 ```
 
-### When to Introduce Other Languages (Post-MVP)
+### Langages supportes par le parser
 
-| Phase | Language | Purpose |
+GENOME analyse deja plusieurs langages via Tree-sitter :
+
+| Langage | Grammaire | Extracteurs | Status |
+|---|---|---|---|
+| TypeScript / JavaScript | `tree-sitter-typescript` | functions, classes, imports, exports, routes, calls | **Fait** |
+| Python | `tree-sitter-python` | functions, classes, imports, calls | **Fait** |
+| Rust | `tree-sitter-rust` | functions, structs/enums/traits, use, calls | **Fait** |
+| Markdown | Parser custom (regex) | sections, titres | **Fait** |
+| Go | `tree-sitter-go` | Non commence | Backlog |
+
+### Langages futurs (Post-MVP)
+
+| Phase | Langage | Objectif |
 |---|---|---|
-| MVP | TypeScript only | Everything |
-| Scale | **Rust** | High-perf parser for massive repos (>1M lines) |
-| Scale | **Go** | Standalone CLI binary distribution (no Node.js required) |
-| Enterprise | **Python** | ML-based relationship inference, NLP for doc parsing |
+| Post-MVP | **Go** | Support du langage Go dans le parser |
+| Scale | **Rust natif** | Parser haute performance pour repos >1M lignes |
+| Enterprise | **Java / C#** | Ecosystemes enterprise |
 
 ### Runtime Requirements
 

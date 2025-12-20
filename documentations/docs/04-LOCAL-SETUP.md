@@ -98,7 +98,7 @@ cd genome
 pnpm install
 
 # 2. Start Neo4j
-docker compose -f docker/docker-compose.yml up -d
+docker compose up -d
 
 # 3. Verify Neo4j is running
 # Open http://localhost:7474 in browser
@@ -124,13 +124,13 @@ export default defineConfig({
   // Project to analyze
   target: {
     root: './src',
-    include: ['**/*.ts', '**/*.tsx', '**/*.js', '**/*.jsx'],
-    exclude: ['**/node_modules/**', '**/dist/**', '**/*.test.*'],
+    include: ['**/*.ts', '**/*.tsx', '**/*.js', '**/*.jsx', '**/*.md', '**/*.py', '**/*.rs'],
+    exclude: ['**/node_modules/**', '**/dist/**', '**/*.test.*', '**/*.d.ts', '**/__pycache__/**', '**/target/**', '**/.venv/**'],
   },
 
   // Graph database connection
   graph: {
-    driver: 'neo4j',              // or 'falkordb'
+    driver: 'neo4j',
     uri: 'bolt://localhost:7687',
     auth: {
       username: 'neo4j',
@@ -140,7 +140,7 @@ export default defineConfig({
 
   // Parser configuration
   parser: {
-    languages: ['typescript'],     // MVP: TypeScript only
+    languages: ['typescript', 'python', 'rust'],
     extractors: {
       routes: true,                // Extract HTTP routes
       externalCalls: true,         // Track external API calls

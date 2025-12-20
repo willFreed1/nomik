@@ -24,34 +24,27 @@ GENOME exposes an **MCP Server** that gives AI assistants direct access to the c
 └────────────────────┘                    └──────────────────┘
 ```
 
-### Setup in Cursor
+### Setup in Cursor (recommande)
 
-Add to your Cursor MCP configuration (`.cursor/mcp.json` or global settings):
+La methode la plus simple est d'utiliser la commande dediee :
+
+```bash
+genome setup-cursor
+```
+
+Cela cree automatiquement `.cursor/mcp.json` avec la bonne config. Sinon, manuellement :
 
 ```json
 {
   "mcpServers": {
     "genome": {
       "command": "node",
-      "args": ["./node_modules/@genome/mcp-server/dist/index.js"],
+      "args": ["packages/mcp-server/dist/index.js"],
       "env": {
-        "GENOME_GRAPH_URI": "bolt://localhost:7687",
-        "GENOME_GRAPH_USER": "neo4j",
-        "GENOME_GRAPH_PASS": "genome_local"
-      }
-    }
-  }
-}
-```
-
-Or if GENOME is installed globally:
-
-```json
-{
-  "mcpServers": {
-    "genome": {
-      "command": "genome",
-      "args": ["mcp", "--transport", "stdio"]
+        "NEO4J_URI": "bolt://localhost:7687",
+        "NEO4J_USER": "neo4j",
+        "NEO4J_PASSWORD": "genome_local",
+        "GENOME_PROJECT_ID": "my-project"
     }
   }
 }
@@ -67,6 +60,10 @@ Or if GENOME is installed globally:
 | `kb_get_context` | Contexte riche d'un fichier ou fonction (calls, calledBy, imports, contains) | "Give me context for `auth.middleware.ts`" |
 | `kb_graph_stats` | Metriques de sante du graphe (dead code, god objects, counts) | "Are there any God Objects or dependency cycles?" |
 | `kb_find_path` | Plus court chemin entre deux entites du code | "How does `LoginButton` connect to `users` DB table?" |
+| `kb_recent_changes` | Noeuds modifies recemment | "What changed in the last hour?" |
+| `kb_list_projects` | Liste tous les projets dans le graphe | "What projects does GENOME track?" |
+
+> **Note**: Toutes les requetes sont automatiquement filtrees par `projectId` via la variable d'environnement `GENOME_PROJECT_ID`. Cela garantit l'isolation entre projets.
 
 ### Example: What Cursor Sees
 

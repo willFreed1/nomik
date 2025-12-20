@@ -1,207 +1,195 @@
-# GENOME — Architecture & Project Structure
+# GENOME — Architecture & Structure du projet
 
-## High-Level Architecture
+## Architecture de haut niveau
 
 ```
 ┌──────────────────────────────────────────────────────────────┐
-│                      GENOME SYSTEM                           │
+│                      SYSTÈME GENOME                           │
 │                                                              │
 │  ┌────────────┐   ┌────────────┐   ┌────────────────────┐   │
-│  │   Parser    │──▶│   Graph    │◀──│    MCP Server      │   │
-│  │ (Tree-sit)  │   │  (Neo4j)   │   │ (stdio/SSE/HTTP)   │   │
-│  └─────▲──────┘   └─────┬──────┘   └────────▲───────────┘   │
+│  │   Parser   │──▶│   Graph    │◀──│    MCP Server      │   │
+│  │(Tree-sitter│   │  (Neo4j)   │   │ (stdio/SSE/HTTP)   │   │
+│  │ + Markdown)│   └─────┬──────┘   └────────▲───────────┘   │
+│  └─────▲──────┘         │                    │               │
 │        │                 │                    │               │
 │  ┌─────┴──────┐   ┌─────▼──────┐   ┌────────┴───────────┐   │
-│  │  Watcher    │   │  Viz Web   │   │  Cursor / Claude   │   │
-│  │ (chokidar)  │   │  (D3.js)   │   │  Desktop / CLI     │   │
-│  └────────────┘   └────────────┘   └────────────────────┘   │
+│  │  Watcher   │   │  Viz Web  │   │  Cursor / Claude   │   │
+│  │ (chokidar) │   │Cytoscape  │   │  Desktop / CLI     │   │
+│  │  debounce  │   │3d-force-  │   └────────────────────┘   │
+│  └────────────┘   │  graph    │                            │
+│                   └───────────┘                            │
 │                                                              │
-│  ┌──────────────────────────────────────────────────────┐    │
-│  │               CLI  (genome scan / query / serve)      │    │
-│  └──────────────────────────────────────────────────────┘    │
+│  ┌──────────────────────────────────────────────────────┐   │
+│  │  CLI  (genome init/scan/status/impact/watch/serve/     │   │
+│  │        query/recent/setup-cursor/project)             │   │
+│  └──────────────────────────────────────────────────────┘   │
 └──────────────────────────────────────────────────────────────┘
 ```
 
-## Data Flow
+## Flux de données
 
 ```mermaid
 graph LR
-    A[Source Code] -->|chokidar watch| B[File Watcher]
-    B -->|changed files| C[Parser Engine]
-    C -->|AST + symbols| D[Relationship Resolver]
-    D -->|nodes + edges| E[Graph Writer]
+    A[Code source] -->|chokidar watch| B[Watcher]
+    B -->|fichiers modifiés| C[Parser Engine]
+    C -->|AST + symboles| D[Extracteurs]
+    D -->|nœuds + arêtes| E[Graph Writer]
     E -->|Cypher| F[(Neo4j)]
-    F -->|query results| G[MCP Server]
-    G -->|MCP protocol| H[Cursor AI / Claude]
-    F -->|query results| I[D3 Viz Dashboard]
-    F -->|query results| J[CLI]
+    F -->|résultats| G[MCP Server]
+    G -->|protocole MCP| H[Cursor AI / Claude]
+    F -->|résultats| I[Viz Cytoscape/3D]
+    F -->|résultats| J[CLI]
 ```
 
-## Monorepo Structure (Turborepo + pnpm)
+## Structure du monorepo (Turborepo + pnpm)
 
 ```
 genome/
 ├── packages/
-│   ├── core/                    # Shared kernel (types, config, logger)
+│   ├── core/                    # Noyau partagé (types, config, logger)
 │   │   ├── src/
 │   │   │   ├── types/
-│   │   │   │   ├── nodes.ts          # Graph node type definitions
-│   │   │   │   ├── edges.ts          # Graph edge type definitions
-│   │   │   │   ├── config.ts         # Configuration schema
-│   │   │   │   └── index.ts          # Re-exports
+│   │   │   │   ├── nodes.ts          # Définitions des types de nœuds
+│   │   │   │   ├── edges.ts          # Définitions des types d'arêtes
+│   │   │   │   ├── config.ts         # Schéma de configuration
+│   │   │   │   └── index.ts          # Ré-exports
 │   │   │   ├── config/
-│   │   │   │   ├── loader.ts         # Config file discovery & parsing
-│   │   │   │   ├── defaults.ts       # Default configuration values
-│   │   │   │   └── validator.ts      # Zod schema validation
+│   │   │   │   └── ...               # Chargement, validation (Zod)
 │   │   │   ├── logger/
-│   │   │   │   ├── logger.ts         # Structured JSON logger (pino)
-│   │   │   │   └── transports.ts     # Console, file, remote transports
+│   │   │   │   └── ...               # Logger structuré (pino)
 │   │   │   └── index.ts
 │   │   ├── package.json
 │   │   └── tsconfig.json
 │   │
-│   ├── parser/                  # Tree-sitter parsing engine
+│   ├── parser/                  # Moteur de parsing Tree-sitter
 │   │   ├── src/
 │   │   │   ├── languages/
-│   │   │   │   ├── typescript.ts     # TS/JS grammar + queries
-│   │   │   │   ├── python.ts         # Python grammar + queries (Phase 2)
-│   │   │   │   ├── go.ts             # Go grammar + queries (Phase 3)
-│   │   │   │   └── registry.ts       # Language auto-detection
+│   │   │   │   ├── typescript.ts     # Grammaire TS/JS + requêtes
+│   │   │   │   ├── registry.ts      # Détection automatique de langue
+│   │   │   │   └── index.ts
 │   │   │   ├── extractors/
-│   │   │   │   ├── functions.ts      # Function/method extraction
-│   │   │   │   ├── classes.ts        # Class/interface extraction
-│   │   │   │   ├── imports.ts        # Import/require extraction
-│   │   │   │   ├── routes.ts         # HTTP route/decorator extraction
-│   │   │   │   ├── exports.ts        # Export extraction
-│   │   │   │   └── index.ts          # Extractor orchestrator
-│   │   │   ├── resolvers/
-│   │   │   │   ├── imports.ts        # Import → file resolution
-│   │   │   │   ├── calls.ts          # Function call → definition resolution
-│   │   │   │   ├── types.ts          # Type reference resolution
-│   │   │   │   └── index.ts          # Resolver pipeline
-│   │   │   ├── parser.ts             # Main parser orchestrator
+│   │   │   │   ├── functions.ts      # Extraction fonctions/méthodes
+│   │   │   │   ├── classes.ts        # Extraction classes/interfaces
+│   │   │   │   ├── imports.ts        # Extraction imports/require
+│   │   │   │   ├── exports.ts        # Extraction exports
+│   │   │   │   ├── routes.ts         # Extraction routes HTTP/décorateurs
+│   │   │   │   ├── calls.ts          # Résolution appels → définitions
+│   │   │   │   ├── python.ts         # Extracteur Python
+│   │   │   │   ├── rust.ts           # Extracteur Rust
+│   │   │   │   ├── markdown.ts       # Parser custom Markdown
+│   │   │   │   └── index.ts          # Orchestrateur des extracteurs
+│   │   │   ├── discovery.ts         # Découverte des fichiers
+│   │   │   ├── parser.ts             # Orchestrateur principal
 │   │   │   └── index.ts
 │   │   ├── package.json
 │   │   └── tsconfig.json
 │   │
-│   ├── graph/                   # Graph database abstraction layer
+│   ├── graph/                   # Couche d'abstraction Neo4j
 │   │   ├── src/
-│   │   │   ├── schema/
-│   │   │   │   ├── nodes.cypher      # Node constraint definitions
-│   │   │   │   ├── edges.cypher      # Edge definitions
-│   │   │   │   └── indexes.cypher    # Performance indexes
 │   │   │   ├── drivers/
-│   │   │   │   ├── neo4j.driver.ts   # Neo4j connection & session mgmt
-│   │   │   │   ├── falkordb.driver.ts# FalkorDB alternative driver
-│   │   │   │   └── driver.interface.ts# Abstract driver contract
+│   │   │   │   ├── neo4j.driver.ts   # Connexion Neo4j & gestion sessions
+│   │   │   │   ├── driver.interface.ts # Contrat abstrait du driver
+│   │   │   │   └── scoped.driver.ts  # Wrapper scope par projectId
 │   │   │   ├── queries/
-│   │   │   │   ├── write.ts          # Upsert nodes, create edges
-│   │   │   │   ├── read.ts           # Traversal, path finding, search
-│   │   │   │   ├── impact.ts         # Impact analysis queries
-│   │   │   │   ├── delete.ts         # Cleanup, orphan removal
-│   │   │   │   └── analytics.ts      # God objects, cycles, metrics
-│   │   │   ├── migrations/
-│   │   │   │   ├── runner.ts         # Migration executor
-│   │   │   │   ├── 001-init.ts       # Initial schema
-│   │   │   │   └── 002-indexes.ts    # Performance indexes
-│   │   │   ├── graph.service.ts      # High-level graph operations
+│   │   │   │   ├── write.ts           # Upsert nœuds/arêtes (projectId),
+│   │   │   │   │                      # CRUD projet (create/list/get/delete)
+│   │   │   │   └── read.ts            # Impact, dead code, god objects,
+│   │   │   │                          # stats, chaîne de dépendances,
+│   │   │   │                          # changements récents (tous filtrés projectId)
+│   │   │   ├── schema/
+│   │   │   │   └── init.ts            # Contraintes + index projectId
+│   │   │   ├── cache.ts               # QueryCache TTL 30s
+│   │   │   ├── graph.service.ts       # Opérations haut niveau
 │   │   │   └── index.ts
 │   │   ├── package.json
 │   │   └── tsconfig.json
 │   │
-│   ├── watcher/                 # File system watcher + change detection
+│   ├── watcher/                 # Surveillance du système de fichiers
 │   │   ├── src/
-│   │   │   ├── watcher.ts            # chokidar file watcher
-│   │   │   ├── differ.ts             # Detect what changed in a file
-│   │   │   ├── queue.ts              # Debounced update queue
-│   │   │   ├── strategy.ts           # Full-scan vs incremental strategy
+│   │   │   ├── watcher.ts            # chokidar + debounce + projectId
 │   │   │   └── index.ts
 │   │   ├── package.json
 │   │   └── tsconfig.json
 │   │
-│   ├── mcp-server/              # MCP protocol server
+│   ├── mcp-server/              # Serveur protocole MCP
 │   │   ├── src/
-│   │   │   ├── tools/
-│   │   │   │   ├── impact-analysis.ts # "What breaks if I change X?"
-│   │   │   │   ├── dependency-trace.ts# "Show me the dep chain for X"
-│   │   │   │   ├── search-nodes.ts    # "Find all auth-related functions"
-│   │   │   │   ├── get-context.ts     # "Get me context for this file"
-│   │   │   │   └── graph-stats.ts     # "How healthy is the codebase?"
-│   │   │   ├── resources/
-│   │   │   │   ├── graph-summary.ts   # Resource: full graph summary
-│   │   │   │   └── file-context.ts    # Resource: per-file context
-│   │   │   ├── server.ts             # MCP server bootstrap
+│   │   │   ├── tools.ts              # 8 outils : kb_search, kb_impact,
+│   │   │   │                          # kb_dependency_trace, kb_get_context,
+│   │   │   │                          # kb_graph_stats, kb_find_path,
+│   │   │   │                          # kb_recent_changes, kb_list_projects
+│   │   │   ├── resources.ts           # Ressources MCP
 │   │   │   └── index.ts
 │   │   ├── package.json
 │   │   └── tsconfig.json
 │   │
-│   ├── viz/                     # D3.js visualization dashboard
+│   ├── viz/                     # Dashboard de visualisation
 │   │   ├── src/
 │   │   │   ├── components/
-│   │   │   │   ├── GraphCanvas.ts     # Main D3 force-directed graph
-│   │   │   │   ├── NodeDetail.ts      # Node inspector panel
-│   │   │   │   ├── SearchBar.ts       # Graph search interface
-│   │   │   │   ├── FilterPanel.ts     # Node/edge type filters
-│   │   │   │   └── ImpactOverlay.ts   # Impact analysis highlight
-│   │   │   ├── layouts/
-│   │   │   │   ├── force.ts           # Force-directed layout
-│   │   │   │   ├── hierarchical.ts    # Tree/DAG layout
-│   │   │   │   └── radial.ts          # Radial dependency layout
-│   │   │   ├── api/
-│   │   │   │   └── client.ts          # REST client to graph API
+│   │   │   │   ├── GraphViewer.tsx    # Graphe 2D Cytoscape.js
+│   │   │   │   ├── Graph3DViewer.tsx  # Graphe 3D 3d-force-graph (Three.js)
+│   │   │   │   ├── SearchBar.tsx      # Recherche dans le graphe
+│   │   │   │   ├── FilterPanel.tsx    # Filtres nœuds/arêtes
+│   │   │   │   ├── NodeDetail.tsx     # Panneau inspecteur nœud
+│   │   │   │   ├── HelpModal.tsx      # Modal d'aide
+│   │   │   │   └── LayoutSelector.tsx # Sélecteur de disposition
 │   │   │   ├── styles/
-│   │   │   │   └── dashboard.css      # Dashboard styles
-│   │   │   └── index.html
-│   │   ├── package.json
-│   │   └── tsconfig.json
+│   │   │   │   ├── graphLayout.ts     # Styles de layout
+│   │   │   │   └── graphStyles.ts     # Styles du graphe
+│   │   │   ├── neo4j.ts              # Client Neo4j pour la viz
+│   │   │   ├── App.tsx
+│   │   │   └── main.tsx
+│   │   ├── package.json              # React, Vite, TailwindCSS,
+│   │   └── tsconfig.json              # cytoscape, 3d-force-graph
 │   │
-│   └── cli/                     # Command-line interface
+│   └── cli/                     # Interface en ligne de commande
 │       ├── src/
 │       │   ├── commands/
-│       │   │   ├── init.ts            # genome init — setup config
+│       │   │   ├── init.ts            # genome init — configuration
 │       │   │   ├── scan.ts            # genome scan — parse & index
-│       │   │   ├── query.ts           # genome query — Cypher query
-│       │   │   ├── impact.ts          # genome impact <function>
-│       │   │   ├── serve.ts           # genome serve — start MCP + Viz
-│       │   │   ├── status.ts          # genome status — graph health
-│       │   │   └── watch.ts           # genome watch — incremental mode
-│       │   ├── cli.ts                 # CLI entry point (commander)
-│       │   └── index.ts
+│       │   │   ├── status.ts          # genome status — santé du graphe
+│       │   │   ├── impact.ts          # genome impact <fonction>
+│       │   │   ├── watch.ts           # genome watch — mode incrémental
+│       │   │   ├── serve.ts           # genome serve — MCP + Viz
+│       │   │   ├── query.ts           # genome query — requête Cypher
+│       │   │   ├── recent.ts          # genome recent — changements récents
+│       │   │   ├── setup-cursor.ts    # genome setup-cursor
+│       │   │   └── project.ts         # genome project list/create/
+│       │   │                          # switch/delete/info
+│       │   ├── utils/
+│       │   │   └── project-config.ts  # .genome/project.json
+│       │   └── index.ts               # Point d'entrée CLI (commander)
 │       ├── package.json
 │       └── tsconfig.json
 │
-├── docker/
-│   ├── docker-compose.yml             # Neo4j + GENOME services
-│   ├── docker-compose.dev.yml         # Dev overrides (hot-reload)
-│   └── neo4j/
-│       └── neo4j.conf                 # Custom Neo4j configuration
+├── docker-compose.yml                 # Neo4j Community (racine du repo)
 │
-├── .github/
-│   └── workflows/
-│       └── ci.yml                     # Lint + test + build
-│
-├── genome.config.ts                   # User-facing project config
-├── turbo.json                         # Turborepo pipeline config
-├── pnpm-workspace.yaml                # pnpm workspace definition
-├── tsconfig.base.json                 # Shared TS config
-├── .eslintrc.json                     # Shared lint config
-├── .prettierrc                        # Code formatting
-├── package.json                       # Root package
+├── genome.config.ts                   # Config projet utilisateur
+├── turbo.json                         # Pipeline Turborepo
+├── pnpm-workspace.yaml                # Définition workspace pnpm
+├── tsconfig.base.json                 # Config TS partagée
+├── package.json                       # Package racine
 ├── LICENSE
 └── README.md
 ```
 
-## Module Responsibilities (Strict Boundaries)
+## Isolation multi-projet
 
-| Module | Responsibility | Depends On | Exposes |
-|---|---|---|---|
-| `@genome/core` | Types, config, logging | Nothing | Types, Config, Logger |
-| `@genome/parser` | Code → structured symbols | `core` | `parseFile()`, `parseProject()` |
-| `@genome/graph` | Symbol storage & queries | `core` | `GraphService` |
-| `@genome/watcher` | File change detection | `core`, `parser`, `graph` | `WatcherService` |
-| `@genome/mcp-server` | AI protocol interface | `core`, `graph` | MCP tools/resources |
-| `@genome/viz` | Browser dashboard | `core` (types only) | Web app |
-| `@genome/cli` | User command interface | All packages | CLI binary |
+- **`.genome/project.json`** : stocke le `projectId` courant (projet actif)
+- **projectId** : présent sur tous les nœuds et arêtes du graphe
+- **scopedDriver** : wrapper qui injecte le `projectId` dans les requêtes
+- Les requêtes de lecture (impact, dead code, stats, etc.) filtrent par `projectId`
+
+## Responsabilités des modules (frontières strictes)
+
+| Module | Responsabilité | Dépend de | Expose |
+|--------|----------------|-----------|--------|
+| `@genome/core` | Types, config, logging | Rien | Types, Config, Logger |
+| `@genome/parser` | Code → symboles structurés | `core` | `parseFile()`, `parseProject()` |
+| `@genome/graph` | Stockage & requêtes sur le graphe | `core` | `GraphService`, `createGraphService` |
+| `@genome/watcher` | Détection des changements fichiers | `core`, `parser`, `graph` | `createWatcher()` |
+| `@genome/mcp-server` | Interface protocole MCP pour l'IA | `core`, `graph` | Outils et ressources MCP |
+| `@genome/viz` | Dashboard navigateur | `core` (types uniquement) | Application web |
+| `@genome-ai/cli` | Interface utilisateur CLI | Tous les packages | Binaire CLI |
 
 > [!CAUTION]
-> **No circular dependencies.** The dependency graph is strictly uni-directional: `core` → `parser`/`graph` → `watcher`/`mcp-server` → `cli`. The `viz` package is isolated and communicates via HTTP API only.
+> **Pas de dépendances circulaires.** Le graphe de dépendances est strictement unidirectionnel : `core` → `parser`/`graph` → `watcher`/`mcp-server` → `cli`. Le package `viz` est isolé et communique via l'API HTTP (Neo4j direct ou serveur).

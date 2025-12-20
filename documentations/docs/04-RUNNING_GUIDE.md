@@ -65,15 +65,30 @@ pnpm dev
 pnpm genome serve
 ```
 
-### AI Client Configuration
-Add the following to your AI client's MCP configuration (e.g., Claude Desktop):
+### Configuration automatique Cursor
+
+La methode recommandee est d'utiliser la commande dediee :
+
+```bash
+pnpm genome setup-cursor
+```
+
+Cela cree automatiquement `.cursor/mcp.json` avec le bon chemin vers le MCP server et les variables Neo4j.
+
+### Configuration manuelle (Claude Desktop)
 
 ```json
 {
   "mcpServers": {
     "genome": {
       "command": "node",
-      "args": ["C:/Users/GP78HX/Documents/GENOME/packages/mcp-server/dist/index.js"]
+      "args": ["packages/mcp-server/dist/index.js"],
+      "env": {
+        "NEO4J_URI": "bolt://localhost:7687",
+        "NEO4J_USER": "neo4j",
+        "NEO4J_PASSWORD": "genome_local",
+        "GENOME_PROJECT_ID": "my-project"
+      }
     }
   }
 }
@@ -89,13 +104,11 @@ Auto-reindex files as you edit them:
 pnpm genome watch .
 ```
 
-Le watcher utilise `chokidar` avec debounce (500ms par defaut) pour re-parser et re-ingerer les fichiers modifies.
+Le watcher utilise `chokidar` avec debounce (500ms par defaut) pour re-parser et re-ingerer les fichiers modifies. Les donnees sont isolees par projet via `projectId`.
 
 ---
 
 ## Step 7: Query the Graph (Optional)
-
-Execute raw Cypher queries directement depuis le terminal:
 
 ```bash
 # Format tableau
@@ -104,3 +117,28 @@ pnpm genome query "MATCH (n:Function) RETURN n.name, n.filePath LIMIT 10"
 # Format JSON
 pnpm genome query "MATCH (n)-[r]->(m) RETURN type(r), count(*)" --json
 ```
+
+---
+
+## Step 8: Gestion des projets (Optional)
+
+GENOME isole les donnees par projet. Chaque noeud et chaque relation porte un `projectId`.
+
+```bash
+# Lister les projets
+pnpm genome project list
+
+# Creer un nouveau projet
+pnpm genome project create my-api
+
+# Voir les stats du projet courant
+pnpm genome project info
+
+# Changer de projet
+pnpm genome project switch other-project
+
+# Supprimer un projet et ses donnees
+pnpm genome project delete old-project
+```
+
+Le projet courant est stocke dans `.genome/project.json` (a committer dans git pour partager avec l'equipe).
