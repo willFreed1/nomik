@@ -1,6 +1,6 @@
 # @genome-ai/cli
 
-Interface en ligne de commande du systeme GENOME. 11 commandes, isolation multi-projet, bundle standalone via tsup.
+Command-line interface for the GENOME system. 11 commands, multi-project isolation, standalone bundle via tsup.
 
 ## Installation
 
@@ -8,48 +8,48 @@ Interface en ligne de commande du systeme GENOME. 11 commandes, isolation multi-
 # Global (npm)
 npm install -g @genome-ai/cli
 
-# Ou en local (monorepo dev)
+# Or local (monorepo dev)
 pnpm build
-pnpm genome <commande>
+pnpm genome <command>
 ```
 
-## Commandes
+## Commands
 
 ### `genome init`
-Initialise le projet : cree `genome.config.ts`, demarre Neo4j via Docker, cree `.genome/project.json`.
+Initializes the project: creates `genome.config.ts`, starts Neo4j via Docker, creates `.genome/project.json`.
 
 ```bash
 genome init
-genome init --no-docker   # Sans Docker
+genome init --no-docker   # Without Docker
 ```
 
 ### `genome scan <path>`
-Scanne le repertoire, parse les fichiers et les ingere dans Neo4j. Cree automatiquement le projet s'il n'existe pas.
+Scans the directory, parses files and ingests them into Neo4j. Automatically creates the project if it does not exist.
 
 ```bash
 genome scan .
-genome scan . --project my-api   # Nom de projet explicite
+genome scan . --project my-api   # Explicit project name
 ```
 
-- **Options** : `--language`, `--project`
-- **Auto-detection** : Detecte et met a jour `rootPath` si le dossier a ete renomme.
+- **Options**: `--language`, `--project`
+- **Auto-detection**: Detects and updates `rootPath` if the folder has been renamed.
 
 ### `genome status`
-Verifie la connexion Neo4j et affiche les statistiques du projet courant.
+Verifies Neo4j connection and displays statistics for the current project.
 
 ```bash
 genome status
 ```
 
 ### `genome impact <symbol>`
-Analyse d'impact sur un symbole (fonction, classe) — scope par projet.
+Impact analysis on a symbol (function, class) — scoped by project.
 
 ```bash
 genome impact "AuthService" --depth 5
 ```
 
 ### `genome watch [path]`
-Surveille les fichiers et re-indexe automatiquement (chokidar, debounce 500ms).
+Watches files and re-indexes automatically (chokidar, 500ms debounce).
 
 ```bash
 genome watch .
@@ -57,14 +57,14 @@ genome watch . --debounce 1000
 ```
 
 ### `genome serve`
-Demarre le serveur MCP et le dashboard de visualisation.
+Starts the MCP server and visualization dashboard.
 
 ```bash
 genome serve
 ```
 
 ### `genome query <cypher>`
-Execute une requete Cypher brute contre le knowledge graph.
+Executes a raw Cypher query against the knowledge graph.
 
 ```bash
 genome query "MATCH (n:Function) RETURN n.name LIMIT 10"
@@ -72,7 +72,7 @@ genome query "MATCH (n)-[r]->(m) RETURN type(r), count(*)" --json
 ```
 
 ### `genome recent`
-Affiche les noeuds recemment modifies — scope par projet.
+Displays recently modified nodes — scoped by project.
 
 ```bash
 genome recent
@@ -80,26 +80,26 @@ genome recent --since 2026-02-10T00:00:00Z --limit 50 --json
 ```
 
 ### `genome setup-cursor`
-Auto-configure `.cursor/mcp.json` pour connecter Cursor AI a GENOME. Injecte `GENOME_PROJECT_ID` automatiquement.
+Auto-configures `.cursor/mcp.json` to connect Cursor AI to GENOME. Injects `GENOME_PROJECT_ID` automatically.
 
 ```bash
 genome setup-cursor
-genome setup-cursor --global   # Config globale (tous les projets)
+genome setup-cursor --global   # Global config (all projects)
 ```
 
-### `genome project <sous-commande>`
-Gestion des projets — isolation des donnees dans Neo4j.
+### `genome project <subcommand>`
+Project management — data isolation in Neo4j.
 
 ```bash
-genome project list              # Lister tous les projets
-genome project create my-api     # Creer un projet
-genome project switch my-api     # Changer de projet (avec validation atomique)
-genome project delete my-api     # Supprimer un projet et ses donnees
-genome project info              # Stats du projet courant
+genome project list              # List all projects
+genome project create my-api     # Create a project
+genome project switch my-api     # Switch project (with atomic validation)
+genome project delete my-api     # Delete a project and its data
+genome project info              # Stats for current project
 ```
 
-Le projet courant est stocke dans `.genome/project.json` (version, projectId, projectName, createdAt).
+The current project is stored in `.genome/project.json` (version, projectId, projectName, createdAt).
 
 ## Architecture
 
-Le CLI utilise `commander` pour le parsing d'arguments et delegue aux services (`@genome/parser`, `@genome/graph`, `@genome/watcher`). Point d'entree : `src/index.ts`. Bundle standalone via `tsup` avec le MCP server inclus dans `dist/mcp-server.js`.
+The CLI uses `commander` for argument parsing and delegates to services (`@genome/parser`, `@genome/graph`, `@genome/watcher`). Entry point: `src/index.ts`. Standalone bundle via `tsup` with the MCP server included in `dist/mcp-server.js`.

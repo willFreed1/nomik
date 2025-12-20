@@ -60,25 +60,25 @@ interface DependsOnEdge {
 }
 ```
 
-### Langages supportes par le parser
+### Languages supported by the parser
 
-GENOME analyse deja plusieurs langages via Tree-sitter :
+GENOME already analyzes several languages via Tree-sitter:
 
-| Langage | Grammaire | Extracteurs | Status |
+| Language | Grammar | Extractors | Status |
 |---|---|---|---|
-| TypeScript / JavaScript | `tree-sitter-typescript` | functions, classes, imports, exports, routes, calls | **Fait** |
-| Python | `tree-sitter-python` | functions, classes, imports, calls | **Fait** |
-| Rust | `tree-sitter-rust` | functions, structs/enums/traits, use, calls | **Fait** |
-| Markdown | Parser custom (regex) | sections, titres | **Fait** |
-| Go | `tree-sitter-go` | Non commence | Backlog |
+| TypeScript / JavaScript | `tree-sitter-typescript` | functions, classes, imports, exports, routes, calls | **Done** |
+| Python | `tree-sitter-python` | functions, classes, imports, calls | **Done** |
+| Rust | `tree-sitter-rust` | functions, structs/enums/traits, use, calls | **Done** |
+| Markdown | Custom parser (regex) | sections, headings | **Done** |
+| Go | `tree-sitter-go` | Not started | Backlog |
 
-### Langages futurs (Post-MVP)
+### Future languages (Post-MVP)
 
-| Phase | Langage | Objectif |
+| Phase | Language | Goal |
 |---|---|---|
-| Post-MVP | **Go** | Support du langage Go dans le parser |
-| Scale | **Rust natif** | Parser haute performance pour repos >1M lignes |
-| Enterprise | **Java / C#** | Ecosystemes enterprise |
+| Post-MVP | **Go** | Go language support in the parser |
+| Scale | **Native Rust** | High-performance parser for repos >1M lines |
+| Enterprise | **Java / C#** | Enterprise ecosystems |
 
 ### Runtime Requirements
 

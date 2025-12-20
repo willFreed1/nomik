@@ -74,17 +74,17 @@
 
 | Feature | Phase | Priority | Status |
 |---|---|---|---|
-| Python language support | Post-MVP | HIGH | **FAIT** |
-| Rust language support | Post-MVP | HIGH | **FAIT** |
-| Multi-project isolation (projectId) | Post-MVP | HIGH | **FAIT** |
-| Go language support | Post-MVP | MEDIUM | Non commence |
-| Cross-language edge resolution | Post-MVP | HIGH | Non commence |
-| PR impact diff (GitHub integration) | Post-MVP | HIGH | Non commence |
-| Graph time-travel (per-commit snapshots) | Post-MVP | MEDIUM | Non commence |
-| Cross-project duplicate detection | Post-MVP | MEDIUM | Non commence |
-| Multi-repo federated graph | Enterprise | HIGH | Non commence |
-| RBAC + multi-tenancy | Enterprise | HIGH | Non commence |
-| SSO (OIDC/SAML) | Enterprise | MEDIUM | Non commence |
-| Cloud-hosted SaaS offering | Enterprise | HIGH | Non commence |
-| Infra integration (K8s, Terraform) | Phase 2 Vision | MEDIUM | Non commence |
-| Business logic linking (Jira/ADRs) | Phase 3 Vision | LOW | Non commence |
+| Python language support | Post-MVP | HIGH | **DONE** |
+| Rust language support | Post-MVP | HIGH | **DONE** |
+| Multi-project isolation (projectId) | Post-MVP | HIGH | **DONE** |
+| Go language support | Post-MVP | MEDIUM | Not started |
+| Cross-language edge resolution | Post-MVP | HIGH | Not started |
+| PR impact diff (GitHub integration) | Post-MVP | HIGH | Not started |
+| Graph time-travel (per-commit snapshots) | Post-MVP | MEDIUM | Not started |
+| Cross-project duplicate detection | Post-MVP | MEDIUM | Not started |
+| Multi-repo federated graph | Enterprise | HIGH | Not started |
+| RBAC + multi-tenancy | Enterprise | HIGH | Not started |
+| SSO (OIDC/SAML) | Enterprise | MEDIUM | Not started |
+| Cloud-hosted SaaS offering | Enterprise | HIGH | Not started |
+| Infra integration (K8s, Terraform) | Phase 2 Vision | MEDIUM | Not started |
+| Business logic linking (Jira/ADRs) | Phase 3 Vision | LOW | Not started |

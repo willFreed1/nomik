@@ -10,8 +10,12 @@ import { NodeDetail } from './NodeDetail';
 import { HelpButton } from './HelpModal';
 import { LayoutSelector } from './LayoutSelector';
 
-/** Composant principal du visualiseur de graphe */
-export function GraphViewer() {
+interface GraphViewerProps {
+    projectId?: string;
+}
+
+/** Main 2D graph viewer component */
+export function GraphViewer({ projectId }: GraphViewerProps) {
     const [elements, setElements] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
@@ -19,8 +23,13 @@ export function GraphViewer() {
     const [, setCyReady] = useState(false);
     const cyRef = useRef<cytoscape.Core | null>(null);
 
+    // Reload data when projectId changes
     useEffect(() => {
-        fetchGraphData()
+        setLoading(true);
+        setError(null);
+        setElements([]);
+        setSelectedNode(null);
+        fetchGraphData(projectId)
             .then(data => {
                 const nodes = data.nodes;
                 const edges = data.edges;
@@ -37,19 +46,19 @@ export function GraphViewer() {
                 setError(err.message);
                 setLoading(false);
             });
-    }, []);
+    }, [projectId]);
 
-    /** Activation de l'impact overlay au clic sur un noeud */
+    /** Impact overlay on node click */
     const handleNodeTap = useCallback((node: cytoscape.NodeSingular) => {
         const cy = cyRef.current;
         if (!cy) return;
 
-        // Nettoyage precedent
+        // Clear previous impact
         cy.elements().removeClass('impact-source impact-callee impact-caller impact-edge faded search-match');
 
         setSelectedNode(node);
 
-        // Impact overlay : highlight des appels et dependances
+        // Impact overlay: highlight calls and dependencies
         const callees = node.outgoers('edge[label="CALLS"]');
         const callers = node.incomers('edge[label="CALLS"]');
         const containsEdges = node.outgoers('edge[label="CONTAINS"]');
@@ -58,7 +67,7 @@ export function GraphViewer() {
         const dependsIn = node.incomers('edge[label="DEPENDS_ON"]');
 
         const impactedEdges = callees.union(callers).union(containsEdges).union(containedEdges).union(dependsOut).union(dependsIn);
-        // Fade tout, puis highlight les impactes
+        // Fade everything, then highlight impacted
         cy.elements().addClass('faded');
         node.removeClass('faded').addClass('impact-source');
         callees.targets().removeClass('faded').addClass('impact-callee');
@@ -70,7 +79,7 @@ export function GraphViewer() {
         dependsIn.sources().removeClass('faded').addClass('impact-caller');
     }, []);
 
-    /** Nettoyage au clic sur le fond */
+    /** Clear on background click */
     const handleBgTap = useCallback(() => {
         const cy = cyRef.current;
         if (!cy) return;
@@ -129,7 +138,7 @@ export function GraphViewer() {
                         cy.on('tap', (evt) => {
                             if (evt.target === cy) handleBgTap();
                         });
-                        // Affiche le label d'edge au survol
+                        // Show edge label on hover
                         cy.on('mouseover', 'edge', (evt) => {
                             evt.target.style('label', evt.target.data('label'));
                             evt.target.style('font-size', '9px');

@@ -1,9 +1,34 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { GraphViewer } from './components/GraphViewer';
 import { Graph3DViewer } from './components/Graph3DViewer';
+import { ProjectSelector } from './components/ProjectSelector';
+import { StatsPanel } from './components/StatsPanel';
+import { fetchProjects, fetchHealthStats, type HealthStats } from './neo4j';
 
 function App() {
     const [mode, setMode] = useState<'3d' | '2d'>('3d');
+    const [projects, setProjects] = useState<Array<{ id: string; name: string; rootPath: string }>>([]);
+    const [selectedProjectId, setSelectedProjectId] = useState<string | undefined>(undefined);
+    const [stats, setStats] = useState<HealthStats | null>(null);
+    const [statsLoading, setStatsLoading] = useState(false);
+
+    // Load projects on mount
+    useEffect(() => {
+        fetchProjects()
+            .then(p => {
+                setProjects(p);
+                if (p.length === 1 && p[0]) setSelectedProjectId(p[0].id);
+            })
+            .catch(err => console.error('Failed to load projects:', err));
+    }, []);
+
+    // Reload stats when project changes
+    useEffect(() => {
+        setStatsLoading(true);
+        fetchHealthStats(selectedProjectId)
+            .then(s => { setStats(s); setStatsLoading(false); })
+            .catch(() => setStatsLoading(false));
+    }, [selectedProjectId]);
 
     return (
         <div className="flex h-screen w-full flex-col bg-gray-950 text-white">
@@ -13,6 +38,11 @@ function App() {
                     <span className="text-[10px] font-mono text-slate-600 tracking-wider uppercase">Knowledge Graph</span>
                 </div>
                 <div className="flex items-center gap-3">
+                    <ProjectSelector
+                        projects={projects}
+                        selectedId={selectedProjectId}
+                        onSelect={setSelectedProjectId}
+                    />
                     <div className="flex items-center gap-1 bg-slate-900 rounded border border-slate-700 p-0.5">
                         <button
                             onClick={() => setMode('3d')}
@@ -30,8 +60,16 @@ function App() {
                     <div className="text-xs font-mono text-slate-500">v0.1.0</div>
                 </div>
             </header>
-            <main className="flex-1 p-3 overflow-hidden">
-                {mode === '3d' ? <Graph3DViewer /> : <GraphViewer />}
+            <main className="flex-1 flex overflow-hidden">
+                {/* Stats sidebar */}
+                <StatsPanel stats={stats} loading={statsLoading} />
+                {/* Graph viewer */}
+                <div className="flex-1 p-3 overflow-hidden">
+                    {mode === '3d'
+                        ? <Graph3DViewer projectId={selectedProjectId} />
+                        : <GraphViewer projectId={selectedProjectId} />
+                    }
+                </div>
             </main>
         </div>
     );

@@ -8,7 +8,7 @@ export const driver = neo4j.driver(
     )
 );
 
-/** Recupere le graphe filtre par projet si un projectId est fourni */
+/** Fetch graph data, optionally filtered by projectId */
 export async function fetchGraphData(projectId?: string) {
     const session = driver.session();
     try {
@@ -106,7 +106,80 @@ export async function fetchGraphData(projectId?: string) {
     }
 }
 
-/** Liste les projets disponibles dans le graphe */
+/** Health stats for a project (or all projects) */
+export interface HealthStats {
+    nodeCount: number;
+    edgeCount: number;
+    fileCount: number;
+    functionCount: number;
+    classCount: number;
+    routeCount: number;
+    deadCodeCount: number;
+    godObjectCount: number;
+}
+
+/** Fetch health metrics from the graph */
+export async function fetchHealthStats(projectId?: string): Promise<HealthStats> {
+    const session = driver.session();
+    try {
+        const pf = projectId ? 'AND n.projectId = $projectId' : '';
+        const pfShort = projectId ? '{projectId: $projectId}' : '';
+        const params = { projectId: projectId ?? null };
+
+        // Counts
+        const counts = await session.run(`
+            MATCH (n) WHERE NOT n:ScanMeta AND NOT n:Project ${pf}
+            RETURN
+                count(n) as nodeCount,
+                count(CASE WHEN n:File THEN 1 END) as fileCount,
+                count(CASE WHEN n:Function THEN 1 END) as functionCount,
+                count(CASE WHEN n:Class THEN 1 END) as classCount,
+                count(CASE WHEN n:Route THEN 1 END) as routeCount
+        `, params);
+        const c = counts.records[0]!;
+
+        // Edge count
+        const edgeResult = await session.run(`
+            MATCH (a)-[r]->(b)
+            WHERE NOT a:ScanMeta AND NOT b:ScanMeta AND NOT a:Project AND NOT b:Project
+            ${projectId ? 'AND a.projectId = $projectId AND b.projectId = $projectId' : ''}
+            RETURN count(r) as edgeCount
+        `, params);
+        const edgeCount = edgeResult.records[0]?.get('edgeCount')?.toNumber?.() ?? edgeResult.records[0]?.get('edgeCount') ?? 0;
+
+        // Dead code (exported functions never called)
+        const deadCode = await session.run(`
+            MATCH (f:Function ${pfShort})
+            WHERE f.isExported = true AND NOT (f)<-[:CALLS]-()
+            RETURN count(f) as cnt
+        `, params);
+        const deadCodeCount = deadCode.records[0]?.get('cnt')?.toNumber?.() ?? deadCode.records[0]?.get('cnt') ?? 0;
+
+        // God objects (functions with >10 outgoing calls)
+        const godObjects = await session.run(`
+            MATCH (f:Function ${pfShort})-[r:CALLS]->()
+            WITH f, count(r) as depCount
+            WHERE depCount > 10
+            RETURN count(f) as cnt
+        `, params);
+        const godObjectCount = godObjects.records[0]?.get('cnt')?.toNumber?.() ?? godObjects.records[0]?.get('cnt') ?? 0;
+
+        return {
+            nodeCount: c.get('nodeCount')?.toNumber?.() ?? c.get('nodeCount') ?? 0,
+            fileCount: c.get('fileCount')?.toNumber?.() ?? c.get('fileCount') ?? 0,
+            functionCount: c.get('functionCount')?.toNumber?.() ?? c.get('functionCount') ?? 0,
+            classCount: c.get('classCount')?.toNumber?.() ?? c.get('classCount') ?? 0,
+            routeCount: c.get('routeCount')?.toNumber?.() ?? c.get('routeCount') ?? 0,
+            edgeCount: typeof edgeCount === 'number' ? edgeCount : 0,
+            deadCodeCount: typeof deadCodeCount === 'number' ? deadCodeCount : 0,
+            godObjectCount: typeof godObjectCount === 'number' ? godObjectCount : 0,
+        };
+    } finally {
+        await session.close();
+    }
+}
+
+/** List available projects in the graph */
 export async function fetchProjects(): Promise<Array<{ id: string; name: string; rootPath: string }>> {
     const session = driver.session();
     try {

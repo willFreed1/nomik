@@ -24,15 +24,15 @@ GENOME exposes an **MCP Server** that gives AI assistants direct access to the c
 └────────────────────┘                    └──────────────────┘
 ```
 
-### Setup in Cursor (recommande)
+### Setup in Cursor (recommended)
 
-La methode la plus simple est d'utiliser la commande dediee :
+The simplest method is to use the dedicated command:
 
 ```bash
 genome setup-cursor
 ```
 
-Cela cree automatiquement `.cursor/mcp.json` avec la bonne config. Sinon, manuellement :
+This automatically creates `.cursor/mcp.json` with the correct config. Otherwise, manually:
 
 ```json
 {
@@ -54,16 +54,16 @@ Cela cree automatiquement `.cursor/mcp.json` avec la bonne config. Sinon, manuel
 
 | Tool Name | Description | Example Prompt |
 |---|---|---|
-| `kb_search` | Recherche de noeuds par nom, type ou pattern | "Find all API route handlers" |
-| `kb_impact` | Analyse d'impact : quoi casse si on modifie ce symbole ? | "What's the impact of changing `processPayment()`?" |
-| `kb_dependency_trace` | Chaine de dependances complete entre deux symboles | "Show me everything that depends on `UserService`" |
-| `kb_get_context` | Contexte riche d'un fichier ou fonction (calls, calledBy, imports, contains) | "Give me context for `auth.middleware.ts`" |
-| `kb_graph_stats` | Metriques de sante du graphe (dead code, god objects, counts) | "Are there any God Objects or dependency cycles?" |
-| `kb_find_path` | Plus court chemin entre deux entites du code | "How does `LoginButton` connect to `users` DB table?" |
-| `kb_recent_changes` | Noeuds modifies recemment | "What changed in the last hour?" |
-| `kb_list_projects` | Liste tous les projets dans le graphe | "What projects does GENOME track?" |
+| `kb_search` | Search for nodes by name, type or pattern | "Find all API route handlers" |
+| `kb_impact` | Impact analysis: what breaks if we modify this symbol? | "What's the impact of changing `processPayment()`?" |
+| `kb_dependency_trace` | Complete dependency chain between two symbols | "Show me everything that depends on `UserService`" |
+| `kb_get_context` | Rich context for a file or function (calls, calledBy, imports, contains) | "Give me context for `auth.middleware.ts`" |
+| `kb_graph_stats` | Graph health metrics (dead code, god objects, counts) | "Are there any God Objects or dependency cycles?" |
+| `kb_find_path` | Shortest path between two code entities | "How does `LoginButton` connect to `users` DB table?" |
+| `kb_recent_changes` | Recently modified nodes | "What changed in the last hour?" |
+| `kb_list_projects` | List all projects in the graph | "What projects does GENOME track?" |
 
-> **Note**: Toutes les requetes sont automatiquement filtrees par `projectId` via la variable d'environnement `GENOME_PROJECT_ID`. Cela garantit l'isolation entre projets.
+> **Note**: All queries are automatically filtered by `projectId` via the `GENOME_PROJECT_ID` environment variable. This ensures isolation between projects.
 
 ### Example: What Cursor Sees
 

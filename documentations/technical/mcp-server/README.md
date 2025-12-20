@@ -1,42 +1,42 @@
 # @genome/mcp-server
 
-Serveur Model Context Protocol (MCP) pour GENOME. Expose le knowledge graph aux agents AI (Cursor, Claude) via le protocole MCP standard.
+Model Context Protocol (MCP) server for GENOME. Exposes the knowledge graph to AI agents (Cursor, Claude) via the standard MCP protocol.
 
-## Fonctionnalites
+## Features
 
 ### Resources
-- `genome://stats` : Statistiques temps reel du knowledge graph
+- `genome://stats`: Real-time knowledge graph statistics
 
-### Tools (8 outils)
+### Tools (8 tools)
 
-| Outil | Description | Parametres |
+| Tool | Description | Parameters |
 |---|---|---|
-| `kb_search` | Recherche de noeuds par nom, path ou id | `query` (string), `limit` (number) |
-| `kb_impact` | Analyse d'impact d'un symbole (traversee APOC) | `symbolId` (string), `depth` (number) |
-| `kb_dependency_trace` | Chaine de dependances entre deux symboles | `from` (string), `to` (string) |
-| `kb_get_context` | Contexte riche d'un fichier ou fonction | `name` (string) |
-| `kb_graph_stats` | Metriques de sante (dead code, god objects, counts) | `includeDeadCode` (bool), `includeGodObjects` (bool), `godObjectThreshold` (number) |
-| `kb_find_path` | Plus court chemin entre deux entites | `from` (string), `to` (string) |
-| `kb_recent_changes` | Noeuds modifies recemment | `since` (ISO date), `limit` (number) |
-| `kb_list_projects` | Liste tous les projets dans le graphe | aucun |
+| `kb_search` | Search for nodes by name, path or id | `query` (string), `limit` (number) |
+| `kb_impact` | Impact analysis of a symbol (APOC traversal) | `symbolId` (string), `depth` (number) |
+| `kb_dependency_trace` | Dependency chain between two symbols | `from` (string), `to` (string) |
+| `kb_get_context` | Rich context of a file or function | `name` (string) |
+| `kb_graph_stats` | Health metrics (dead code, god objects, counts) | `includeDeadCode` (bool), `includeGodObjects` (bool), `godObjectThreshold` (number) |
+| `kb_find_path` | Shortest path between two entities | `from` (string), `to` (string) |
+| `kb_recent_changes` | Recently modified nodes | `since` (ISO date), `limit` (number) |
+| `kb_list_projects` | List all projects in the graph | none |
 
-### Isolation multi-projet
+### Multi-project isolation
 
-Le serveur lit la variable d'environnement `GENOME_PROJECT_ID` et filtre automatiquement toutes les requetes par projet. Cela garantit qu'un agent AI ne voit que les donnees du projet courant.
+The server reads the `GENOME_PROJECT_ID` environment variable and automatically filters all requests by project. This ensures an AI agent only sees data for the current project.
 
 ## Configuration
 
-### Via `genome setup-cursor` (recommande)
+### Via `genome setup-cursor` (recommended)
 
 ```bash
 genome setup-cursor
 ```
 
-Cree automatiquement `.cursor/mcp.json` avec le bon chemin et les variables d'environnement, incluant `GENOME_PROJECT_ID` si un projet est configure localement.
+Automatically creates `.cursor/mcp.json` with the correct path and environment variables, including `GENOME_PROJECT_ID` if a project is configured locally.
 
-### Configuration manuelle
+### Manual configuration
 
-Ajouter a `.cursor/mcp.json` :
+Add to `.cursor/mcp.json`:
 
 ```json
 {
@@ -55,7 +55,7 @@ Ajouter a `.cursor/mcp.json` :
 }
 ```
 
-### Developpement
+### Development
 
 ```bash
 cd packages/mcp-server
@@ -68,8 +68,8 @@ pnpm dev
 genome serve
 ```
 
-## Architecture interne
+## Internal architecture
 
-- `index.ts` : Bootstrap du serveur MCP (stdio transport)
-- `tools.ts` : Definition et handler des 8 outils
-- `resources.ts` : Resources MCP (stats)
+- `index.ts`: MCP server bootstrap (stdio transport)
+- `tools.ts`: Definition and handlers for the 8 tools
+- `resources.ts`: MCP resources (stats)

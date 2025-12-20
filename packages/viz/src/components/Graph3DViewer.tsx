@@ -2,7 +2,7 @@ import { useEffect, useRef, useState, useCallback } from 'react';
 import { fetchGraphData } from '../neo4j';
 import { HelpButton } from './HelpModal';
 
-/** Couleurs par type de noeud */
+/** Colors by node type */
 const NODE_COLORS: Record<string, string> = {
     File: '#06b6d4',
     Function: '#10b981',
@@ -10,7 +10,7 @@ const NODE_COLORS: Record<string, string> = {
     Route: '#f59e0b',
 };
 
-/** Couleurs par type d'edge */
+/** Colors by edge type */
 const EDGE_COLORS: Record<string, string> = {
     CONTAINS: '#334155',
     CALLS: '#f59e0b',
@@ -26,8 +26,12 @@ interface NodeObj {
     [key: string]: any;
 }
 
-/** Visualiseur 3D avec rotation — style ADN/reseau neuronal */
-export function Graph3DViewer() {
+interface Graph3DViewerProps {
+    projectId?: string;
+}
+
+/** 3D viewer with rotation — DNA/neural network style */
+export function Graph3DViewer({ projectId }: Graph3DViewerProps) {
     const containerRef = useRef<HTMLDivElement>(null);
     const graphRef = useRef<any>(null);
     const [loading, setLoading] = useState(true);
@@ -35,18 +39,31 @@ export function Graph3DViewer() {
     const [selectedNode, setSelectedNode] = useState<NodeObj | null>(null);
     const [stats, setStats] = useState({ nodes: 0, edges: 0 });
 
+    // Reload when projectId changes
     useEffect(() => {
         if (!containerRef.current) return;
         let cancelled = false;
+        setLoading(true);
+        setError(null);
+        setSelectedNode(null);
+
+        // Clean up previous graph instance
+        if (graphRef.current) {
+            graphRef.current._destructor?.();
+            graphRef.current = null;
+        }
 
         async function init() {
             try {
-                // Import dynamique pour eviter les problemes ESM
+                // Dynamic import to avoid ESM issues
                 // eslint-disable-next-line @typescript-eslint/no-explicit-any
                 const mod: any = await import('3d-force-graph');
                 const ForceGraph3D = mod.default ?? mod;
 
                 if (cancelled || !containerRef.current) return;
+
+                // Clear the container before re-initializing
+                containerRef.current.innerHTML = '';
 
                 const graph = ForceGraph3D()(containerRef.current)
                     .backgroundColor('#020617')
@@ -82,8 +99,8 @@ export function Graph3DViewer() {
 
                 graphRef.current = graph;
 
-                // Charger les donnees depuis Neo4j
-                const data = await fetchGraphData();
+                // Load data from Neo4j
+                const data = await fetchGraphData(projectId);
                 if (cancelled) return;
 
                 const nodes = data.nodes.map((n: any) => ({
@@ -102,7 +119,7 @@ export function Graph3DViewer() {
                 setStats({ nodes: nodes.length, edges: links.length });
                 setLoading(false);
 
-                // Auto-rotation lente style ADN
+                // Slow auto-rotation (DNA style)
                 let angle = 0;
                 const rotateInterval = setInterval(() => {
                     if (!graphRef.current) { clearInterval(rotateInterval); return; }
@@ -144,16 +161,16 @@ export function Graph3DViewer() {
                 graphRef.current = null;
             }
         };
-    }, []);
+    }, [projectId]);
 
-    /** Recentrage du graphe */
+    /** Fit graph to view */
     const handleFitView = useCallback(() => {
         graphRef.current?.zoomToFit(500, 50);
     }, []);
 
     return (
         <div className="w-full h-full flex flex-col gap-3">
-            {/* Toolbar — toujours visible */}
+            {/* Toolbar — always visible */}
             <div className="flex items-center justify-between gap-4 flex-wrap">
                 <div className="flex items-center gap-2">
                     <HelpButton />
@@ -176,25 +193,25 @@ export function Graph3DViewer() {
                 </div>
             </div>
 
-            {/* 3D graph container — toujours rendu pour le ref */}
+            {/* 3D graph container — always rendered for the ref */}
             <div className="flex-1 border border-slate-800 bg-[#020617] rounded-lg overflow-hidden relative shadow-2xl shadow-cyan-900/20">
                 <div ref={containerRef} className="w-full h-full" />
 
-                {/* Overlay de chargement */}
+                {/* Loading overlay */}
                 {loading && !error && (
                     <div className="absolute inset-0 flex items-center justify-center z-10">
                         <div className="text-cyan-400 font-mono text-sm animate-pulse">INITIALIZING 3D SYSTEM...</div>
                     </div>
                 )}
 
-                {/* Erreur */}
+                {/* Error */}
                 {error && (
                     <div className="absolute inset-0 flex items-center justify-center z-10">
                         <div className="text-red-500 font-mono text-sm">SYSTEM ERROR: {error}</div>
                     </div>
                 )}
 
-                {/* Detail du noeud selectionne */}
+                {/* Selected node detail */}
                 {selectedNode && (
                     <div className="absolute top-4 right-4 w-72 bg-slate-900/95 border border-slate-700 rounded-lg p-4 text-xs font-mono backdrop-blur-sm z-20">
                         <div className="flex justify-between items-center mb-3">

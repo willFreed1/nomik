@@ -1,47 +1,47 @@
 # @genome/graph
 
-Couche de persistance gerant les interactions avec Neo4j Community Edition.
+Persistence layer managing interactions with Neo4j Community Edition.
 
-## Fonctionnalites
+## Features
 
-- **Schema Management** : Auto-initialise contraintes (unicite par `id`) et indexes (performance + `projectId`) au demarrage
-- **Driver Abstraction** : Interface `GraphDriver` avec implementation Neo4j (`neo4j.driver.ts`)
-- **Scoped Driver** : Wrapper `createScopedDriver(driver, projectId)` qui injecte automatiquement `projectId` dans toutes les requetes — previent les fuites de contexte entre projets
-- **Batch UNWIND Upserts** : Nodes et edges groupes par type, envoyes en un seul `UNWIND` Cypher par groupe
-- **QueryCache** : Cache TTL 30s (max 200 entrees) sur toutes les lectures, invalidation automatique apres ecriture, eviction LRU
-- **Retry** : Backoff exponentiel sur les operations Neo4j (3 tentatives, detection erreurs transientes)
-- **Timestamps** : `createdAt` et `updatedAt` sur tous les noeuds et edges
-- **Multi-projet** : `projectId` sur tous les noeuds et edges, CRUD projet complet
+- **Schema Management**: Auto-initializes constraints (uniqueness by `id`) and indexes (performance + `projectId`) on startup
+- **Driver Abstraction**: `GraphDriver` interface with Neo4j implementation (`neo4j.driver.ts`)
+- **Scoped Driver**: Wrapper `createScopedDriver(driver, projectId)` that automatically injects `projectId` into all queries — prevents context leakage between projects
+- **Batch UNWIND Upserts**: Nodes and edges grouped by type, sent in a single `UNWIND` Cypher per group
+- **QueryCache**: TTL cache 30s (max 200 entries) on all reads, automatic invalidation after writes, LRU eviction
+- **Retry**: Exponential backoff on Neo4j operations (3 attempts, transient error detection)
+- **Timestamps**: `createdAt` and `updatedAt` on all nodes and edges
+- **Multi-project**: `projectId` on all nodes and edges, full project CRUD
 
 ## Modules
 
 ### `queries/write.ts`
-- `upsertNodes(driver, nodes, projectId)` : Upsert par lots avec UNWIND
-- `createEdges(driver, edges, projectId)` : Creation d'edges par lots
-- `clearFileData(driver, filePath, projectId)` : Suppression des donnees d'un fichier
-- `upsertProject(driver, project)` : Cree ou met a jour un noeud Project
-- `deleteProjectData(driver, projectId)` : Supprime toutes les donnees d'un projet (DETACH DELETE)
-- `listProjects(driver)` : Liste tous les projets
-- `getProject(driver, projectId)` : Recupere un projet par ID
+- `upsertNodes(driver, nodes, projectId)`: Batch upsert with UNWIND
+- `createEdges(driver, edges, projectId)`: Batch edge creation
+- `clearFileData(driver, filePath, projectId)`: Delete data for a file
+- `upsertProject(driver, project)`: Create or update a Project node
+- `deleteProjectData(driver, projectId)`: Delete all data for a project (DETACH DELETE)
+- `listProjects(driver)`: List all projects
+- `getProject(driver, projectId)`: Retrieve a project by ID
 
 ### `queries/read.ts`
-- `impactAnalysis(driver, symbolName, maxDepth, projectId?)` : Traversee APOC en amont
-- `findDependencyChain(driver, from, to, projectId?)` : Plus court chemin
-- `findDeadCode(driver, projectId?)` : Fonctions exportees jamais appelees
-- `findGodObjects(driver, threshold, projectId?)` : Fonctions avec trop de dependances
-- `graphStats(driver, projectId?)` : Comptages (noeuds, edges, fichiers, fonctions, classes, routes)
-- `recentChanges(driver, since, limit, projectId?)` : Noeuds modifies depuis une date
+- `impactAnalysis(driver, symbolName, maxDepth, projectId?)`: APOC upstream traversal
+- `findDependencyChain(driver, from, to, projectId?)`: Shortest path
+- `findDeadCode(driver, projectId?)`: Exported functions never called
+- `findGodObjects(driver, threshold, projectId?)`: Functions with too many dependencies
+- `graphStats(driver, projectId?)`: Counts (nodes, edges, files, functions, classes, routes)
+- `recentChanges(driver, since, limit, projectId?)`: Nodes modified since a date
 
 ### `drivers/`
-- `driver.interface.ts` : Interface `GraphDriver` (connect, disconnect, runQuery, runWrite, getSession, isConnected, healthCheck)
-- `neo4j.driver.ts` : Implementation Neo4j (Bolt protocol)
-- `scoped.driver.ts` : Wrapper qui injecte `projectId` dans tous les params
+- `driver.interface.ts`: `GraphDriver` interface (connect, disconnect, runQuery, runWrite, getSession, isConnected, healthCheck)
+- `neo4j.driver.ts`: Neo4j implementation (Bolt protocol)
+- `scoped.driver.ts`: Wrapper that injects `projectId` into all params
 
 ### `schema/init.ts`
-Contraintes d'unicite + indexes de recherche + indexes `projectId` pour l'isolation multi-projet.
+Uniqueness constraints + search indexes + `projectId` indexes for multi-project isolation.
 
 ### `cache.ts`
-`QueryCache` avec TTL configurable, `invalidateAll()`, `invalidateByPattern()`, eviction LRU.
+`QueryCache` with configurable TTL, `invalidateAll()`, `invalidateByPattern()`, LRU eviction.
 
 ## Service API
 
@@ -59,7 +59,7 @@ interface GraphService {
     getRecentChanges(since, limit?, projectId?): Promise<Array<{ name, type, filePath, updatedAt, createdAt }>>;
     healthCheck(): Promise<boolean>;
     executeQuery<T>(query, params?): Promise<T[]>;
-    // Gestion des projets
+    // Project management
     createProject(project): Promise<void>;
     listProjects(): Promise<ProjectNode[]>;
     getProject(projectId): Promise<ProjectNode | null>;
@@ -69,5 +69,5 @@ interface GraphService {
 
 ## Configuration
 
-- **Variables** : `NEO4J_URI`, `NEO4J_USER`, `NEO4J_PASSWORD`
-- **Defaut** : `bolt://localhost:7687`, `neo4j`, `genome_local`
+- **Variables**: `NEO4J_URI`, `NEO4J_USER`, `NEO4J_PASSWORD`
+- **Default**: `bolt://localhost:7687`, `neo4j`, `genome_local`

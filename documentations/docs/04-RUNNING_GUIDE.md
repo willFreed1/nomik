@@ -15,7 +15,7 @@ GENOME uses Neo4j to store the code relationship graph.
 ```bash
 docker compose up -d
 ```
-> Le fichier `docker-compose.yml` est a la racine du projet.
+> The `docker-compose.yml` file is at the project root.
 
 ## Step 2: Build the System
 
@@ -65,17 +65,17 @@ pnpm dev
 pnpm genome serve
 ```
 
-### Configuration automatique Cursor
+### Automatic Cursor Configuration
 
-La methode recommandee est d'utiliser la commande dediee :
+The recommended method is to use the dedicated command:
 
 ```bash
 pnpm genome setup-cursor
 ```
 
-Cela cree automatiquement `.cursor/mcp.json` avec le bon chemin vers le MCP server et les variables Neo4j.
+This automatically creates `.cursor/mcp.json` with the correct path to the MCP server and Neo4j variables.
 
-### Configuration manuelle (Claude Desktop)
+### Manual Configuration (Claude Desktop)
 
 ```json
 {
@@ -104,7 +104,7 @@ Auto-reindex files as you edit them:
 pnpm genome watch .
 ```
 
-Le watcher utilise `chokidar` avec debounce (500ms par defaut) pour re-parser et re-ingerer les fichiers modifies. Les donnees sont isolees par projet via `projectId`.
+The watcher uses `chokidar` with debounce (500ms by default) to re-parse and re-ingest modified files. Data is isolated per project via `projectId`.
 
 ---
 
@@ -120,25 +120,25 @@ pnpm genome query "MATCH (n)-[r]->(m) RETURN type(r), count(*)" --json
 
 ---
 
-## Step 8: Gestion des projets (Optional)
+## Step 8: Project Management (Optional)
 
-GENOME isole les donnees par projet. Chaque noeud et chaque relation porte un `projectId`.
+GENOME isolates data per project. Each node and each relationship carries a `projectId`.
 
 ```bash
-# Lister les projets
+# List projects
 pnpm genome project list
 
-# Creer un nouveau projet
+# Create a new project
 pnpm genome project create my-api
 
-# Voir les stats du projet courant
+# View current project stats
 pnpm genome project info
 
-# Changer de projet
+# Switch project
 pnpm genome project switch other-project
 
-# Supprimer un projet et ses donnees
+# Delete a project and its data
 pnpm genome project delete old-project
 ```
 
-Le projet courant est stocke dans `.genome/project.json` (a committer dans git pour partager avec l'equipe).
+The current project is stored in `.genome/project.json` (to be committed in git for team sharing).

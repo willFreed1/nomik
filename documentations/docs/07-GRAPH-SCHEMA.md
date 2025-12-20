@@ -1,86 +1,86 @@
-# GENOME — Schéma du graphe Neo4j
+# GENOME — Neo4j Graph Schema
 
-> Tous les nœuds et arêtes possèdent une propriété `projectId` pour l’isolation multi-projet.
-
----
-
-## Types de nœuds
-
-### Nœud Project (racine par projet)
-
-| Propriété | Type | Description |
-|-----------|------|-------------|
-| `id` | string | Identifiant unique du projet |
-| `name` | string | Nom du projet |
-| `rootPath` | string | Chemin racine du projet |
-| `createdAt` | datetime | Date de création |
-| `updatedAt` | datetime | Dernière mise à jour |
-
-> **Note :** Le nœud `Project` n’a pas de propriété `projectId` — son `id` sert d’identifiant de projet.
-
-### Nœud ScanMeta (métadonnées de scan)
-
-| Propriété | Type | Description |
-|-----------|------|-------------|
-| `sha` | string | SHA complet du commit Git |
-| `shortSha` | string | SHA court (7 caractères) |
-| `message` | string | Message du commit |
-| `author` | string | Auteur du commit |
-| `gitDate` | string | Date du commit Git |
-| `scannedAt` | datetime | Date/heure du scan |
-| `fileCount` | number | Nombre de fichiers scannés |
-| `nodeCount` | number | Nombre de nœuds créés |
-| `edgeCount` | number | Nombre d’arêtes créées |
-| `projectId` | string | Projet associé |
-
-### Tableau récapitulatif des types de nœuds
-
-| Label | Propriétés principales | Description |
-|-------|------------------------|-------------|
-| `File` | `id`, `type='file'`, `path`, `language`, `hash`, `size`, `lastParsed`, `projectId` | Fichier source |
-| `Function` | `id`, `type='function'`, `name`, `filePath`, `startLine`, `endLine`, `params`, `returnType?`, `isAsync`, `isExported`, `isGenerator`, `decorators[]`, `confidence`, `projectId` | Fonction ou méthode |
-| `Class` | `id`, `type='class'`, `name`, `filePath`, `startLine`, `endLine`, `isExported`, `isAbstract`, `superClass?`, `interfaces[]`, `decorators[]`, `methods[]`, `properties[]`, `projectId` | Classe ou interface |
-| `Variable` | `id`, `type='variable'`, `name`, `filePath`, `line`, `kind` (const/let/var), `isExported`, `valueType?`, `projectId` | Variable ou constante de niveau top |
-| `Module` | `id`, `type='module'`, `name`, `path`, `moduleType` (file/package/external), `projectId` | Module logique |
-| `Route` | `id`, `type='route'`, `method`, `path`, `handlerName`, `filePath`, `middleware[]`, `projectId` | Endpoint HTTP |
-| `DBTable` | `id`, `type='db_table'`, `name`, `schema?`, `operations[]`, `projectId` | Référence à une table de base de données |
-| `ExternalAPI` | `id`, `type='external_api'`, `name`, `baseUrl?`, `methods[]`, `projectId` | API externe (Stripe, AWS, etc.) |
-| `CronJob` | `id`, `type='cron_job'`, `name`, `schedule`, `handlerName`, `filePath`, `projectId` | Tâche planifiée |
-| `Event` | `id`, `type='event'`, `name`, `eventKind` (emit/listen), `filePath`, `projectId` | Publication/abonnement sur bus d’événements |
-| `EnvVar` | `id`, `type='env_var'`, `name`, `required`, `defaultValue?`, `projectId` | Variable d’environnement |
+> All nodes and edges have a `projectId` property for multi-project isolation.
 
 ---
 
-## Types d’arêtes
+## Node Types
 
-Toutes les arêtes ont une propriété `projectId` pour l’isolation multi-projet.
+### Project Node (root per project)
 
-### Tableau récapitulatif des types d’arêtes
+| Property | Type | Description |
+|----------|------|-------------|
+| `id` | string | Unique project identifier |
+| `name` | string | Project name |
+| `rootPath` | string | Project root path |
+| `createdAt` | datetime | Creation date |
+| `updatedAt` | datetime | Last update |
 
-| Type | De → Vers | Propriétés | Description |
+> **Note:** The `Project` node has no `projectId` property — its `id` serves as the project identifier.
+
+### ScanMeta Node (scan metadata)
+
+| Property | Type | Description |
+|----------|------|-------------|
+| `sha` | string | Full Git commit SHA |
+| `shortSha` | string | Short SHA (7 characters) |
+| `message` | string | Commit message |
+| `author` | string | Commit author |
+| `gitDate` | string | Git commit date |
+| `scannedAt` | datetime | Scan date/time |
+| `fileCount` | number | Number of files scanned |
+| `nodeCount` | number | Number of nodes created |
+| `edgeCount` | number | Number of edges created |
+| `projectId` | string | Associated project |
+
+### Node types summary table
+
+| Label | Main properties | Description |
+|-------|-----------------|-------------|
+| `File` | `id`, `type='file'`, `path`, `language`, `hash`, `size`, `lastParsed`, `projectId` | Source file |
+| `Function` | `id`, `type='function'`, `name`, `filePath`, `startLine`, `endLine`, `params`, `returnType?`, `isAsync`, `isExported`, `isGenerator`, `decorators[]`, `confidence`, `projectId` | Function or method |
+| `Class` | `id`, `type='class'`, `name`, `filePath`, `startLine`, `endLine`, `isExported`, `isAbstract`, `superClass?`, `interfaces[]`, `decorators[]`, `methods[]`, `properties[]`, `projectId` | Class or interface |
+| `Variable` | `id`, `type='variable'`, `name`, `filePath`, `line`, `kind` (const/let/var), `isExported`, `valueType?`, `projectId` | Top-level variable or constant |
+| `Module` | `id`, `type='module'`, `name`, `path`, `moduleType` (file/package/external), `projectId` | Logical module |
+| `Route` | `id`, `type='route'`, `method`, `path`, `handlerName`, `filePath`, `middleware[]`, `projectId` | HTTP endpoint |
+| `DBTable` | `id`, `type='db_table'`, `name`, `schema?`, `operations[]`, `projectId` | Database table reference |
+| `ExternalAPI` | `id`, `type='external_api'`, `name`, `baseUrl?`, `methods[]`, `projectId` | External API (Stripe, AWS, etc.) |
+| `CronJob` | `id`, `type='cron_job'`, `name`, `schedule`, `handlerName`, `filePath`, `projectId` | Scheduled task |
+| `Event` | `id`, `type='event'`, `name`, `eventKind` (emit/listen), `filePath`, `projectId` | Event bus publish/subscribe |
+| `EnvVar` | `id`, `type='env_var'`, `name`, `required`, `defaultValue?`, `projectId` | Environment variable |
+
+---
+
+## Edge Types
+
+All edges have a `projectId` property for multi-project isolation.
+
+### Edge types summary table
+
+| Type | From → To | Properties | Description |
 |------|-----------|------------|-------------|
-| `CONTAINS` | File → Function/Class/Variable | — | Le fichier définit ce symbole |
-| `IMPORTS` | File → Module | `specifiers[]`, `isDefault`, `isDynamic` | Le fichier importe depuis le module |
-| `EXPORTS` | Module → Function/Class/Variable | `isDefault`, `alias?` | Le module exporte ce symbole |
-| `EXTENDS` | Class → Class | — | Héritage de classe |
-| `IMPLEMENTS` | Class → Class | — | Implémentation d’interface |
-| `CALLS` | Function → Function | `line`, `column?` | Invocation de fonction |
-| `DEPENDS_ON` | Function → Module | `kind` (import/call/http/event/env) | Dépendance |
-| `HANDLES` | Route → Function | `middleware[]` | Liaison du handler de route |
-| `READS_FROM` | Function → DBTable | `query?` | Lecture en base |
-| `WRITES_TO` | Function → DBTable | `operation` | Écriture en base |
-| `CALLS_EXTERNAL` | Function → ExternalAPI | `method`, `endpoint?` | Appel API externe |
-| `TRIGGERS` | CronJob → Function | `schedule?` | Le cron déclenche la fonction |
-| `EMITS` | Function → Event | `payload?` | Émission d’événement |
-| `LISTENS_TO` | Function → Event | `handler` | Abonnement à un événement |
-| `USES_ENV` | Function → EnvVar | — | Utilisation d’une variable d’environnement |
+| `CONTAINS` | File → Function/Class/Variable | — | The file defines this symbol |
+| `IMPORTS` | File → Module | `specifiers[]`, `isDefault`, `isDynamic` | The file imports from the module |
+| `EXPORTS` | Module → Function/Class/Variable | `isDefault`, `alias?` | The module exports this symbol |
+| `EXTENDS` | Class → Class | — | Class inheritance |
+| `IMPLEMENTS` | Class → Class | — | Interface implementation |
+| `CALLS` | Function → Function | `line`, `column?` | Function invocation |
+| `DEPENDS_ON` | Function → Module | `kind` (import/call/http/event/env) | Dependency |
+| `HANDLES` | Route → Function | `middleware[]` | Route handler binding |
+| `READS_FROM` | Function → DBTable | `query?` | Database read |
+| `WRITES_TO` | Function → DBTable | `operation` | Database write |
+| `CALLS_EXTERNAL` | Function → ExternalAPI | `method`, `endpoint?` | External API call |
+| `TRIGGERS` | CronJob → Function | `schedule?` | The cron triggers the function |
+| `EMITS` | Function → Event | `payload?` | Event emission |
+| `LISTENS_TO` | Function → Event | `handler` | Event subscription |
+| `USES_ENV` | Function → EnvVar | — | Environment variable usage |
 
 ---
 
-## Exemple Cypher
+## Cypher Example
 
 ```cypher
-// Création d'un sous-graphe de paiement (avec projectId)
+// Create a payment subgraph (with projectId)
 CREATE (f:File {id: 'file:src/services/payment.ts', path: 'src/services/payment.ts',
                  language: 'typescript', hash: 'abc123', size: 2048, lastParsed: datetime(),
                  projectId: 'my-api'})
@@ -108,12 +108,12 @@ CREATE (cron)-[:TRIGGERS {projectId: 'my-api'}]->(fn)
 
 ---
 
-## Requêtes clés
+## Key Queries
 
-### Analyse d’impact
+### Impact analysis
 
 ```cypher
-// Qu'est-ce qui casse si je modifie processPayment ?
+// What breaks if I modify processPayment?
 MATCH (target)
 WHERE (target.name = $name OR target.id = $name) AND target.projectId = $projectId
 WITH target LIMIT 1
@@ -129,10 +129,10 @@ RETURN COALESCE(node.name, node.path) as name,
        "DEPENDS_ON" as relType
 ```
 
-### Détection de God Objects
+### God Object detection
 
 ```cypher
-// Fonctions avec > 10 dépendances (code smell)
+// Functions with > 10 dependencies (code smell)
 MATCH (f:Function)-[r:CALLS|DEPENDS_ON]->()
 WHERE f.projectId = $projectId
 WITH f, count(r) as depCount
@@ -141,20 +141,20 @@ RETURN f.name as name, f.filePath as filePath, depCount
 ORDER BY depCount DESC
 ```
 
-### Détection de code mort
+### Dead code detection
 
 ```cypher
-// Fonctions exportées jamais appelées
+// Exported functions never called
 MATCH (f:Function {isExported: true})
 WHERE NOT (f)<-[:CALLS]-() AND NOT (f)<-[:HANDLES]-() AND f.projectId = $projectId
 RETURN f.name as name, f.filePath as filePath
 ORDER BY f.filePath
 ```
 
-### Cycles de dépendances
+### Dependency cycles
 
 ```cypher
-// Détection des dépendances circulaires entre modules
+// Circular dependency detection between modules
 MATCH cycle = (a:Module)-[:IMPORTS*2..6]->(a)
 WHERE a.projectId = $projectId
 RETURN [n IN nodes(cycle) | n.name] as cyclePath
@@ -162,7 +162,7 @@ RETURN [n IN nodes(cycle) | n.name] as cyclePath
 
 ---
 
-## Contraintes (schema/init.ts)
+## Constraints (schema/init.ts)
 
 ```cypher
 CREATE CONSTRAINT file_id IF NOT EXISTS FOR (f:File) REQUIRE f.id IS UNIQUE;
@@ -176,9 +176,9 @@ CREATE CONSTRAINT project_id IF NOT EXISTS FOR (p:Project) REQUIRE p.id IS UNIQU
 
 ---
 
-## Index (schema/init.ts)
+## Indexes (schema/init.ts)
 
-### Index de recherche
+### Search indexes
 
 ```cypher
 CREATE INDEX file_path IF NOT EXISTS FOR (f:File) ON (f.path);
@@ -188,7 +188,7 @@ CREATE INDEX class_name IF NOT EXISTS FOR (c:Class) ON (c.name);
 CREATE INDEX route_path IF NOT EXISTS FOR (r:Route) ON (r.path);
 ```
 
-### Index projectId (isolation multi-projet)
+### projectId indexes (multi-project isolation)
 
 ```cypher
 CREATE INDEX file_project IF NOT EXISTS FOR (f:File) ON (f.projectId);

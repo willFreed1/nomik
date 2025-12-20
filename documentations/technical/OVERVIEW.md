@@ -1,10 +1,10 @@
 # GENOME Technical Architecture
 
-> Ce document fournit une vue d'ensemble technique du systeme GENOME. Pour les details de chaque package, voir les sous-repertoires.
+> This document provides a technical overview of the GENOME system. For details on each package, see the subdirectories.
 
-## Vue d'ensemble
+## Overview
 
-GENOME est un knowledge graph sidecar qui analyse le code source, construit un graphe de dependances dans Neo4j, et expose ces donnees via un serveur MCP ou une CLI.
+GENOME is a knowledge graph sidecar that analyzes source code, builds a dependency graph in Neo4j, and exposes this data via an MCP server or CLI.
 
 ```mermaid
 graph TD
@@ -23,54 +23,54 @@ graph TD
 
 ## Packages (7)
 
-Le monorepo est divise en packages strictement scopes :
+The monorepo is divided into strictly scoped packages:
 
 ### 1. [CLI](./cli/README.md) (`@genome-ai/cli`)
-Interface en ligne de commande.
-- **Commandes** : `init`, `scan`, `status`, `impact`, `watch`, `serve`, `query`, `recent`, `setup-cursor`, `project` (list/create/switch/delete/info).
-- **Isolation** : Lit `.genome/project.json` pour scoper les operations par projet.
+Command-line interface.
+- **Commands**: `init`, `scan`, `status`, `impact`, `watch`, `serve`, `query`, `recent`, `setup-cursor`, `project` (list/create/switch/delete/info).
+- **Isolation**: Reads `.genome/project.json` to scope operations per project.
 
 ### 2. [Core](./core/README.md) (`@genome/core`)
-Infrastructure partagee et types.
-- **Responsabilites** : Configuration (Zod), gestion d'erreurs typees (`GenomeError`), logging structure (Pino), types (`GraphNode`, `GraphEdge`, `ProjectNode`).
+Shared infrastructure and types.
+- **Responsibilities**: Configuration (Zod), typed error handling (`GenomeError`), structured logging (Pino), types (`GraphNode`, `GraphEdge`, `ProjectNode`).
 
 ### 3. [Parser](./parser/README.md) (`@genome/parser`)
-Moteur d'intelligence qui convertit le code source en noeuds de graphe.
-- **Langages** : TypeScript, JavaScript, Python, Rust, Markdown.
-- **Tech** : Tree-sitter (TS/JS/Python/Rust), parser custom (Markdown).
-- **Extracteurs** : functions, classes, imports, exports, routes, calls (TS/JS), python.ts, rust.ts, markdown.ts.
+Intelligence engine that converts source code into graph nodes.
+- **Languages**: TypeScript, JavaScript, Python, Rust, Markdown.
+- **Tech**: Tree-sitter (TS/JS/Python/Rust), custom parser (Markdown).
+- **Extractors**: functions, classes, imports, exports, routes, calls (TS/JS), python.ts, rust.ts, markdown.ts.
 
 ### 4. [Graph](./graph/README.md) (`@genome/graph`)
-Couche de persistance et de requetes.
-- **Tech** : Neo4j Community (Bolt), driver abstrait, `scopedDriver` pour injection automatique de `projectId`.
-- **Features** : Batch UNWIND upserts, QueryCache TTL 30s, retry backoff exponentiel, CRUD projet.
-- **Queries** : Impact analysis, dead code, god objects, dependency chain, stats, recent changes — tous filtres par `projectId`.
+Persistence and query layer.
+- **Tech**: Neo4j Community (Bolt), abstract driver, `scopedDriver` for automatic injection of `projectId`.
+- **Features**: Batch UNWIND upserts, QueryCache TTL 30s, exponential retry backoff, project CRUD.
+- **Queries**: Impact analysis, dead code, god objects, dependency chain, stats, recent changes — all filtered by `projectId`.
 
 ### 5. [MCP Server](./mcp-server/README.md) (`@genome/mcp-server`)
-Interface AI via Model Context Protocol.
-- **Tools** (8) : `kb_search`, `kb_impact`, `kb_dependency_trace`, `kb_get_context`, `kb_graph_stats`, `kb_find_path`, `kb_recent_changes`, `kb_list_projects`.
-- **Resources** : `genome://stats`.
-- **Isolation** : Lit `GENOME_PROJECT_ID` depuis l'environnement pour scoper toutes les requetes.
+AI interface via Model Context Protocol.
+- **Tools** (8): `kb_search`, `kb_impact`, `kb_dependency_trace`, `kb_get_context`, `kb_graph_stats`, `kb_find_path`, `kb_recent_changes`, `kb_list_projects`.
+- **Resources**: `genome://stats`.
+- **Isolation**: Reads `GENOME_PROJECT_ID` from the environment to scope all requests.
 
 ### 6. [Visualization](./viz/README.md) (`@genome/viz`)
-Dashboard interactif d'exploration du graphe.
-- **Tech** : React + Vite, Cytoscape.js (2D), 3d-force-graph/Three.js (3D), TailwindCSS.
-- **Composants** : GraphViewer, Graph3DViewer, SearchBar, FilterPanel, NodeDetail, HelpModal, LayoutSelector.
-- **Layouts** : Force (cose), Arbre (breadthfirst), Radial (concentric), Cercle (circle).
+Interactive graph exploration dashboard.
+- **Tech**: React + Vite, Cytoscape.js (2D), 3d-force-graph/Three.js (3D), TailwindCSS.
+- **Components**: GraphViewer, Graph3DViewer, SearchBar, FilterPanel, NodeDetail, HelpModal, LayoutSelector.
+- **Layouts**: Force (cose), Tree (breadthfirst), Radial (concentric), Circle (circle).
 
 ### 7. [Watcher](./watcher/) (`@genome/watcher`)
-Surveillance de fichiers pour reindexation incrementale.
-- **Tech** : chokidar, debounce configurable, support `projectId`.
-- **Integration** : Utilise `@genome/parser` pour re-parser et `@genome/graph` pour re-ingerer.
+File watching for incremental reindexing.
+- **Tech**: chokidar, configurable debounce, `projectId` support.
+- **Integration**: Uses `@genome/parser` for re-parsing and `@genome/graph` for re-ingestion.
 
-## Multi-projet
+## Multi-project
 
-Chaque noeud et chaque relation porte un `projectId` pour l'isolation logique dans une seule base Neo4j Community. Le projet courant est stocke dans `.genome/project.json` (commitable dans git).
+Each node and each relation carries a `projectId` for logical isolation in a single Neo4j Community database. The current project is stored in `.genome/project.json` (committable in git).
 
-## Principes de conception
+## Design Principles
 
-1. **Boundaries strictes** : Pas de dependances circulaires. `core` est la dependance feuille.
-2. **Pipeline** : Parsing et ingestion sont des etapes separees (backpressure).
-3. **Observabilite** : Logging structure (Pino) partout.
-4. **Erreurs typees** : `GenomeError` avec `code`, `severity`, `recoverable`.
-5. **Isolation** : `projectId` injecte a chaque couche via `scopedDriver` et parametres explicites.
+1. **Strict boundaries**: No circular dependencies. `core` is the leaf dependency.
+2. **Pipeline**: Parsing and ingestion are separate steps (backpressure).
+3. **Observability**: Structured logging (Pino) everywhere.
+4. **Typed errors**: `GenomeError` with `code`, `severity`, `recoverable`.
+5. **Isolation**: `projectId` injected at each layer via `scopedDriver` and explicit parameters.
