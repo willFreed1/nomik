@@ -14,7 +14,7 @@ export const recentCommand = new Command('recent')
         setLogger(logger);
         const envConfig = loadConfigFromEnv();
         if (!envConfig.graph) {
-            logger.error('Graph config missing. Set NEO4J_URI, NEO4J_USER, NEO4J_PASSWORD env vars.');
+            logger.error('Graph config missing. Set GENOME_GRAPH_URI, GENOME_GRAPH_USER, GENOME_GRAPH_PASS env vars.');
             process.exit(1);
         }
         const graph = createGraphService(envConfig.graph);

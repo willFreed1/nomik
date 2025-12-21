@@ -12,7 +12,7 @@ export const queryCommand = new Command('query')
         setLogger(logger);
         const envConfig = loadConfigFromEnv();
         if (!envConfig.graph) {
-            logger.error('Graph config missing. Set NEO4J_URI, NEO4J_USER, NEO4J_PASSWORD env vars.');
+            logger.error('Graph config missing. Set GENOME_GRAPH_URI, GENOME_GRAPH_USER, GENOME_GRAPH_PASS env vars.');
             process.exit(1);
         }
         const graph = createGraphService(envConfig.graph);
@@ -20,6 +20,18 @@ export const queryCommand = new Command('query')
         try {
             await graph.connect();
             const results = await graph.executeQuery<Record<string, unknown>>(cypher);
+
+            /** Convertit une valeur Neo4j (Integer, array, etc.) en string lisible */
+            const formatValue = (v: unknown): string => {
+                if (v === null || v === undefined) return '';
+                // Neo4j Integer — objet avec low/high
+                if (typeof v === 'object' && v !== null && 'low' in v && 'high' in v) {
+                    return String((v as { low: number }).low);
+                }
+                if (Array.isArray(v)) return v.map(formatValue).join(', ');
+                if (typeof v === 'object') return JSON.stringify(v);
+                return String(v);
+            };
 
             if (opts.json) {
                 console.log(JSON.stringify(results, null, 2));
@@ -30,13 +42,23 @@ export const queryCommand = new Command('query')
                 }
                 const first = results[0]!;
                 const keys = Object.keys(first);
-                console.log(keys.map(k => k.padEnd(30)).join(' | '));
-                console.log(keys.map(() => '-'.repeat(30)).join('-+-'));
+
+                // Calcul dynamique de la largeur par colonne (min 10, max 80)
+                const colWidths = keys.map(k => {
+                    const headerLen = k.length;
+                    const maxValLen = results.reduce((max, row) => {
+                        const len = formatValue(row[k]).length;
+                        return len > max ? len : max;
+                    }, 0);
+                    return Math.min(80, Math.max(10, headerLen, maxValLen));
+                });
+
+                console.log(keys.map((k, i) => k.padEnd(colWidths[i]!)).join(' | '));
+                console.log(colWidths.map(w => '-'.repeat(w)).join('-+-'));
                 for (const row of results) {
-                    console.log(keys.map(k => {
-                        const v = row[k];
-                        const s = typeof v === 'object' ? JSON.stringify(v) : String(v ?? '');
-                        return s.substring(0, 30).padEnd(30);
+                    console.log(keys.map((k, i) => {
+                        const s = formatValue(row[k]);
+                        return s.length > colWidths[i]! ? s.substring(0, colWidths[i]! - 1) + '…' : s.padEnd(colWidths[i]!);
                     }).join(' | '));
                 }
                 console.log(`\n${results.length} row(s)`);

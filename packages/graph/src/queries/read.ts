@@ -8,7 +8,7 @@ export interface ImpactResult {
     relationship: string;
 }
 
-/** Analyse d'impact scope par projet */
+/** Analyse d'impact scope par projet — retourne la profondeur et le type de relation reels */
 export async function impactAnalysis(
     driver: GraphDriver,
     symbolName: string,
@@ -28,16 +28,21 @@ export async function impactAnalysis(
     MATCH (target)
     WHERE (target.name = $name OR target.id = $name) ${projectFilter}
     WITH target LIMIT 1
-    CALL apoc.path.subgraphNodes(target, {
+    CALL apoc.path.expandConfig(target, {
       relationshipFilter: "<CALLS|<HANDLES|<TRIGGERS|<DEPENDS_ON|<LISTENS_TO",
-      maxLevel: $maxDepth
-    }) YIELD node
+      maxLevel: $maxDepth,
+      uniqueness: "NODE_GLOBAL"
+    }) YIELD path
+    WITH last(nodes(path)) as node,
+         length(path) as depth,
+         last(relationships(path)) as rel
     WHERE node <> target ${nodeFilter}
-    RETURN COALESCE(node.name, node.path) as name,
+    RETURN DISTINCT COALESCE(node.name, node.path) as name,
            labels(node)[0] as type,
            COALESCE(node.filePath, node.path) as filePath,
-           1 as depth,
-           "DEPENDS_ON" as relType
+           depth,
+           type(rel) as relType
+    ORDER BY depth ASC, name ASC
     `,
         { name: symbolName, maxDepth, projectId },
     );
@@ -48,6 +53,51 @@ export async function impactAnalysis(
         filePath: r.filePath,
         depth: r.depth,
         relationship: r.relType,
+    }));
+}
+
+/** Chemin le plus court entre deux entites avec detail des noeuds et relations */
+export interface PathStep {
+    nodeName: string;
+    nodeType: string;
+    filePath: string;
+}
+
+export interface DetailedPath {
+    steps: PathStep[];
+    relationships: string[];
+    length: number;
+}
+
+export async function findDetailedPath(
+    driver: GraphDriver,
+    fromName: string,
+    toName: string,
+    projectId?: string,
+): Promise<DetailedPath[]> {
+    const projectFilter = projectId ? 'AND a.projectId = $projectId AND b.projectId = $projectId' : '';
+    const results = await driver.runQuery<{ names: string[]; types: string[]; files: string[]; rels: string[] }>(
+        `
+    MATCH (a), (b)
+    WHERE (a.name = $from OR a.path CONTAINS $from) AND (b.name = $to OR b.path CONTAINS $to)
+    ${projectFilter}
+    WITH a, b LIMIT 1
+    MATCH path = shortestPath((a)-[*..10]-(b))
+    RETURN [n IN nodes(path) | COALESCE(n.name, n.path)] as names,
+           [n IN nodes(path) | labels(n)[0]] as types,
+           [n IN nodes(path) | COALESCE(n.filePath, n.path, '')] as files,
+           [r IN relationships(path) | type(r)] as rels
+    `,
+        { from: fromName, to: toName, projectId },
+    );
+    return results.map((r) => ({
+        steps: r.names.map((name, i) => ({
+            nodeName: name,
+            nodeType: r.types[i] ?? 'Unknown',
+            filePath: r.files[i] ?? '',
+        })),
+        relationships: r.rels,
+        length: r.rels.length,
     }));
 }
 

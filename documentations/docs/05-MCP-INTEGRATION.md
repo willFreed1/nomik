@@ -41,10 +41,11 @@ This automatically creates `.cursor/mcp.json` with the correct config. Otherwise
       "command": "node",
       "args": ["packages/mcp-server/dist/index.js"],
       "env": {
-        "NEO4J_URI": "bolt://localhost:7687",
-        "NEO4J_USER": "neo4j",
-        "NEO4J_PASSWORD": "genome_local",
+        "GENOME_GRAPH_URI": "bolt://localhost:7687",
+        "GENOME_GRAPH_USER": "neo4j",
+        "GENOME_GRAPH_PASS": "genome_local",
         "GENOME_PROJECT_ID": "my-project"
+      }
     }
   }
 }
@@ -78,55 +79,38 @@ When you ask Cursor: *"What happens if I modify the payment processing function?
 {
   "tool": "kb_impact",
   "arguments": {
-    "symbol": "processPayment",
+    "symbolId": "processPayment",
     "depth": 3
   }
 }
 
-// GENOME response
-{
-  "impactedNodes": [
-    {
-      "name": "processPayment",
-      "type": "function",
-      "file": "src/services/payment.ts",
-      "line": 42,
-      "directDependents": [
-        {
-          "name": "POST /api/checkout",
-          "type": "route",
-          "file": "src/routes/checkout.ts",
-          "relationship": "CALLS"
-        },
-        {
-          "name": "handleRefund",
-          "type": "function",
-          "file": "src/services/refund.ts",
-          "relationship": "CALLS"
-        }
-      ],
-      "transitiveDependents": [
-        {
-          "name": "CheckoutForm",
-          "type": "component",
-          "file": "src/components/CheckoutForm.tsx",
-          "relationship": "DEPENDS_ON → POST /api/checkout"
-        },
-        {
-          "name": "monthlyBillingJob",
-          "type": "cron",
-          "file": "src/jobs/billing.ts",
-          "relationship": "CALLS → processPayment"
-        }
-      ],
-      "externalDeps": ["Stripe API"],
-      "dbTables": ["transactions", "payment_logs"]
-    }
-  ],
-  "riskLevel": "HIGH",
-  "summary": "processPayment is called by 2 routes, 1 cron job, impacts 2 DB tables and the Stripe integration"
-}
+// GENOME response (liste plate, profondeur et relation reelles)
+[
+  {
+    "name": "POST /api/checkout",
+    "type": "Route",
+    "filePath": "src/routes/checkout.ts",
+    "depth": 1,
+    "relationship": "CALLS"
+  },
+  {
+    "name": "handleRefund",
+    "type": "Function",
+    "filePath": "src/services/refund.ts",
+    "depth": 1,
+    "relationship": "CALLS"
+  },
+  {
+    "name": "CheckoutForm",
+    "type": "Function",
+    "filePath": "src/components/CheckoutForm.tsx",
+    "depth": 2,
+    "relationship": "DEPENDS_ON"
+  }
+]
 ```
+
+> Les champs `depth` et `relationship` refletent la traversee APOC reelle (profondeur dans le graphe et type d'edge entrant).
 
 ## Setup in Claude Desktop
 
@@ -135,15 +119,20 @@ When you ask Cursor: *"What happens if I modify the payment processing function?
 {
   "mcpServers": {
     "genome": {
-      "command": "genome",
-      "args": ["mcp", "--transport", "stdio"],
+      "command": "node",
+      "args": ["packages/mcp-server/dist/index.js"],
       "env": {
-        "GENOME_GRAPH_URI": "bolt://localhost:7687"
+        "GENOME_GRAPH_URI": "bolt://localhost:7687",
+        "GENOME_GRAPH_USER": "neo4j",
+        "GENOME_GRAPH_PASS": "genome_local",
+        "GENOME_PROJECT_ID": "my-project"
       }
     }
   }
 }
 ```
+
+> **Note** : La commande `genome` globale sera disponible apres publication sur npm. En attendant, utilisez le chemin `node packages/mcp-server/dist/index.js`.
 
 ## MCP Transport Options
 

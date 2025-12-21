@@ -130,7 +130,8 @@ pnpm genome watch .
 | [Running Guide](documentations/docs/04-RUNNING_GUIDE.md) | Step-by-step local setup |
 | [MCP Integration](documentations/docs/05-MCP-INTEGRATION.md) | Cursor/Claude connection |
 | [Graph Schema](documentations/docs/07-GRAPH-SCHEMA.md) | Node/edge types, Cypher examples |
-| [Progress Tracker](documentations/docs/10-PROGRESS-TRACKER.md) | Living MVP progress (97%) |
+| [CLI & Tools Reference](documentations/docs/11-CLI-TOOLS-REFERENCE.md) | All commands, MCP tools, Cypher queries |
+| [Progress Tracker](documentations/docs/10-PROGRESS-TRACKER.md) | Living MVP progress (~97%) |
 
 ## License
 

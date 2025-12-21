@@ -106,6 +106,18 @@ export async function fetchGraphData(projectId?: string) {
     }
 }
 
+/** Detail d'une fonction dead code ou god object */
+export interface DeadCodeItem {
+    name: string;
+    filePath: string;
+}
+
+export interface GodObjectItem {
+    name: string;
+    filePath: string;
+    depCount: number;
+}
+
 /** Health stats for a project (or all projects) */
 export interface HealthStats {
     nodeCount: number;
@@ -116,6 +128,8 @@ export interface HealthStats {
     routeCount: number;
     deadCodeCount: number;
     godObjectCount: number;
+    deadCodeItems: DeadCodeItem[];
+    godObjectItems: GodObjectItem[];
 }
 
 /** Fetch health metrics from the graph */
@@ -147,22 +161,33 @@ export async function fetchHealthStats(projectId?: string): Promise<HealthStats>
         `, params);
         const edgeCount = edgeResult.records[0]?.get('edgeCount')?.toNumber?.() ?? edgeResult.records[0]?.get('edgeCount') ?? 0;
 
-        // Dead code (exported functions never called)
+        // Dead code (exported functions never called) — count + details
         const deadCode = await session.run(`
             MATCH (f:Function ${pfShort})
             WHERE f.isExported = true AND NOT (f)<-[:CALLS]-()
-            RETURN count(f) as cnt
+            RETURN f.name as name, f.filePath as filePath
+            ORDER BY f.filePath, f.name
         `, params);
-        const deadCodeCount = deadCode.records[0]?.get('cnt')?.toNumber?.() ?? deadCode.records[0]?.get('cnt') ?? 0;
+        const deadCodeItems: DeadCodeItem[] = deadCode.records.map(r => ({
+            name: r.get('name'),
+            filePath: r.get('filePath') ?? '',
+        }));
+        const deadCodeCount = deadCodeItems.length;
 
-        // God objects (functions with >10 outgoing calls)
+        // God objects (functions with >10 outgoing calls) — count + details
         const godObjects = await session.run(`
             MATCH (f:Function ${pfShort})-[r:CALLS]->()
             WITH f, count(r) as depCount
             WHERE depCount > 10
-            RETURN count(f) as cnt
+            RETURN f.name as name, f.filePath as filePath, depCount
+            ORDER BY depCount DESC
         `, params);
-        const godObjectCount = godObjects.records[0]?.get('cnt')?.toNumber?.() ?? godObjects.records[0]?.get('cnt') ?? 0;
+        const godObjectItems: GodObjectItem[] = godObjects.records.map(r => ({
+            name: r.get('name'),
+            filePath: r.get('filePath') ?? '',
+            depCount: r.get('depCount')?.toNumber?.() ?? r.get('depCount') ?? 0,
+        }));
+        const godObjectCount = godObjectItems.length;
 
         return {
             nodeCount: c.get('nodeCount')?.toNumber?.() ?? c.get('nodeCount') ?? 0,
@@ -171,8 +196,10 @@ export async function fetchHealthStats(projectId?: string): Promise<HealthStats>
             classCount: c.get('classCount')?.toNumber?.() ?? c.get('classCount') ?? 0,
             routeCount: c.get('routeCount')?.toNumber?.() ?? c.get('routeCount') ?? 0,
             edgeCount: typeof edgeCount === 'number' ? edgeCount : 0,
-            deadCodeCount: typeof deadCodeCount === 'number' ? deadCodeCount : 0,
-            godObjectCount: typeof godObjectCount === 'number' ? godObjectCount : 0,
+            deadCodeCount,
+            godObjectCount,
+            deadCodeItems,
+            godObjectItems,
         };
     } finally {
         await session.close();

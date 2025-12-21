@@ -3,10 +3,10 @@ import type { GraphNode, GraphEdge, ProjectNode } from '@genome/core';
 import { createNeo4jDriver } from './drivers/neo4j.driver.js';
 import type { GraphDriver } from './drivers/driver.interface.js';
 import { upsertNodes, createEdges, clearFileData, upsertProject, deleteProjectData, listProjects, getProject } from './queries/write.js';
-import { impactAnalysis, findDeadCode, findGodObjects, graphStats, findDependencyChain, recentChanges } from './queries/read.js';
+import { impactAnalysis, findDeadCode, findGodObjects, graphStats, findDependencyChain, findDetailedPath, recentChanges } from './queries/read.js';
 import { initializeSchema } from './schema/init.js';
 import { QueryCache } from './cache.js';
-import type { ImpactResult } from './queries/read.js';
+import type { ImpactResult, DetailedPath } from './queries/read.js';
 
 export interface GraphService {
     connect(): Promise<void>;
@@ -18,6 +18,7 @@ export interface GraphService {
     getGodObjects(threshold?: number, projectId?: string): Promise<Array<{ name: string; filePath: string; depCount: number }>>;
     getStats(projectId?: string): Promise<{ nodeCount: number; edgeCount: number; fileCount: number; functionCount: number; classCount: number; routeCount: number }>;
     getDependencyChain(from: string, to: string, projectId?: string): Promise<string[][]>;
+    getDetailedPath(from: string, to: string, projectId?: string): Promise<DetailedPath[]>;
     getRecentChanges(since: string, limit?: number, projectId?: string): Promise<Array<{ name: string; type: string; filePath: string; updatedAt: string; createdAt: string | null }>>;
     healthCheck(): Promise<boolean>;
     executeQuery<T>(query: string, params?: Record<string, any>): Promise<T[]>;
@@ -86,6 +87,10 @@ export function createGraphService(config: GraphConfig): GraphService {
 
         async getDependencyChain(from: string, to: string, projectId?: string) {
             return cached(`depChain:${projectId}:${from}:${to}`, () => findDependencyChain(driver, from, to, projectId));
+        },
+
+        async getDetailedPath(from: string, to: string, projectId?: string) {
+            return cached(`detailedPath:${projectId}:${from}:${to}`, () => findDetailedPath(driver, from, to, projectId));
         },
 
         async getRecentChanges(since: string, limit = 50, projectId?: string) {

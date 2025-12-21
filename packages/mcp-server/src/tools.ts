@@ -71,7 +71,7 @@ const TOOLS = {
     },
     kb_find_path: {
         name: 'kb_find_path',
-        description: 'Find the shortest path between two code entities in the knowledge graph.',
+        description: 'Find the shortest path between two code entities in the knowledge graph. Returns detailed steps with node types and relationship types.',
         inputSchema: {
             type: 'object',
             properties: {
@@ -224,11 +224,11 @@ export async function handleCallTool(graph: GraphService, name: string, args: an
         case 'kb_find_path': {
             const from = String(args.from);
             const to = String(args.to);
-            const paths = await graph.getDependencyChain(from, to, projectId);
-            if (paths.length === 0) {
+            const detailed = await graph.getDetailedPath(from, to, projectId);
+            if (detailed.length === 0) {
                 return [{ type: 'text', text: JSON.stringify({ error: 'No path found', from, to }) }];
             }
-            return [{ type: 'text', text: JSON.stringify({ paths, from, to }, null, 2) }];
+            return [{ type: 'text', text: JSON.stringify({ from, to, paths: detailed }, null, 2) }];
         }
 
         case 'kb_recent_changes': {

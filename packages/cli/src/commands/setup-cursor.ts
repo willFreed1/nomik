@@ -29,10 +29,10 @@ function findMcpServerPath(): string {
 export const setupCursorCommand = new Command('setup-cursor')
     .description('Auto-configure Cursor IDE to use GENOME MCP server')
     .option('--global', 'Configure globally for all projects (user-level)')
-    .option('--neo4j-uri <uri>', 'Neo4j URI', 'bolt://localhost:7687')
-    .option('--neo4j-user <user>', 'Neo4j username', 'neo4j')
-    .option('--neo4j-password <pass>', 'Neo4j password', 'genome_local')
-    .action(async (opts: { global?: boolean; neo4jUri: string; neo4jUser: string; neo4jPassword: string }) => {
+    .option('--graph-uri <uri>', 'Neo4j URI', 'bolt://localhost:7687')
+    .option('--graph-user <user>', 'Neo4j username', 'neo4j')
+    .option('--graph-pass <pass>', 'Neo4j password', 'genome_local')
+    .action(async (opts: { global?: boolean; graphUri: string; graphUser: string; graphPass: string }) => {
         const logger = createLogger({ level: 'info', pretty: true });
         setLogger(logger);
 
@@ -40,9 +40,9 @@ export const setupCursorCommand = new Command('setup-cursor')
 
         const local = readProjectConfig();
         const envBlock: Record<string, string> = {
-            NEO4J_URI: opts.neo4jUri,
-            NEO4J_USER: opts.neo4jUser,
-            NEO4J_PASSWORD: opts.neo4jPassword,
+            GENOME_GRAPH_URI: opts.graphUri,
+            GENOME_GRAPH_USER: opts.graphUser,
+            GENOME_GRAPH_PASS: opts.graphPass,
         };
         if (local?.projectId) {
             envBlock.GENOME_PROJECT_ID = local.projectId;

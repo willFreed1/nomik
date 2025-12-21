@@ -1,6 +1,6 @@
 # @genome-ai/cli
 
-Command-line interface for the GENOME system. 11 commands, multi-project isolation, standalone bundle via tsup.
+Command-line interface for the GENOME system. 10 commands, multi-project isolation, standalone bundle via tsup.
 
 ## Installation
 

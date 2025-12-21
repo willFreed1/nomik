@@ -10,6 +10,12 @@ const SCHEMA_INIT = [
     'CREATE CONSTRAINT module_id IF NOT EXISTS FOR (m:Module) REQUIRE m.id IS UNIQUE',
     'CREATE CONSTRAINT variable_id IF NOT EXISTS FOR (v:Variable) REQUIRE v.id IS UNIQUE',
     'CREATE CONSTRAINT project_id IF NOT EXISTS FOR (p:Project) REQUIRE p.id IS UNIQUE',
+    // Contraintes pour les types de noeuds futurs (pre-provisionnees)
+    'CREATE CONSTRAINT dbtable_id IF NOT EXISTS FOR (d:DBTable) REQUIRE d.id IS UNIQUE',
+    'CREATE CONSTRAINT externalapi_id IF NOT EXISTS FOR (e:ExternalAPI) REQUIRE e.id IS UNIQUE',
+    'CREATE CONSTRAINT cronjob_id IF NOT EXISTS FOR (c:CronJob) REQUIRE c.id IS UNIQUE',
+    'CREATE CONSTRAINT event_id IF NOT EXISTS FOR (e:Event) REQUIRE e.id IS UNIQUE',
+    'CREATE CONSTRAINT envvar_id IF NOT EXISTS FOR (e:EnvVar) REQUIRE e.id IS UNIQUE',
     // Index de recherche
     'CREATE INDEX file_path IF NOT EXISTS FOR (f:File) ON (f.path)',
     'CREATE INDEX function_name IF NOT EXISTS FOR (f:Function) ON (f.name)',

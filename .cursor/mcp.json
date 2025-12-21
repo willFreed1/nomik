@@ -4,7 +4,13 @@
             "command": "node",
             "args": [
                 "${workspaceFolder}/packages/mcp-server/dist/index.js"
-            ]
+            ],
+            "env": {
+                "GENOME_GRAPH_URI": "bolt://localhost:7687",
+                "GENOME_GRAPH_USER": "neo4j",
+                "GENOME_GRAPH_PASS": "genome_local",
+                "GENOME_PROJECT_ID": "genome"
+            }
         }
     }
 }

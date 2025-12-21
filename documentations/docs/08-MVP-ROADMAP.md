@@ -40,7 +40,7 @@
 
 ## Phase 3: Visualization (Weeks 9-12) — "See the DNA"
 
-### Goal: D3.js dashboard shows live graph, highlight impacts
+### Goal: Three.js / Cytoscape.js dashboard shows live graph, highlight impacts
 
 | Week | Deliverable | Exit Criteria |
 |---|---|---|

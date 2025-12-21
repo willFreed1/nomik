@@ -47,14 +47,9 @@ services:
     ports:
       - "127.0.0.1:7474:7474"    # Bind to localhost ONLY
       - "127.0.0.1:7687:7687"    # No external access
-    networks:
-      - genome-internal
-
-networks:
-  genome-internal:
-    driver: bridge
-    internal: true                 # No internet access for Neo4j
 ```
+
+> **Note** : Sur Docker Desktop (Windows/macOS), `networks: internal: true` peut bloquer le port-forwarding host→container. Le binding `127.0.0.1` suffit pour empecher l'acces externe. Ne pas utiliser `internal: true` sur Docker Desktop.
 
 ### 4. Environment-Based Secrets
 

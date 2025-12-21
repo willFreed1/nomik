@@ -45,9 +45,9 @@ Add to `.cursor/mcp.json`:
       "command": "node",
       "args": ["packages/mcp-server/dist/index.js"],
       "env": {
-        "NEO4J_URI": "bolt://localhost:7687",
-        "NEO4J_USER": "neo4j",
-        "NEO4J_PASSWORD": "genome_local",
+        "GENOME_GRAPH_URI": "bolt://localhost:7687",
+        "GENOME_GRAPH_USER": "neo4j",
+        "GENOME_GRAPH_PASS": "genome_local",
         "GENOME_PROJECT_ID": "my-project"
       }
     }

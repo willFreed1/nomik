@@ -20,13 +20,29 @@ async function main() {
     }
     const graph = createGraphService(config.graph);
 
-    try {
-        await graph.connect();
-        logger.info('Connected to Neo4j');
-    } catch (err) {
-        logger.error({ err }, 'Failed to connect to Neo4j');
-        process.exit(1);
+    // Boucle de reconnexion au demarrage — attend que Neo4j soit pret
+    const MAX_CONNECT_RETRIES = 10;
+    const CONNECT_RETRY_DELAY_MS = 3000;
+    let connected = false;
+    for (let attempt = 1; attempt <= MAX_CONNECT_RETRIES; attempt++) {
+        try {
+            await graph.connect();
+            logger.info('Connected to Neo4j');
+            connected = true;
+            break;
+        } catch (err) {
+            logger.warn(
+                { attempt, maxRetries: MAX_CONNECT_RETRIES, err },
+                `Neo4j not ready, retrying in ${CONNECT_RETRY_DELAY_MS / 1000}s...`,
+            );
+            if (attempt === MAX_CONNECT_RETRIES) {
+                logger.error({ err }, `Failed to connect to Neo4j after ${MAX_CONNECT_RETRIES} attempts`);
+                process.exit(1);
+            }
+            await new Promise((r) => setTimeout(r, CONNECT_RETRY_DELAY_MS));
+        }
     }
+    if (!connected) process.exit(1);
 
     const server = new Server(
         {

@@ -69,5 +69,5 @@ interface GraphService {
 
 ## Configuration
 
-- **Variables**: `NEO4J_URI`, `NEO4J_USER`, `NEO4J_PASSWORD`
+- **Variables**: `GENOME_GRAPH_URI`, `GENOME_GRAPH_USER`, `GENOME_GRAPH_PASS`
 - **Default**: `bolt://localhost:7687`, `neo4j`, `genome_local`

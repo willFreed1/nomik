@@ -8,7 +8,7 @@
 |---|---|---|---|---|
 | **Tree-sitter bindings** | ✅ Official, mature | ⚠️ Community | ⚠️ Community | ✅ Native (TS is overkill) |
 | **MCP SDK** | ✅ **Reference impl** (Anthropic) | ⚠️ Exists, secondary | ❌ Community only | ❌ Community only |
-| **Frontend/Viz (D3.js)** | ✅ Native | ❌ Needs separate app | ❌ Needs separate app | ❌ Needs separate app |
+| **Frontend/Viz (Three.js / Cytoscape.js)** | ✅ Native | ❌ Needs separate app | ❌ Needs separate app | ❌ Needs separate app |
 | **Neo4j driver** | ✅ Official | ✅ Official | ✅ Official | ⚠️ Community |
 | **Iteration speed** | ✅ Fast | ✅ Fast | ⚠️ Medium | ❌ Slow |
 | **Type safety** | ✅ Yes | ⚠️ Optional (mypy) | ✅ Yes | ✅ Yes |
@@ -30,7 +30,7 @@ TypeScript covers **every layer** of GENOME:
 - **Graph** → Neo4j official driver (`neo4j-driver`)
 - **MCP Server** → `@modelcontextprotocol/sdk`
 - **CLI** → `commander` or `yargs`
-- **Visualization** → D3.js / Cytoscape.js (native JavaScript)
+- **Visualization** → Three.js (3d-force-graph) / Cytoscape.js (native JavaScript)
 - **File Watcher** → `chokidar`
 
 One language = one team can own everything. No polyglot overhead for the MVP.
