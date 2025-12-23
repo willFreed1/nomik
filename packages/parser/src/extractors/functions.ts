@@ -25,13 +25,22 @@ export function extractFunctions(tree: Parser.Tree, filePath: string): FunctionN
 }
 
 function isFunctionLike(node: Parser.SyntaxNode): boolean {
-    return [
+    if (![
         'function_declaration',
         'method_definition',
         'arrow_function',
         'function',
         'generator_function_declaration',
-    ].includes(node.type);
+    ].includes(node.type)) return false;
+
+    // Exclure les arrow functions triviales dans les proprietes d'objets (callbacks config)
+    // Ex: { nodeRepulsion: (_node) => 12000 } — pas une fonction independante
+    if (node.type === 'arrow_function' && node.parent?.type === 'pair') {
+        const body = node.childForFieldName('body');
+        if (body && body.type !== 'statement_block') return false;
+    }
+
+    return true;
 }
 
 function buildFunctionNode(node: Parser.SyntaxNode, filePath: string): FunctionNode | null {

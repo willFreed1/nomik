@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { upsertNode, upsertNodes, createEdge, createEdges, clearFileData, upsertProject, deleteProjectData, listProjects, getProject } from '../queries/write.js';
+import { upsertNodes, createEdges, clearFileData, upsertProject, deleteProjectData, listProjects, getProject } from '../queries/write.js';
 import type { GraphDriver } from '../drivers/driver.interface.js';
 import type { GraphNode, GraphEdge, ProjectNode } from '@genome/core';
 
@@ -16,34 +16,6 @@ function createMockDriver(): GraphDriver {
         healthCheck: vi.fn().mockResolvedValue(true),
     };
 }
-
-describe('upsertNode', () => {
-    let driver: GraphDriver;
-
-    beforeEach(() => {
-        driver = createMockDriver();
-    });
-
-    it('appelle runWrite avec le bon label, id et projectId', async () => {
-        const node: GraphNode = {
-            id: 'abc123',
-            type: 'file',
-            path: '/src/index.ts',
-            language: 'typescript',
-            hash: 'deadbeef',
-            size: 1024,
-            lastParsed: '2026-01-01T00:00:00Z',
-        } as any;
-
-        await upsertNode(driver, node, TEST_PROJECT_ID);
-
-        expect(driver.runWrite).toHaveBeenCalledTimes(1);
-        const [cypher, params] = (driver.runWrite as any).mock.calls[0];
-        expect(cypher).toContain('MERGE (n:File {id: $id})');
-        expect(params.id).toBe('abc123');
-        expect(params.projectId).toBe(TEST_PROJECT_ID);
-    });
-});
 
 describe('upsertNodes', () => {
     let driver: GraphDriver;
@@ -76,33 +48,6 @@ describe('upsertNodes', () => {
     it('ne fait aucun appel pour un tableau vide', async () => {
         await upsertNodes(driver, [], TEST_PROJECT_ID);
         expect(driver.runWrite).not.toHaveBeenCalled();
-    });
-});
-
-describe('createEdge', () => {
-    let driver: GraphDriver;
-
-    beforeEach(() => {
-        driver = createMockDriver();
-    });
-
-    it('cree un edge CONTAINS avec projectId', async () => {
-        const edge: GraphEdge = {
-            id: 'e1',
-            type: 'CONTAINS',
-            sourceId: 'f1',
-            targetId: 'fn1',
-            confidence: 1.0,
-        };
-
-        await createEdge(driver, edge, TEST_PROJECT_ID);
-
-        expect(driver.runWrite).toHaveBeenCalledTimes(1);
-        const [cypher, params] = (driver.runWrite as any).mock.calls[0];
-        expect(cypher).toContain(':CONTAINS');
-        expect(params.sourceId).toBe('f1');
-        expect(params.targetId).toBe('fn1');
-        expect(params.projectId).toBe(TEST_PROJECT_ID);
     });
 });
 

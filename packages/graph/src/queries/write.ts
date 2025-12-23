@@ -1,16 +1,6 @@
 import type { GraphDriver } from '../drivers/driver.interface.js';
 import type { GraphNode, GraphEdge, ProjectNode } from '@genome/core';
 
-export async function upsertNode(driver: GraphDriver, node: GraphNode, projectId: string): Promise<void> {
-    const label = nodeTypeToLabel(node.type);
-    const cypher = `
-    MERGE (n:${label} {id: $id})
-    ON CREATE SET n.createdAt = datetime()
-    SET n += $props, n.updatedAt = datetime(), n.projectId = $projectId
-  `;
-    await driver.runWrite(cypher, { id: node.id, props: nodeToProps(node), projectId });
-}
-
 /** Upsert par lots avec UNWIND — chaque noeud reçoit le projectId */
 export async function upsertNodes(driver: GraphDriver, nodes: GraphNode[], projectId: string): Promise<void> {
     const grouped = groupByType(nodes);
@@ -33,22 +23,6 @@ function groupByType(nodes: GraphNode[]): Record<string, GraphNode[]> {
         (map[n.type] ??= []).push(n);
     }
     return map;
-}
-
-export async function createEdge(driver: GraphDriver, edge: GraphEdge, projectId: string): Promise<void> {
-    const cypher = `
-    MATCH (a {id: $sourceId}), (b {id: $targetId})
-    MERGE (a)-[r:${edge.type} {id: $edgeId}]->(b)
-    ON CREATE SET r.createdAt = datetime()
-    SET r += $props, r.projectId = $projectId
-  `;
-    await driver.runWrite(cypher, {
-        sourceId: edge.sourceId,
-        targetId: edge.targetId,
-        edgeId: edge.id,
-        props: edgeToProps(edge),
-        projectId,
-    });
 }
 
 /** Creation d'edges par lots — chaque edge reçoit le projectId */

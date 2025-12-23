@@ -24,6 +24,3 @@ export function isSupportedFile(filePath: string): boolean {
     return detectLanguage(filePath) !== null;
 }
 
-export function getSupportedExtensions(): string[] {
-    return Object.keys(extensionMap);
-}

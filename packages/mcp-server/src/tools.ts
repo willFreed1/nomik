@@ -65,7 +65,7 @@ const TOOLS = {
             properties: {
                 includeDeadCode: { type: 'boolean', description: 'Include dead code analysis', default: false },
                 includeGodObjects: { type: 'boolean', description: 'Include god object detection', default: false },
-                godObjectThreshold: { type: 'number', description: 'Dependency count threshold for god objects', default: 8 },
+                godObjectThreshold: { type: 'number', description: 'Dependency count threshold for god objects', default: 15 },
             },
         },
     },
@@ -205,7 +205,7 @@ export async function handleCallTool(graph: GraphService, name: string, args: an
                 result.deadCode = await graph.getDeadCode(projectId);
             }
             if (args.includeGodObjects) {
-                const threshold = Number(args.godObjectThreshold) || 8;
+                const threshold = Number(args.godObjectThreshold) || 15;
                 result.godObjects = await graph.getGodObjects(threshold, projectId);
             }
 

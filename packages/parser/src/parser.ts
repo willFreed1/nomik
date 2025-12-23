@@ -129,6 +129,9 @@ export function createParserEngine(): ParserEngine {
         }
         const localCallEdges = resolveCallEdges(calls, localFuncMap);
 
+        // Edges CALLS depuis le contexte fichier (appels dans callbacks anonymes, top-level)
+        const fileCallEdges = resolveFileCallEdges(calls, localFuncMap, fileNode.id);
+
         // Edges EXTENDS : Class → Class parent
         const extendsEdges = resolveExtendsEdges(classes, localFuncMap, absolutePath);
 
@@ -139,6 +142,7 @@ export function createParserEngine(): ParserEngine {
             ...containsEdges,
             ...importEdges,
             ...localCallEdges,
+            ...fileCallEdges,
             ...extendsEdges,
             ...implementsEdges,
         ];
@@ -164,12 +168,18 @@ export function createParserEngine(): ParserEngine {
 
         // Resolution cross-fichier : DEPENDS_ON (imports), CALLS, EXTENDS
         const globalFuncMap = new Map<string, string>();
+        const globalFuncMultiMap = new Map<string, string[]>();
         const globalClassMap = new Map<string, string>();
         const filePathToId = new Map<string, string>();
         for (const r of results) {
             filePathToId.set(r.file.path, r.file.id);
             for (const n of r.nodes) {
-                if (n.type === 'function') globalFuncMap.set(n.name, n.id);
+                if (n.type === 'function') {
+                    globalFuncMap.set(n.name, n.id);
+                    const arr = globalFuncMultiMap.get(n.name) ?? [];
+                    arr.push(n.id);
+                    globalFuncMultiMap.set(n.name, arr);
+                }
                 if (n.type === 'class') globalClassMap.set(n.name, n.id);
             }
         }
@@ -203,15 +213,23 @@ export function createParserEngine(): ParserEngine {
         for (const r of results) {
             const localIds = new Set(r.nodes.map((n) => n.id));
 
-            // CALLS cross-fichier
-            const crossCallEdges = resolveCallEdges(r.calls, globalFuncMap)
-                .filter((e) => !localIds.has(e.targetId));
-            const existingCallTargets = new Set(
-                r.edges.filter((e) => e.type === 'CALLS').map((e) => e.targetId),
-            );
+            // CALLS cross-fichier (fonctions nommees → fonctions dans autres fichiers)
+            const crossCallEdges = resolveCrossFileCallEdges(r.calls, localIds, globalFuncMultiMap);
+            const existingEdgeIds = new Set(r.edges.map((e) => e.id));
             for (const edge of crossCallEdges) {
-                if (!existingCallTargets.has(edge.targetId)) {
-                    r.edges.push({ ...edge, confidence: 0.85 });
+                if (!existingEdgeIds.has(edge.id)) {
+                    r.edges.push(edge);
+                    existingEdgeIds.add(edge.id);
+                    crossFileCallCount++;
+                }
+            }
+
+            // CALLS cross-fichier depuis le contexte fichier (__file__ → fonctions dans autres fichiers)
+            const crossFileEdges = resolveFileCrossFileCallEdges(r.calls, localIds, globalFuncMultiMap, r.file.id);
+            for (const edge of crossFileEdges) {
+                if (!existingEdgeIds.has(edge.id)) {
+                    r.edges.push(edge);
+                    existingEdgeIds.add(edge.id);
                     crossFileCallCount++;
                 }
             }
@@ -256,12 +274,13 @@ export function createParserEngine(): ParserEngine {
     return { parseFile, parseFiles };
 }
 
-/** Resolution des appels en edges CALLS */
+/** Resolution des appels intra-fichier en edges CALLS (caller et callee dans le meme fichier) */
 function resolveCallEdges(calls: CallInfo[], funcMap: Map<string, string>): CallsEdge[] {
     const edges: CallsEdge[] = [];
     const seen = new Set<string>();
 
     for (const call of calls) {
+        if (call.callerName === '__file__') continue;
         const callerId = funcMap.get(call.callerName);
         const calleeId = funcMap.get(call.calleeName);
         if (!callerId || !calleeId) continue;
@@ -280,6 +299,108 @@ function resolveCallEdges(calls: CallInfo[], funcMap: Map<string, string>): Call
             line: call.line,
             column: call.column,
         });
+    }
+    return edges;
+}
+
+/** Edges CALLS depuis le contexte fichier (appels dans callbacks anonymes ou top-level) */
+function resolveFileCallEdges(calls: CallInfo[], funcMap: Map<string, string>, fileId: string): CallsEdge[] {
+    const edges: CallsEdge[] = [];
+    const seen = new Set<string>();
+
+    for (const call of calls) {
+        if (call.callerName !== '__file__') continue;
+        const calleeId = funcMap.get(call.calleeName);
+        if (!calleeId) continue;
+
+        const key = `${fileId}->${calleeId}`;
+        if (seen.has(key)) continue;
+        seen.add(key);
+
+        edges.push({
+            id: `${fileId}->calls->${calleeId}`,
+            type: 'CALLS' as const,
+            sourceId: fileId,
+            targetId: calleeId,
+            confidence: 0.9,
+            line: call.line,
+            column: call.column,
+        });
+    }
+    return edges;
+}
+
+/** Resolution cross-fichier avec multi-map (gere les noms de fonctions dupliques) */
+function resolveCrossFileCallEdges(
+    calls: CallInfo[],
+    localIds: Set<string>,
+    multiMap: Map<string, string[]>,
+): CallsEdge[] {
+    const edges: CallsEdge[] = [];
+    const seen = new Set<string>();
+
+    for (const call of calls) {
+        if (call.callerName === '__file__') continue;
+        const callerIds = multiMap.get(call.callerName) ?? [];
+        const calleeIds = multiMap.get(call.calleeName) ?? [];
+
+        // Seul le caller dans CE fichier est pertinent
+        const localCallerIds = callerIds.filter((id) => localIds.has(id));
+        // Seuls les callees dans AUTRES fichiers sont pertinents
+        const remoteCalleeIds = calleeIds.filter((id) => !localIds.has(id));
+
+        for (const callerId of localCallerIds) {
+            for (const calleeId of remoteCalleeIds) {
+                if (callerId === calleeId) continue;
+                const key = `${callerId}->${calleeId}`;
+                if (seen.has(key)) continue;
+                seen.add(key);
+
+                edges.push({
+                    id: `${callerId}->calls->${calleeId}`,
+                    type: 'CALLS' as const,
+                    sourceId: callerId,
+                    targetId: calleeId,
+                    confidence: 0.85,
+                    line: call.line,
+                    column: call.column,
+                });
+            }
+        }
+    }
+    return edges;
+}
+
+/** Resolution cross-fichier des appels __file__ (File → fonctions dans autres fichiers) */
+function resolveFileCrossFileCallEdges(
+    calls: CallInfo[],
+    localIds: Set<string>,
+    multiMap: Map<string, string[]>,
+    fileId: string,
+): CallsEdge[] {
+    const edges: CallsEdge[] = [];
+    const seen = new Set<string>();
+
+    for (const call of calls) {
+        if (call.callerName !== '__file__') continue;
+        const calleeIds = multiMap.get(call.calleeName) ?? [];
+
+        for (const calleeId of calleeIds) {
+            if (localIds.has(calleeId)) continue;
+            const key = `${fileId}->${calleeId}`;
+            if (seen.has(key)) continue;
+            seen.add(key);
+
+            edges.push({
+                id: `${fileId}->calls->${calleeId}`,
+                type: 'CALLS' as const,
+                sourceId: fileId,
+                targetId: calleeId,
+                confidence: 0.8,
+                line: call.line,
+                column: call.column,
+            });
+        }
     }
     return edges;
 }
@@ -338,7 +459,9 @@ function resolveImplementsEdges(
     return edges;
 }
 
-/** Resolution d'un import relatif vers l'id du fichier cible */
+/** Resolution d'un import relatif vers l'id du fichier cible
+ *  Gere le remapping ESM .js → .ts et les extensions Python/Rust
+ */
 function resolveImportPath(
     importerPath: string,
     importSource: string,
@@ -347,16 +470,35 @@ function resolveImportPath(
     const dir = path.dirname(importerPath);
     const base = path.resolve(dir, importSource);
 
-    const candidates = [
-        base + '.ts',
-        base + '.tsx',
-        base + '.js',
-        base + '.jsx',
-        base + '/index.ts',
-        base + '/index.tsx',
-        base + '/index.js',
-        base,
-    ];
+    // Remapping ESM : import './foo.js' → chercher foo.ts d'abord
+    const stripped = base.replace(/\.(js|jsx|mjs|cjs)$/, '');
+    const hasJsExt = stripped !== base;
+
+    const candidates = hasJsExt
+        ? [
+            stripped + '.ts',
+            stripped + '.tsx',
+            stripped + '.js',
+            stripped + '.jsx',
+            stripped + '/index.ts',
+            stripped + '/index.tsx',
+            stripped + '/index.js',
+            stripped,
+            base,
+        ]
+        : [
+            base + '.ts',
+            base + '.tsx',
+            base + '.js',
+            base + '.jsx',
+            base + '.py',
+            base + '.rs',
+            base + '/index.ts',
+            base + '/index.tsx',
+            base + '/index.js',
+            base + '/mod.rs',
+            base,
+        ];
 
     for (const candidate of candidates) {
         const normalized = path.resolve(candidate);

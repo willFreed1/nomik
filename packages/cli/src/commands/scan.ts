@@ -82,9 +82,8 @@ export const scanCommand = new Command('scan')
                 logger.info({ old: existing.rootPath, new: process.cwd() }, 'project rootPath updated (folder rename detected)');
             }
 
-            for (const result of results) {
-                await graph.ingestFileData(result.nodes, result.edges, result.file.path, projectId);
-            }
+            // Ingestion 3-phases : preserve les edges cross-fichier (DEPENDS_ON, CALLS)
+            await graph.ingestBatch(results, projectId);
 
             // Stocker les metadonnees du scan (git SHA, timestamp) avec projectId
             if (gitInfo) {

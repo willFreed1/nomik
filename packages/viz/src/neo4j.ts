@@ -161,18 +161,24 @@ export async function fetchHealthStats(projectId?: string): Promise<HealthStats>
         `, params);
         const edgeCount = edgeResult.records[0]?.get('edgeCount')?.toNumber?.() ?? edgeResult.records[0]?.get('edgeCount') ?? 0;
 
-        // Dead code — exclut les faux positifs (imports cross-package, fichiers index)
+        // Dead code — exclut constructeurs, methodes de classes, React, barrel re-exports
         const deadCode = await session.run(`
             MATCH (f:Function ${pfShort})
-            WHERE f.isExported = true AND NOT (f)<-[:CALLS]-() AND NOT (f)<-[:HANDLES]-()
+            WHERE NOT (f)<-[:CALLS]-() AND NOT (f)<-[:HANDLES]-()
+              AND f.name <> 'constructor'
             WITH f
+            WHERE NOT f.filePath ENDS WITH '.tsx'
+              AND NOT f.filePath ENDS WITH '.jsx'
             OPTIONAL MATCH (parent:File)-[:CONTAINS]->(f)
             WITH f, parent
-            WHERE parent IS NOT NULL
-              AND NOT (parent)<-[:DEPENDS_ON]-()
-              AND NOT parent.path ENDS WITH 'index.ts'
-              AND NOT parent.path ENDS WITH 'index.js'
-              AND NOT parent.path ENDS WITH 'index.tsx'
+            WHERE parent IS NULL
+               OR (NOT parent.path ENDS WITH 'index.ts'
+                   AND NOT parent.path ENDS WITH 'index.js')
+            WITH f, parent
+            OPTIONAL MATCH (parent)-[:CONTAINS]->(cls:Class)
+            WHERE cls.methods CONTAINS ('"' + f.name + '"')
+            WITH f, cls
+            WHERE cls IS NULL
             RETURN f.name as name, f.filePath as filePath
             ORDER BY f.filePath, f.name
         `, params);
@@ -182,11 +188,15 @@ export async function fetchHealthStats(projectId?: string): Promise<HealthStats>
         }));
         const deadCodeCount = deadCodeItems.length;
 
-        // God objects — compte les CALLS distincts uniquement (pas DEPENDS_ON)
+        // God objects — couplage cross-fichier inattendu uniquement
         const godObjects = await session.run(`
             MATCH (f:Function ${pfShort})-[:CALLS]->(target)
+            MATCH (ff:File)-[:CONTAINS]->(f)
+            WHERE NOT (ff)-[:CONTAINS]->(target)
+            MATCH (tf:File)-[:CONTAINS]->(target)
+            WHERE NOT (ff)-[:DEPENDS_ON]->(tf)
             WITH f, count(DISTINCT target) as depCount
-            WHERE depCount > 10
+            WHERE depCount > 15
             RETURN f.name as name, f.filePath as filePath, depCount
             ORDER BY depCount DESC
         `, params);

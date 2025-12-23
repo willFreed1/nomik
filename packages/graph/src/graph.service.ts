@@ -8,11 +8,20 @@ import { initializeSchema } from './schema/init.js';
 import { QueryCache } from './cache.js';
 import type { ImpactResult, DetailedPath } from './queries/read.js';
 
+export interface ParseResult {
+    file: { id: string; path: string; language: string; hash: string; size: number; lastParsed: string; type: 'file' };
+    nodes: GraphNode[];
+    edges: GraphEdge[];
+}
+
 export interface GraphService {
     connect(): Promise<void>;
     disconnect(): Promise<void>;
     initSchema(): Promise<void>;
+    /** @deprecated Utilisez ingestBatch pour preserver les edges cross-fichier */
     ingestFileData(nodes: GraphNode[], edges: GraphEdge[], filePath: string, projectId: string): Promise<void>;
+    /** Ingestion 3-phases : clear → upsert → edges (preserve les edges cross-fichier) */
+    ingestBatch(results: ParseResult[], projectId: string): Promise<void>;
     getImpact(symbolName: string, depth?: number, projectId?: string): Promise<ImpactResult[]>;
     getDeadCode(projectId?: string): Promise<Array<{ name: string; filePath: string }>>;
     getGodObjects(threshold?: number, projectId?: string): Promise<Array<{ name: string; filePath: string; depCount: number }>>;
@@ -69,6 +78,25 @@ export function createGraphService(config: GraphConfig): GraphService {
             logger.debug({ filePath, projectId, nodes: nodes.length, edges: edges.length }, 'ingested file data');
         },
 
+        async ingestBatch(results, projectId: string) {
+            // Phase 1 : Supprimer les anciennes donnees de TOUS les fichiers d'abord
+            for (const r of results) {
+                await clearFileData(driver, r.file.path, projectId);
+            }
+            // Phase 2 : Creer TOUS les noeuds (result.nodes inclut deja le FileNode)
+            for (const r of results) {
+                await upsertNodes(driver, r.nodes, projectId);
+            }
+            // Phase 3 : Creer TOUTES les edges (intra + cross-fichier preservees)
+            const allEdges: GraphEdge[] = [];
+            for (const r of results) {
+                allEdges.push(...r.edges);
+            }
+            await createEdges(driver, allEdges, projectId);
+            cache.invalidateAll();
+            logger.info({ files: results.length, edges: allEdges.length }, 'batch ingestion complete (3-phase)');
+        },
+
         async getImpact(symbolName: string, depth = 5, projectId?: string) {
             return cached(`impact:${projectId}:${symbolName}:${depth}`, () => impactAnalysis(driver, symbolName, depth, projectId));
         },
@@ -77,7 +105,7 @@ export function createGraphService(config: GraphConfig): GraphService {
             return cached(`deadCode:${projectId}`, () => findDeadCode(driver, projectId));
         },
 
-        async getGodObjects(threshold = 10, projectId?: string) {
+        async getGodObjects(threshold = 15, projectId?: string) {
             return cached(`godObjects:${projectId}:${threshold}`, () => findGodObjects(driver, threshold, projectId));
         },
 

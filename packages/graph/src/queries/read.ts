@@ -121,27 +121,32 @@ export async function findDependencyChain(
     return results.map((r) => r.path);
 }
 
-/** Detection de dead code — exclut les faux positifs :
- *  - Fonctions appelees via CALLS ou HANDLES
- *  - Fonctions dont le fichier parent est importe (DEPENDS_ON entrant = usage cross-package)
- *  - Fonctions contenues dans un fichier index.ts/index.js (re-exports de package)
+/** Detection de dead code — fonctions sans aucun appel entrant
+ *  Exclut : constructeurs, methodes de classes, composants React, barrel re-exports
  */
 export async function findDeadCode(driver: GraphDriver, projectId?: string): Promise<Array<{ name: string; filePath: string }>> {
     const projectFilter = projectId ? 'AND f.projectId = $projectId' : '';
     return driver.runQuery(
         `
-    MATCH (f:Function {isExported: true})
+    MATCH (f:Function)
     WHERE NOT (f)<-[:CALLS]-()
       AND NOT (f)<-[:HANDLES]-()
+      AND f.name <> 'constructor'
       ${projectFilter}
     WITH f
+    WHERE NOT f.filePath ENDS WITH '.tsx'
+      AND NOT f.filePath ENDS WITH '.jsx'
     OPTIONAL MATCH (parent:File)-[:CONTAINS]->(f)
     WITH f, parent
-    WHERE parent IS NOT NULL
-      AND NOT (parent)<-[:DEPENDS_ON]-()
-      AND NOT parent.path ENDS WITH 'index.ts'
-      AND NOT parent.path ENDS WITH 'index.js'
-      AND NOT parent.path ENDS WITH 'index.tsx'
+    WHERE parent IS NULL
+       OR (NOT parent.path ENDS WITH 'index.ts'
+           AND NOT parent.path ENDS WITH 'index.js')
+    // Exclure les methodes de classes (appelees via obj.method(), pas directement)
+    WITH f, parent
+    OPTIONAL MATCH (parent)-[:CONTAINS]->(cls:Class)
+    WHERE cls.methods CONTAINS ('"' + f.name + '"')
+    WITH f, cls
+    WHERE cls IS NULL
     RETURN f.name as name, f.filePath as filePath
     ORDER BY f.filePath
     `,
@@ -149,12 +154,12 @@ export async function findDeadCode(driver: GraphDriver, projectId?: string): Pro
     );
 }
 
-/** Detection de god objects — compte uniquement les CALLS sortants distincts
- *  (DEPENDS_ON est file-level, pas pertinent pour le couplage fonctionnel)
+/** Detection de god objects — ne compte que le couplage cross-fichier inattendu
+ *  Exclut : dispatch intra-fichier et appels vers des fichiers directement importes (DEPENDS_ON)
  */
 export async function findGodObjects(
     driver: GraphDriver,
-    threshold: number = 10,
+    threshold: number = 15,
     projectId?: string,
 ): Promise<Array<{ name: string; filePath: string; depCount: number }>> {
     const projectFilter = projectId ? 'AND f.projectId = $projectId' : '';
@@ -162,6 +167,10 @@ export async function findGodObjects(
         `
     MATCH (f:Function)-[:CALLS]->(target)
     WHERE true ${projectFilter}
+    MATCH (ff:File)-[:CONTAINS]->(f)
+    WHERE NOT (ff)-[:CONTAINS]->(target)
+    MATCH (tf:File)-[:CONTAINS]->(target)
+    WHERE NOT (ff)-[:DEPENDS_ON]->(tf)
     WITH f, count(DISTINCT target) as depCount
     WHERE depCount > $threshold
     RETURN f.name as name, f.filePath as filePath, depCount

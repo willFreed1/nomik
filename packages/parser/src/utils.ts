@@ -10,15 +10,6 @@ export function createFileHash(content: string): string {
     return createHash('sha256').update(content).digest('hex');
 }
 
-/** Retourne le SHA court du commit git courant (ou null si pas un repo git) */
-export function getGitSha(): string | null {
-    try {
-        return execSync('git rev-parse --short HEAD', { encoding: 'utf-8', stdio: ['pipe', 'pipe', 'pipe'] }).trim();
-    } catch {
-        return null;
-    }
-}
-
 /** Retourne le SHA complet + info du commit courant */
 export function getGitInfo(): { sha: string; shortSha: string; message: string; author: string; date: string } | null {
     try {
