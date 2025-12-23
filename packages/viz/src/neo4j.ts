@@ -161,10 +161,18 @@ export async function fetchHealthStats(projectId?: string): Promise<HealthStats>
         `, params);
         const edgeCount = edgeResult.records[0]?.get('edgeCount')?.toNumber?.() ?? edgeResult.records[0]?.get('edgeCount') ?? 0;
 
-        // Dead code (exported functions never called) — count + details
+        // Dead code — exclut les faux positifs (imports cross-package, fichiers index)
         const deadCode = await session.run(`
             MATCH (f:Function ${pfShort})
-            WHERE f.isExported = true AND NOT (f)<-[:CALLS]-()
+            WHERE f.isExported = true AND NOT (f)<-[:CALLS]-() AND NOT (f)<-[:HANDLES]-()
+            WITH f
+            OPTIONAL MATCH (parent:File)-[:CONTAINS]->(f)
+            WITH f, parent
+            WHERE parent IS NOT NULL
+              AND NOT (parent)<-[:DEPENDS_ON]-()
+              AND NOT parent.path ENDS WITH 'index.ts'
+              AND NOT parent.path ENDS WITH 'index.js'
+              AND NOT parent.path ENDS WITH 'index.tsx'
             RETURN f.name as name, f.filePath as filePath
             ORDER BY f.filePath, f.name
         `, params);
@@ -174,10 +182,10 @@ export async function fetchHealthStats(projectId?: string): Promise<HealthStats>
         }));
         const deadCodeCount = deadCodeItems.length;
 
-        // God objects (functions with >10 outgoing calls) — count + details
+        // God objects — compte les CALLS distincts uniquement (pas DEPENDS_ON)
         const godObjects = await session.run(`
-            MATCH (f:Function ${pfShort})-[r:CALLS]->()
-            WITH f, count(r) as depCount
+            MATCH (f:Function ${pfShort})-[:CALLS]->(target)
+            WITH f, count(DISTINCT target) as depCount
             WHERE depCount > 10
             RETURN f.name as name, f.filePath as filePath, depCount
             ORDER BY depCount DESC

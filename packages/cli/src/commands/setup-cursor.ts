@@ -113,7 +113,7 @@ export const setupCursorCommand = new Command('setup-cursor')
         console.log('');
         console.log(`  Config written to: \x1b[33m${configPath}\x1b[0m`);
         console.log(`  MCP server:        \x1b[33m${mcpPath}\x1b[0m`);
-        console.log(`  Neo4j:             \x1b[33m${opts.neo4jUri}\x1b[0m`);
+        console.log(`  Neo4j:             \x1b[33m${opts.graphUri}\x1b[0m`);
         console.log('');
         console.log('  \x1b[2mRestart Cursor to activate. The AI can now use:\x1b[0m');
         console.log('  \x1b[2m  - kb_search, kb_impact, kb_get_context\x1b[0m');

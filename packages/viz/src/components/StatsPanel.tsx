@@ -134,12 +134,16 @@ export function StatsPanel({ stats, loading }: Props) {
     );
 }
 
-/** Indicateur visuel du score de sante */
+/** Indicateur visuel du score de sante
+ *  Formule : penalise proportionnellement le dead code et les god objects
+ *  - dead code : -1 point par % de fonctions mortes (plafonné a -30)
+ *  - god objects : -5 points par god object (plafonné a -30)
+ */
 function HealthScore({ stats }: { stats: HealthStats }) {
     const total = stats.functionCount || 1;
-    const deadRatio = stats.deadCodeCount / total;
-    const godRatio = stats.godObjectCount / total;
-    const score = Math.max(0, Math.round((1 - deadRatio * 2 - godRatio * 3) * 100));
+    const deadPenalty = Math.min(30, Math.round((stats.deadCodeCount / total) * 100));
+    const godPenalty = Math.min(30, stats.godObjectCount * 5);
+    const score = Math.max(0, 100 - deadPenalty - godPenalty);
 
     const getColor = (s: number) => {
         if (s >= 80) return 'text-emerald-400';

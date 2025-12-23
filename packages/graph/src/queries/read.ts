@@ -121,12 +121,27 @@ export async function findDependencyChain(
     return results.map((r) => r.path);
 }
 
+/** Detection de dead code — exclut les faux positifs :
+ *  - Fonctions appelees via CALLS ou HANDLES
+ *  - Fonctions dont le fichier parent est importe (DEPENDS_ON entrant = usage cross-package)
+ *  - Fonctions contenues dans un fichier index.ts/index.js (re-exports de package)
+ */
 export async function findDeadCode(driver: GraphDriver, projectId?: string): Promise<Array<{ name: string; filePath: string }>> {
     const projectFilter = projectId ? 'AND f.projectId = $projectId' : '';
     return driver.runQuery(
         `
     MATCH (f:Function {isExported: true})
-    WHERE NOT (f)<-[:CALLS]-() AND NOT (f)<-[:HANDLES]-() ${projectFilter}
+    WHERE NOT (f)<-[:CALLS]-()
+      AND NOT (f)<-[:HANDLES]-()
+      ${projectFilter}
+    WITH f
+    OPTIONAL MATCH (parent:File)-[:CONTAINS]->(f)
+    WITH f, parent
+    WHERE parent IS NOT NULL
+      AND NOT (parent)<-[:DEPENDS_ON]-()
+      AND NOT parent.path ENDS WITH 'index.ts'
+      AND NOT parent.path ENDS WITH 'index.js'
+      AND NOT parent.path ENDS WITH 'index.tsx'
     RETURN f.name as name, f.filePath as filePath
     ORDER BY f.filePath
     `,
@@ -134,6 +149,9 @@ export async function findDeadCode(driver: GraphDriver, projectId?: string): Pro
     );
 }
 
+/** Detection de god objects — compte uniquement les CALLS sortants distincts
+ *  (DEPENDS_ON est file-level, pas pertinent pour le couplage fonctionnel)
+ */
 export async function findGodObjects(
     driver: GraphDriver,
     threshold: number = 10,
@@ -142,9 +160,9 @@ export async function findGodObjects(
     const projectFilter = projectId ? 'AND f.projectId = $projectId' : '';
     return driver.runQuery(
         `
-    MATCH (f:Function)-[r:CALLS|DEPENDS_ON]->()
+    MATCH (f:Function)-[:CALLS]->(target)
     WHERE true ${projectFilter}
-    WITH f, count(r) as depCount
+    WITH f, count(DISTINCT target) as depCount
     WHERE depCount > $threshold
     RETURN f.name as name, f.filePath as filePath, depCount
     ORDER BY depCount DESC
