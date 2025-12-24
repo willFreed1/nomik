@@ -35,7 +35,7 @@ graph LR
 | Imports | `imports.ts` | `ImportInfo` (source, specifiers, isDynamic) |
 | Exports | `exports.ts` | `ExportInfo` (name, isDefault) |
 | Routes | `routes.ts` | `RouteNode` (method, path, handler, middleware) |
-| Calls | `calls.ts` | `CallInfo` (callerName, calleeName, line, column) |
+| Calls | `calls.ts` | `CallInfo` (callerName, calleeName, line, column) — supports `obj.method()` member expressions, anonymous callbacks (`__file__`), callback arguments (`arr.map(fn)`), shorthand property references (`{ someFunc }`) |
 
 ### Python (`src/extractors/python.ts`)
 
@@ -56,6 +56,13 @@ Extracts: sections (h1-h6 headings), content truncated to 500 characters per sec
 - `ImportInfo`: source, specifiers, isDefault, isDynamic, isTypeOnly, line
 - `CallInfo`: callerName, calleeName, line, column, isMethodCall, isConstructor
 - `RouteNode`: id, method, path, handlerName, filePath, middleware
+
+## Cross-file resolution (`src/parser.ts`)
+
+The parser resolves cross-file CALLS edges using a multi-map approach (`Map<string, string[]>`) to handle duplicate function names across files. Special handling:
+- **`__file__` caller**: anonymous callbacks (e.g., CLI `.action(async () => {...})`) use `__file__` as caller, resolved to `File → Function` CALLS edges
+- **Multi-map resolution**: functions with the same name in different files are all candidates for cross-file call targets
+- **`OBJ_NOISE` filter**: standard library calls (`path.resolve`, `fs.readFileSync`, etc.) are excluded from CALLS edges
 
 ## Discovery (`src/discovery.ts`)
 

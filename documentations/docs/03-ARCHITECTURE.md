@@ -88,8 +88,7 @@ genome/
 │   │   ├── src/
 │   │   │   ├── drivers/
 │   │   │   │   ├── neo4j.driver.ts   # Connexion Neo4j & gestion sessions
-│   │   │   │   ├── driver.interface.ts # Contrat abstrait du driver
-│   │   │   │   └── scoped.driver.ts  # Wrapper scope par projectId
+│   │   │   │   └── driver.interface.ts # Contrat abstrait du driver
 │   │   │   ├── queries/
 │   │   │   │   ├── write.ts           # Upsert nœuds/arêtes (projectId),
 │   │   │   │   │                      # CRUD projet (create/list/get/delete)
@@ -176,7 +175,7 @@ genome/
 
 - **`.genome/project.json`** : stocke le `projectId` courant (projet actif)
 - **projectId** : présent sur tous les nœuds et arêtes du graphe
-- **scopedDriver** : wrapper qui injecte le `projectId` dans les requêtes
+- **projectId** : injecte explicitement dans toutes les requetes et mutations
 - Les requêtes de lecture (impact, dead code, stats, etc.) filtrent par `projectId`
 
 ## Responsabilités des modules (frontières strictes)

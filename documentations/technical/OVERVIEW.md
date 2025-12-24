@@ -42,7 +42,7 @@ Intelligence engine that converts source code into graph nodes.
 
 ### 4. [Graph](./graph/README.md) (`@genome/graph`)
 Persistence and query layer.
-- **Tech**: Neo4j Community (Bolt), abstract driver, `scopedDriver` for automatic injection of `projectId`.
+- **Tech**: Neo4j Community (Bolt), abstract `GraphDriver` interface with Neo4j implementation.
 - **Features**: Batch UNWIND upserts, QueryCache TTL 30s, exponential retry backoff, project CRUD.
 - **Queries**: Impact analysis, dead code, god objects, dependency chain, stats, recent changes — all filtered by `projectId`.
 
@@ -73,4 +73,4 @@ Each node and each relation carries a `projectId` for logical isolation in a sin
 2. **Pipeline**: Parsing and ingestion are separate steps (backpressure).
 3. **Observability**: Structured logging (Pino) everywhere.
 4. **Typed errors**: `GenomeError` with `code`, `severity`, `recoverable`.
-5. **Isolation**: `projectId` injected at each layer via `scopedDriver` and explicit parameters.
+5. **Isolation**: `projectId` injected at each layer via explicit parameters on all queries and mutations.

@@ -85,11 +85,11 @@ genome query "MATCH (n:Function) RETURN n.name, n.filePath LIMIT 10"
 # Format JSON
 genome query "MATCH (n)-[r]->(m) RETURN type(r), count(*)" --json
 
-# Dead code — fonctions exportees jamais appelees
-genome query "MATCH (f:Function) WHERE f.isExported = true AND NOT (f)<-[:CALLS]-() RETURN f.name, f.filePath ORDER BY f.filePath"
+# Dead code — fonctions jamais appelees (exclut constructeurs, methodes de classes, React, barrel re-exports)
+genome query "MATCH (f:Function) WHERE NOT (f)<-[:CALLS]-() AND NOT (f)<-[:HANDLES]-() AND f.name <> 'constructor' WITH f WHERE NOT f.filePath ENDS WITH '.tsx' AND NOT f.filePath ENDS WITH '.jsx' OPTIONAL MATCH (parent:File)-[:CONTAINS]->(f) WITH f, parent WHERE parent IS NULL OR (NOT parent.path ENDS WITH 'index.ts' AND NOT parent.path ENDS WITH 'index.js') RETURN f.name, f.filePath ORDER BY f.filePath"
 
-# God objects — fonctions avec > 8 appels sortants
-genome query "MATCH (f:Function)-[r:CALLS]->() WITH f, count(r) as deps WHERE deps > 8 RETURN f.name, f.filePath, deps ORDER BY deps DESC"
+# God objects — couplage cross-fichier inattendu (seuil: 15)
+genome query "MATCH (f:Function)-[:CALLS]->(target) MATCH (ff:File)-[:CONTAINS]->(f) WHERE NOT (ff)-[:CONTAINS]->(target) MATCH (tf:File)-[:CONTAINS]->(target) WHERE NOT (ff)-[:DEPENDS_ON]->(tf) WITH f, count(DISTINCT target) as deps WHERE deps > 15 RETURN f.name, f.filePath, deps ORDER BY deps DESC"
 
 # Chemin le plus court entre deux symboles
 genome query "MATCH (a {name: 'parseFile'}), (b {name: 'GraphService'}) MATCH path = shortestPath((a)-[*..10]-(b)) RETURN [n IN nodes(path) | n.name] as chain"
@@ -247,7 +247,7 @@ Metriques de sante du graphe : comptages, dead code, god objects, types d'edges.
 |---|---|---|---|
 | `includeDeadCode` | boolean | non | Inclure la liste du dead code (defaut: false) |
 | `includeGodObjects` | boolean | non | Inclure la liste des god objects (defaut: false) |
-| `godObjectThreshold` | number | non | Seuil de dependances pour god objects (defaut: 8) |
+| `godObjectThreshold` | number | non | Seuil de couplage cross-fichier pour god objects (defaut: 15) |
 
 **Exemples de prompts Cursor** :
 - "Are there any dead code or god objects?"

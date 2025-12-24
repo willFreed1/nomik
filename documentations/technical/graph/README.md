@@ -6,7 +6,6 @@ Persistence layer managing interactions with Neo4j Community Edition.
 
 - **Schema Management**: Auto-initializes constraints (uniqueness by `id`) and indexes (performance + `projectId`) on startup
 - **Driver Abstraction**: `GraphDriver` interface with Neo4j implementation (`neo4j.driver.ts`)
-- **Scoped Driver**: Wrapper `createScopedDriver(driver, projectId)` that automatically injects `projectId` into all queries — prevents context leakage between projects
 - **Batch UNWIND Upserts**: Nodes and edges grouped by type, sent in a single `UNWIND` Cypher per group
 - **QueryCache**: TTL cache 30s (max 200 entries) on all reads, automatic invalidation after writes, LRU eviction
 - **Retry**: Exponential backoff on Neo4j operations (3 attempts, transient error detection)
@@ -27,15 +26,14 @@ Persistence layer managing interactions with Neo4j Community Edition.
 ### `queries/read.ts`
 - `impactAnalysis(driver, symbolName, maxDepth, projectId?)`: APOC upstream traversal
 - `findDependencyChain(driver, from, to, projectId?)`: Shortest path
-- `findDeadCode(driver, projectId?)`: Exported functions never called
-- `findGodObjects(driver, threshold, projectId?)`: Functions with too many dependencies
+- `findDeadCode(driver, projectId?)`: Functions never called — excludes constructors, class methods (called via `obj.method()`), React components, barrel re-exports
+- `findGodObjects(driver, threshold, projectId?)`: Functions with unexpected cross-file coupling (excludes intra-file dispatch and calls to directly imported files). Default threshold: 15
 - `graphStats(driver, projectId?)`: Counts (nodes, edges, files, functions, classes, routes)
 - `recentChanges(driver, since, limit, projectId?)`: Nodes modified since a date
 
 ### `drivers/`
 - `driver.interface.ts`: `GraphDriver` interface (connect, disconnect, runQuery, runWrite, getSession, isConnected, healthCheck)
 - `neo4j.driver.ts`: Neo4j implementation (Bolt protocol)
-- `scoped.driver.ts`: Wrapper that injects `projectId` into all params
 
 ### `schema/init.ts`
 Uniqueness constraints + search indexes + `projectId` indexes for multi-project isolation.
@@ -51,11 +49,13 @@ interface GraphService {
     disconnect(): Promise<void>;
     initSchema(): Promise<void>;
     ingestFileData(nodes, edges, filePath, projectId): Promise<void>;
+    ingestBatch(results, projectId): Promise<void>;
     getImpact(symbolName, depth?, projectId?): Promise<ImpactResult[]>;
     getDeadCode(projectId?): Promise<Array<{ name, filePath }>>;
     getGodObjects(threshold?, projectId?): Promise<Array<{ name, filePath, depCount }>>;
     getStats(projectId?): Promise<{ nodeCount, edgeCount, fileCount, functionCount, classCount, routeCount }>;
     getDependencyChain(from, to, projectId?): Promise<string[][]>;
+    getDetailedPath(from, to, projectId?): Promise<DetailedPath[]>;
     getRecentChanges(since, limit?, projectId?): Promise<Array<{ name, type, filePath, updatedAt, createdAt }>>;
     healthCheck(): Promise<boolean>;
     executeQuery<T>(query, params?): Promise<T[]>;

@@ -132,10 +132,15 @@ RETURN COALESCE(node.name, node.path) as name,
 ### God Object detection
 
 ```cypher
-// Functions with > 10 dependencies (code smell)
-MATCH (f:Function)-[r:CALLS|DEPENDS_ON]->()
+// Functions with unexpected cross-file coupling (excludes intra-file dispatch
+// and calls to directly imported files). Default threshold: 15
+MATCH (f:Function)-[:CALLS]->(target)
 WHERE f.projectId = $projectId
-WITH f, count(r) as depCount
+MATCH (ff:File)-[:CONTAINS]->(f)
+WHERE NOT (ff)-[:CONTAINS]->(target)
+MATCH (tf:File)-[:CONTAINS]->(target)
+WHERE NOT (ff)-[:DEPENDS_ON]->(tf)
+WITH f, count(DISTINCT target) as depCount
 WHERE depCount > $threshold
 RETURN f.name as name, f.filePath as filePath, depCount
 ORDER BY depCount DESC
@@ -144,9 +149,25 @@ ORDER BY depCount DESC
 ### Dead code detection
 
 ```cypher
-// Exported functions never called
-MATCH (f:Function {isExported: true})
-WHERE NOT (f)<-[:CALLS]-() AND NOT (f)<-[:HANDLES]-() AND f.projectId = $projectId
+// Functions never called — excludes constructors, class methods, React, barrel re-exports
+MATCH (f:Function)
+WHERE NOT (f)<-[:CALLS]-() AND NOT (f)<-[:HANDLES]-()
+  AND f.name <> 'constructor'
+  AND f.projectId = $projectId
+WITH f
+WHERE NOT f.filePath ENDS WITH '.tsx'
+  AND NOT f.filePath ENDS WITH '.jsx'
+OPTIONAL MATCH (parent:File)-[:CONTAINS]->(f)
+WITH f, parent
+WHERE parent IS NULL
+   OR (NOT parent.path ENDS WITH 'index.ts'
+       AND NOT parent.path ENDS WITH 'index.js')
+// Exclude class methods (called via obj.method(), not directly)
+WITH f, parent
+OPTIONAL MATCH (parent)-[:CONTAINS]->(cls:Class)
+WHERE cls.methods CONTAINS ('"' + f.name + '"')
+WITH f, cls
+WHERE cls IS NULL
 RETURN f.name as name, f.filePath as filePath
 ORDER BY f.filePath
 ```

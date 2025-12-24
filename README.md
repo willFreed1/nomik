@@ -100,7 +100,7 @@ cd packages/viz && pnpm dev
 | Monorepo | Turborepo + pnpm |
 | 3D Viz | Three.js (3d-force-graph) |
 | 2D Viz | Cytoscape.js |
-| Tests | Vitest (80+ tests) |
+| Tests | Vitest (78 tests) |
 | Project Isolation | projectId on all nodes/edges, `.genome/project.json` |
 
 ## Development (contributors)
