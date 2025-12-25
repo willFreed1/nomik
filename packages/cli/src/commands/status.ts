@@ -1,10 +1,10 @@
 import { Command } from 'commander';
-import { loadConfigFromEnv, validateConfig } from '@genome/core';
-import { createGraphService } from '@genome/graph';
+import { loadConfigFromEnv, validateConfig } from '@nomik/core';
+import { createGraphService } from '@nomik/graph';
 import { readProjectConfig } from '../utils/project-config.js';
 
 export const statusCommand = new Command('status')
-    .description('Show GENOME graph health and statistics')
+    .description('Show NOMIK graph health and statistics')
     .action(async () => {
         const envConfig = loadConfigFromEnv();
         const config = validateConfig({
@@ -28,9 +28,9 @@ export const statusCommand = new Command('status')
             const stats = await graph.getStats(projectId);
 
             console.log('');
-            console.log('  \x1b[36m\x1b[1mGENOME Status\x1b[0m');
+            console.log('  \x1b[36m\x1b[1mNOMIK Status\x1b[0m');
             console.log('');
-            console.log(`  Project:   \x1b[1m${local?.projectName ?? '(none)'}\x1b[0m ${projectId ? `(${projectId})` : '\x1b[33m— run "genome init"\x1b[0m'}`);
+            console.log(`  Project:   \x1b[1m${local?.projectName ?? '(none)'}\x1b[0m ${projectId ? `(${projectId})` : '\x1b[33m— run "nomik init"\x1b[0m'}`);
             console.log(`  Neo4j:     \x1b[32m\u2713\x1b[0m Connected`);
             console.log(`  Nodes:     ${stats.nodeCount}`);
             console.log(`  Edges:     ${stats.edgeCount}`);

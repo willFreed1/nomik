@@ -13,8 +13,8 @@ import { projectCommand } from './commands/project.js';
 const program = new Command();
 
 program
-    .name('genome')
-    .description('GENOME — The Autonomous Knowledge Supervisor')
+    .name('nomik')
+    .description('NOMIK — The Living Blueprint')
     .version('0.1.0');
 
 program.addCommand(initCommand);

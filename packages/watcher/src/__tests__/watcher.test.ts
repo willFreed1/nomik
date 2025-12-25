@@ -15,11 +15,11 @@ describe('isExcludedPath', () => {
     });
 
     it('exclut les symlinks pnpm dans node_modules', () => {
-        expect(isExcludedPath('C:\\Users\\GP78HX\\Documents\\GENOME\\node_modules\\.pnpm\\node_modules\\@genome\\parser\\src\\parser.ts')).toBe(true);
+        expect(isExcludedPath('C:\\Users\\GP78HX\\Documents\\NOMIK\\node_modules\\.pnpm\\node_modules\\@nomik\\parser\\src\\parser.ts')).toBe(true);
     });
 
     it('exclut les node_modules imbriques dans packages/', () => {
-        expect(isExcludedPath('C:\\Users\\GP78HX\\Documents\\GENOME\\packages\\cli\\node_modules\\@genome\\parser\\src\\parser.ts')).toBe(true);
+        expect(isExcludedPath('C:\\Users\\GP78HX\\Documents\\NOMIK\\packages\\cli\\node_modules\\@nomik\\parser\\src\\parser.ts')).toBe(true);
     });
 
     it('exclut les chemins dist/', () => {
@@ -37,7 +37,7 @@ describe('isExcludedPath', () => {
 
     it('accepte les fichiers source normaux', () => {
         expect(isExcludedPath('/project/src/index.ts')).toBe(false);
-        expect(isExcludedPath('C:\\Users\\GP78HX\\Documents\\GENOME\\packages\\parser\\src\\parser.ts')).toBe(false);
+        expect(isExcludedPath('C:\\Users\\GP78HX\\Documents\\NOMIK\\packages\\parser\\src\\parser.ts')).toBe(false);
         expect(isExcludedPath('/project/packages/core/src/types.ts')).toBe(false);
     });
 

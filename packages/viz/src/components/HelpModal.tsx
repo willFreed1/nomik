@@ -19,7 +19,7 @@ export function HelpButton() {
                     <div className="bg-slate-900 border border-slate-700 rounded-xl shadow-2xl shadow-black/50 max-w-lg w-full mx-4 max-h-[85vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
                         {/* Header */}
                         <div className="flex items-center justify-between px-6 py-4 border-b border-slate-700">
-                            <h2 className="text-lg font-mono font-bold text-cyan-400">GENOME Guide</h2>
+                            <h2 className="text-lg font-mono font-bold text-cyan-400">NOMIK Guide</h2>
                             <button onClick={() => setOpen(false)} className="text-slate-500 hover:text-white text-xl leading-none">&times;</button>
                         </div>
 

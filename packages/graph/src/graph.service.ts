@@ -1,5 +1,5 @@
-import { type GraphConfig, getLogger } from '@genome/core';
-import type { GraphNode, GraphEdge, ProjectNode } from '@genome/core';
+import { type GraphConfig, getLogger } from '@nomik/core';
+import type { GraphNode, GraphEdge, ProjectNode } from '@nomik/core';
 import { createNeo4jDriver } from './drivers/neo4j.driver.js';
 import type { GraphDriver } from './drivers/driver.interface.js';
 import { upsertNodes, createEdges, clearFileData, upsertProject, deleteProjectData, listProjects, getProject } from './queries/write.js';

@@ -1,6 +1,6 @@
-# Running GENOME
+# Running NOMIK
 
-This guide explains how to run the GENOME system from scratch.
+This guide explains how to run the NOMIK system from scratch.
 
 ## Prerequisites
 
@@ -10,7 +10,7 @@ This guide explains how to run the GENOME system from scratch.
 
 ## Step 1: Start the Graph Database
 
-GENOME uses Neo4j to store the code relationship graph.
+NOMIK uses Neo4j to store the code relationship graph.
 
 ```bash
 docker compose up -d
@@ -31,11 +31,11 @@ pnpm build
 The CLI scans your source code and builds the graph in Neo4j.
 
 ```bash
-# Scan the GENOME project itself
-pnpm genome scan .
+# Scan the NOMIK project itself
+pnpm nomik scan .
 ```
 
-To verify the data is in the database, visit `http://localhost:7474` (User: `neo4j`, Pass: `genome_local`) and run:
+To verify the data is in the database, visit `http://localhost:7474` (User: `neo4j`, Pass: `nomik_local`) and run:
 ```cypher
 MATCH (n) RETURN n LIMIT 25
 ```
@@ -62,7 +62,7 @@ pnpm dev
 
 ### Or via CLI
 ```bash
-pnpm genome serve
+pnpm nomik serve
 ```
 
 ### Automatic Cursor Configuration
@@ -70,7 +70,7 @@ pnpm genome serve
 The recommended method is to use the dedicated command:
 
 ```bash
-pnpm genome setup-cursor
+pnpm nomik setup-cursor
 ```
 
 This automatically creates `.cursor/mcp.json` with the correct path to the MCP server and Neo4j variables.
@@ -80,14 +80,14 @@ This automatically creates `.cursor/mcp.json` with the correct path to the MCP s
 ```json
 {
   "mcpServers": {
-    "genome": {
+    "nomik": {
       "command": "node",
       "args": ["packages/mcp-server/dist/index.js"],
       "env": {
-        "GENOME_GRAPH_URI": "bolt://localhost:7687",
-        "GENOME_GRAPH_USER": "neo4j",
-        "GENOME_GRAPH_PASS": "genome_local",
-        "GENOME_PROJECT_ID": "genome"
+        "NOMIK_GRAPH_URI": "bolt://localhost:7687",
+        "NOMIK_GRAPH_USER": "neo4j",
+        "NOMIK_GRAPH_PASS": "nomik_local",
+        "NOMIK_PROJECT_ID": "nomik"
       }
     }
   }
@@ -101,7 +101,7 @@ This automatically creates `.cursor/mcp.json` with the correct path to the MCP s
 Auto-reindex files as you edit them:
 
 ```bash
-pnpm genome watch .
+pnpm nomik watch .
 ```
 
 The watcher uses `chokidar` with debounce (500ms by default) to re-parse and re-ingest modified files. Data is isolated per project via `projectId`.
@@ -112,33 +112,33 @@ The watcher uses `chokidar` with debounce (500ms by default) to re-parse and re-
 
 ```bash
 # Format tableau
-pnpm genome query "MATCH (n:Function) RETURN n.name, n.filePath LIMIT 10"
+pnpm nomik query "MATCH (n:Function) RETURN n.name, n.filePath LIMIT 10"
 
 # Format JSON
-pnpm genome query "MATCH (n)-[r]->(m) RETURN type(r), count(*)" --json
+pnpm nomik query "MATCH (n)-[r]->(m) RETURN type(r), count(*)" --json
 ```
 
 ---
 
 ## Step 8: Project Management (Optional)
 
-GENOME isolates data per project. Each node and each relationship carries a `projectId`.
+NOMIK isolates data per project. Each node and each relationship carries a `projectId`.
 
 ```bash
 # List projects
-pnpm genome project list
+pnpm nomik project list
 
 # Create a new project
-pnpm genome project create my-api
+pnpm nomik project create my-api
 
 # View current project stats
-pnpm genome project info
+pnpm nomik project info
 
 # Switch project
-pnpm genome project switch other-project
+pnpm nomik project switch other-project
 
 # Delete a project and its data
-pnpm genome project delete old-project
+pnpm nomik project delete old-project
 ```
 
-The current project is stored in `.genome/project.json` (to be committed in git for team sharing).
+The current project is stored in `.nomik/project.json` (to be committed in git for team sharing).

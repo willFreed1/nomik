@@ -4,7 +4,7 @@ export const driver = neo4j.driver(
     import.meta.env.VITE_NEO4J_URI || 'bolt://localhost:7687',
     neo4j.auth.basic(
         import.meta.env.VITE_NEO4J_USER || 'neo4j',
-        import.meta.env.VITE_NEO4J_PASSWORD || 'genome_local'
+        import.meta.env.VITE_NEO4J_PASSWORD || 'nomik_local'
     )
 );
 

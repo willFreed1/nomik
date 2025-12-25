@@ -1,5 +1,5 @@
 import type Parser from 'tree-sitter';
-import type { FunctionNode, ClassNode, ParameterInfo } from '@genome/core';
+import type { FunctionNode, ClassNode, ParameterInfo } from '@nomik/core';
 import { createNodeId } from '../utils';
 import type { ImportInfo } from './imports';
 import type { CallInfo } from './calls';

@@ -1,6 +1,6 @@
-import type { FunctionNode, GraphEdge } from '@genome/core';
+import type { FunctionNode, GraphEdge } from '@nomik/core';
 import { createNodeId, createFileHash } from '../utils';
-import type { FileNode, GraphNode } from '@genome/core';
+import type { FileNode, GraphNode } from '@nomik/core';
 
 export interface MarkdownSection {
     id: string;

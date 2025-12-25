@@ -1,5 +1,5 @@
 import type Parser from 'tree-sitter';
-import type { RouteNode } from '@genome/core';
+import type { RouteNode } from '@nomik/core';
 import { createNodeId } from '../utils';
 
 export function extractRoutes(tree: Parser.Tree, filePath: string): RouteNode[] {

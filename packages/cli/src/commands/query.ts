@@ -1,6 +1,6 @@
 import { Command } from 'commander';
-import { loadConfigFromEnv, createLogger, setLogger } from '@genome/core';
-import { createGraphService } from '@genome/graph';
+import { loadConfigFromEnv, createLogger, setLogger } from '@nomik/core';
+import { createGraphService } from '@nomik/graph';
 
 /** Commande CLI pour executer du Cypher brut */
 export const queryCommand = new Command('query')
@@ -12,7 +12,7 @@ export const queryCommand = new Command('query')
         setLogger(logger);
         const envConfig = loadConfigFromEnv();
         if (!envConfig.graph) {
-            logger.error('Graph config missing. Set GENOME_GRAPH_URI, GENOME_GRAPH_USER, GENOME_GRAPH_PASS env vars.');
+            logger.error('Graph config missing. Set NOMIK_GRAPH_URI, NOMIK_GRAPH_USER, NOMIK_GRAPH_PASS env vars.');
             process.exit(1);
         }
         const graph = createGraphService(envConfig.graph);

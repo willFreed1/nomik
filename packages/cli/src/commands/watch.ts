@@ -1,8 +1,8 @@
 import { Command } from 'commander';
-import { loadConfigFromEnv, validateConfig, createLogger, setLogger } from '@genome/core';
-import { createParserEngine } from '@genome/parser';
-import { createGraphService } from '@genome/graph';
-import { createWatcher } from '@genome/watcher';
+import { loadConfigFromEnv, validateConfig, createLogger, setLogger } from '@nomik/core';
+import { createParserEngine } from '@nomik/parser';
+import { createGraphService } from '@nomik/graph';
+import { createWatcher } from '@nomik/watcher';
 import { readProjectConfig, defaultProjectName, createProjectNode } from '../utils/project-config.js';
 
 /** Commande watch : surveille les fichiers et met a jour le graphe en temps reel */

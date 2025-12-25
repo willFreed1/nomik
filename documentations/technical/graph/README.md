@@ -1,4 +1,4 @@
-# @genome/graph
+# @nomik/graph
 
 Persistence layer managing interactions with Neo4j Community Edition.
 
@@ -69,5 +69,5 @@ interface GraphService {
 
 ## Configuration
 
-- **Variables**: `GENOME_GRAPH_URI`, `GENOME_GRAPH_USER`, `GENOME_GRAPH_PASS`
-- **Default**: `bolt://localhost:7687`, `neo4j`, `genome_local`
+- **Variables**: `NOMIK_GRAPH_URI`, `NOMIK_GRAPH_USER`, `NOMIK_GRAPH_PASS`
+- **Default**: `bolt://localhost:7687`, `neo4j`, `nomik_local`

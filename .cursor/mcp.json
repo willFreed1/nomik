@@ -1,16 +1,17 @@
 {
-    "mcpServers": {
-        "genome": {
-            "command": "node",
-            "args": [
-                "${workspaceFolder}/packages/mcp-server/dist/index.js"
-            ],
-            "env": {
-                "GENOME_GRAPH_URI": "bolt://localhost:7687",
-                "GENOME_GRAPH_USER": "neo4j",
-                "GENOME_GRAPH_PASS": "genome_local",
-                "GENOME_PROJECT_ID": "genome"
-            }
-        }
+  "mcpServers": {
+    "nomik": {
+      "command": "node",
+      "args": [
+        "C:\\Users\\GP78HX\\Documents\\GENOME\\packages\\mcp-server\\dist\\index.js"
+      ],
+      "env": {
+        "NOMIK_GRAPH_URI": "bolt://localhost:7687",
+        "NOMIK_GRAPH_USER": "neo4j",
+        "NOMIK_GRAPH_PASS": "nomik_local",
+        "NOMIK_PROJECT_ID": "nomik",
+        "LOG_LEVEL": "info"
+      }
     }
+  }
 }

@@ -63,11 +63,11 @@ importers:
         specifier: ^0.23.0
         version: 0.23.1(tree-sitter@0.22.4)
       tree-sitter-python:
-        specifier: ^0.23.0
-        version: 0.23.6(tree-sitter@0.22.4)
+        specifier: ^0.21.0
+        version: 0.21.0(tree-sitter@0.22.4)
       tree-sitter-rust:
-        specifier: ^0.23.0
-        version: 0.23.3(tree-sitter@0.22.4)
+        specifier: ^0.21.0
+        version: 0.21.0(tree-sitter@0.22.4)
       tree-sitter-typescript:
         specifier: ^0.23.0
         version: 0.23.2(tree-sitter@0.22.4)
@@ -75,16 +75,16 @@ importers:
         specifier: ^3.22.0
         version: 3.25.76
     devDependencies:
-      '@genome/core':
+      '@nomik/core':
         specifier: workspace:*
         version: link:../core
-      '@genome/graph':
+      '@nomik/graph':
         specifier: workspace:*
         version: link:../graph
-      '@genome/parser':
+      '@nomik/parser':
         specifier: workspace:*
         version: link:../parser
-      '@genome/watcher':
+      '@nomik/watcher':
         specifier: workspace:*
         version: link:../watcher
       tsup:
@@ -115,7 +115,7 @@ importers:
 
   packages/graph:
     dependencies:
-      '@genome/core':
+      '@nomik/core':
         specifier: workspace:*
         version: link:../core
       neo4j-driver:
@@ -131,15 +131,15 @@ importers:
 
   packages/mcp-server:
     dependencies:
-      '@genome/core':
-        specifier: workspace:*
-        version: link:../core
-      '@genome/graph':
-        specifier: workspace:*
-        version: link:../graph
       '@modelcontextprotocol/sdk':
         specifier: ^1.0.1
         version: 1.26.0(zod@3.25.76)
+      '@nomik/core':
+        specifier: workspace:*
+        version: link:../core
+      '@nomik/graph':
+        specifier: workspace:*
+        version: link:../graph
       zod:
         specifier: ^3.22.4
         version: 3.25.76
@@ -153,7 +153,7 @@ importers:
 
   packages/parser:
     dependencies:
-      '@genome/core':
+      '@nomik/core':
         specifier: workspace:*
         version: link:../core
       glob:
@@ -239,13 +239,13 @@ importers:
 
   packages/watcher:
     dependencies:
-      '@genome/core':
+      '@nomik/core':
         specifier: workspace:*
         version: link:../core
-      '@genome/graph':
+      '@nomik/graph':
         specifier: workspace:*
         version: link:../graph
-      '@genome/parser':
+      '@nomik/parser':
         specifier: workspace:*
         version: link:../parser
       chokidar:
@@ -2360,14 +2360,6 @@ packages:
       tree_sitter:
         optional: true
 
-  tree-sitter-python@0.23.6:
-    resolution: {integrity: sha512-yIM9z0oxKIxT7bAtPOhgoVl6gTXlmlIhue7liFT4oBPF/lha7Ha4dQBS82Av6hMMRZoVnFJI8M6mL+SwWoLD3A==}
-    peerDependencies:
-      tree-sitter: ^0.22.1
-    peerDependenciesMeta:
-      tree-sitter:
-        optional: true
-
   tree-sitter-rust@0.21.0:
     resolution: {integrity: sha512-unVr73YLn3VC4Qa/GF0Nk+Wom6UtI526p5kz9Rn2iZSqwIFedyCZ3e0fKCEmUJLIPGrTb/cIEdu3ZUNGzfZx7A==}
     peerDependencies:
@@ -2375,14 +2367,6 @@ packages:
       tree_sitter: '*'
     peerDependenciesMeta:
       tree_sitter:
-        optional: true
-
-  tree-sitter-rust@0.23.3:
-    resolution: {integrity: sha512-uLdZJ1K26EuJTBMJlz1ltTlg7nJyAYThfouXgigf5ixKOasOL5wNrRCpuWTsl6rDcKlZK9UX+annFLqP/kchwQ==}
-    peerDependencies:
-      tree-sitter: ^0.22.1
-    peerDependenciesMeta:
-      tree-sitter:
         optional: true
 
   tree-sitter-typescript@0.23.2:
@@ -4587,24 +4571,10 @@ snapshots:
       node-gyp-build: 4.8.4
       tree-sitter: 0.22.4
 
-  tree-sitter-python@0.23.6(tree-sitter@0.22.4):
-    dependencies:
-      node-addon-api: 8.5.0
-      node-gyp-build: 4.8.4
-    optionalDependencies:
-      tree-sitter: 0.22.4
-
   tree-sitter-rust@0.21.0(tree-sitter@0.22.4):
     dependencies:
       node-addon-api: 7.1.1
       node-gyp-build: 4.8.4
-      tree-sitter: 0.22.4
-
-  tree-sitter-rust@0.23.3(tree-sitter@0.22.4):
-    dependencies:
-      node-addon-api: 8.5.0
-      node-gyp-build: 4.8.4
-    optionalDependencies:
       tree-sitter: 0.22.4
 
   tree-sitter-typescript@0.23.2(tree-sitter@0.22.4):

@@ -1,5 +1,5 @@
 {
-    "name": "@genome/core",
+    "name": "@nomik/core",
     "version": "0.1.0",
     "private": true,
     "type": "module",

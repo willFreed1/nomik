@@ -1,4 +1,4 @@
-# GENOME — Neo4j Graph Schema
+# NOMIK — Neo4j Graph Schema
 
 > All nodes and edges have a `projectId` property for multi-project isolation.
 

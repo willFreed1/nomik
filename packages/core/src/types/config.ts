@@ -7,7 +7,7 @@ export const graphConfigSchema = z.object({
     uri: z.string().default('bolt://localhost:7687'),
     auth: z.object({
         username: z.string().default('neo4j'),
-        password: z.string().default('genome_local'),
+        password: z.string().default('nomik_local'),
     }).default({}),
     maxConnectionPoolSize: z.number().int().positive().default(50),
     connectionTimeoutMs: z.number().int().positive().default(5000),
@@ -54,7 +54,7 @@ export const logConfigSchema = z.object({
     file: z.string().optional(),
 });
 
-export const genomeConfigSchema = z.object({
+export const nomikConfigSchema = z.object({
     target: targetConfigSchema,
     graph: graphConfigSchema.default({}),
     parser: parserConfigSchema.default({}),
@@ -72,4 +72,4 @@ export type WatcherConfig = z.infer<typeof watcherConfigSchema>;
 export type McpConfig = z.infer<typeof mcpConfigSchema>;
 export type VizConfig = z.infer<typeof vizConfigSchema>;
 export type LogConfig = z.infer<typeof logConfigSchema>;
-export type GenomeConfig = z.infer<typeof genomeConfigSchema>;
+export type NomikConfig = z.infer<typeof nomikConfigSchema>;

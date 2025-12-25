@@ -1,11 +1,11 @@
-# @genome/mcp-server
+# @nomik/mcp-server
 
-Model Context Protocol (MCP) server for GENOME. Exposes the knowledge graph to AI agents (Cursor, Claude) via the standard MCP protocol.
+Model Context Protocol (MCP) server for NOMIK. Exposes the knowledge graph to AI agents (Cursor, Claude) via the standard MCP protocol.
 
 ## Features
 
 ### Resources
-- `genome://stats`: Real-time knowledge graph statistics
+- `nomik://stats`: Real-time knowledge graph statistics
 
 ### Tools (8 tools)
 
@@ -22,17 +22,17 @@ Model Context Protocol (MCP) server for GENOME. Exposes the knowledge graph to A
 
 ### Multi-project isolation
 
-The server reads the `GENOME_PROJECT_ID` environment variable and automatically filters all requests by project. This ensures an AI agent only sees data for the current project.
+The server reads the `NOMIK_PROJECT_ID` environment variable and automatically filters all requests by project. This ensures an AI agent only sees data for the current project.
 
 ## Configuration
 
-### Via `genome setup-cursor` (recommended)
+### Via `nomik setup-cursor` (recommended)
 
 ```bash
-genome setup-cursor
+nomik setup-cursor
 ```
 
-Automatically creates `.cursor/mcp.json` with the correct path and environment variables, including `GENOME_PROJECT_ID` if a project is configured locally.
+Automatically creates `.cursor/mcp.json` with the correct path and environment variables, including `NOMIK_PROJECT_ID` if a project is configured locally.
 
 ### Manual configuration
 
@@ -41,14 +41,14 @@ Add to `.cursor/mcp.json`:
 ```json
 {
   "mcpServers": {
-    "genome": {
+    "nomik": {
       "command": "node",
       "args": ["packages/mcp-server/dist/index.js"],
       "env": {
-        "GENOME_GRAPH_URI": "bolt://localhost:7687",
-        "GENOME_GRAPH_USER": "neo4j",
-        "GENOME_GRAPH_PASS": "genome_local",
-        "GENOME_PROJECT_ID": "my-project"
+        "NOMIK_GRAPH_URI": "bolt://localhost:7687",
+        "NOMIK_GRAPH_USER": "neo4j",
+        "NOMIK_GRAPH_PASS": "nomik_local",
+        "NOMIK_PROJECT_ID": "my-project"
       }
     }
   }
@@ -65,7 +65,7 @@ pnpm dev
 ### Via CLI
 
 ```bash
-genome serve
+nomik serve
 ```
 
 ## Internal architecture

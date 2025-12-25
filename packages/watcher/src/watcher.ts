@@ -1,9 +1,9 @@
 import path from 'node:path';
 import { watch, type FSWatcher } from 'chokidar';
-import { getLogger } from '@genome/core';
-import type { GraphService } from '@genome/graph';
-import type { ParserEngine } from '@genome/parser';
-import { isSupportedFile } from '@genome/parser';
+import { getLogger } from '@nomik/core';
+import type { GraphService } from '@nomik/graph';
+import type { ParserEngine } from '@nomik/parser';
+import { isSupportedFile } from '@nomik/parser';
 
 export interface WatcherOptions {
     root: string;

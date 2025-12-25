@@ -1,8 +1,8 @@
 import fs from 'node:fs';
 import path from 'node:path';
-import type { ProjectNode } from '@genome/core';
+import type { ProjectNode } from '@nomik/core';
 
-const GENOME_DIR = '.genome';
+const NOMIK_DIR = '.nomik';
 const PROJECT_FILE = 'project.json';
 /** Version actuelle du schema projet — incrementer lors de migrations futures */
 export const PROJECT_CONFIG_VERSION = 1;
@@ -14,12 +14,12 @@ export interface LocalProjectConfig {
     createdAt: string;
 }
 
-/** Chemin vers le fichier .genome/project.json depuis le cwd */
+/** Chemin vers le fichier .nomik/project.json depuis le cwd */
 function getConfigPath(cwd: string = process.cwd()): string {
-    return path.join(cwd, GENOME_DIR, PROJECT_FILE);
+    return path.join(cwd, NOMIK_DIR, PROJECT_FILE);
 }
 
-/** Lit la config projet locale (.genome/project.json) */
+/** Lit la config projet locale (.nomik/project.json) */
 export function readProjectConfig(cwd?: string): LocalProjectConfig | null {
     const configPath = getConfigPath(cwd);
     if (!fs.existsSync(configPath)) return null;
@@ -31,9 +31,9 @@ export function readProjectConfig(cwd?: string): LocalProjectConfig | null {
     }
 }
 
-/** Ecrit la config projet locale (.genome/project.json) */
+/** Ecrit la config projet locale (.nomik/project.json) */
 export function writeProjectConfig(config: LocalProjectConfig, cwd?: string): void {
-    const dir = path.join(cwd ?? process.cwd(), GENOME_DIR);
+    const dir = path.join(cwd ?? process.cwd(), NOMIK_DIR);
     if (!fs.existsSync(dir)) {
         fs.mkdirSync(dir, { recursive: true });
     }

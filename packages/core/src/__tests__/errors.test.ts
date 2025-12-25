@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import {
-    GenomeError,
+    NomikError,
     ParseError,
     GraphConnectionError,
     GraphQueryError,
@@ -10,9 +10,9 @@ import {
     McpError,
 } from '../errors/index.js';
 
-describe('GenomeError', () => {
+describe('NomikError', () => {
     it('porte les proprietes code, severity, recoverable', () => {
-        const err = new GenomeError('test', 'TEST_CODE', 'high', true, { key: 'val' });
+        const err = new NomikError('test', 'TEST_CODE', 'high', true, { key: 'val' });
 
         expect(err).toBeInstanceOf(Error);
         expect(err.message).toBe('test');
@@ -20,7 +20,7 @@ describe('GenomeError', () => {
         expect(err.severity).toBe('high');
         expect(err.recoverable).toBe(true);
         expect(err.context).toEqual({ key: 'val' });
-        expect(err.name).toBe('GenomeError');
+        expect(err.name).toBe('NomikError');
     });
 });
 
@@ -69,10 +69,10 @@ describe('ConfigError', () => {
 });
 
 describe('Sous-classes', () => {
-    it('sont toutes instanceof GenomeError', () => {
-        expect(new FileSystemError('err', '/tmp')).toBeInstanceOf(GenomeError);
-        expect(new WatcherError('err', '/src')).toBeInstanceOf(GenomeError);
-        expect(new McpError('err', 'kb_search')).toBeInstanceOf(GenomeError);
+    it('sont toutes instanceof NomikError', () => {
+        expect(new FileSystemError('err', '/tmp')).toBeInstanceOf(NomikError);
+        expect(new WatcherError('err', '/src')).toBeInstanceOf(NomikError);
+        expect(new McpError('err', 'kb_search')).toBeInstanceOf(NomikError);
     });
 
     it('FileSystemError a le bon code', () => {

@@ -1,5 +1,5 @@
 import type { GraphDriver } from '../drivers/driver.interface.js';
-import type { GraphNode, GraphEdge, ProjectNode } from '@genome/core';
+import type { GraphNode, GraphEdge, ProjectNode } from '@nomik/core';
 
 /** Upsert par lots avec UNWIND — chaque noeud reçoit le projectId */
 export async function upsertNodes(driver: GraphDriver, nodes: GraphNode[], projectId: string): Promise<void> {

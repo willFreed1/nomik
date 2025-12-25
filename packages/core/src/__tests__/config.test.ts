@@ -73,14 +73,14 @@ describe('loadConfigFromEnv', () => {
         expect(config.log!.level).toBe('info');
     });
 
-    it('lit GENOME_GRAPH_URI depuis env', () => {
-        const original = process.env['GENOME_GRAPH_URI'];
-        process.env['GENOME_GRAPH_URI'] = 'bolt://custom:9999';
+    it('lit NOMIK_GRAPH_URI depuis env', () => {
+        const original = process.env['NOMIK_GRAPH_URI'];
+        process.env['NOMIK_GRAPH_URI'] = 'bolt://custom:9999';
 
         const config = loadConfigFromEnv();
         expect(config.graph!.uri).toBe('bolt://custom:9999');
 
-        if (original) process.env['GENOME_GRAPH_URI'] = original;
-        else delete process.env['GENOME_GRAPH_URI'];
+        if (original) process.env['NOMIK_GRAPH_URI'] = original;
+        else delete process.env['NOMIK_GRAPH_URI'];
     });
 });

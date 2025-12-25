@@ -5,13 +5,13 @@
         "rootDir": "../../",
         "baseUrl": ".",
         "paths": {
-            "@genome/core": [
+            "@nomik/core": [
                 "../../packages/core/src/index.ts"
             ],
-            "@genome/parser": [
+            "@nomik/parser": [
                 "../../packages/parser/src/index.ts"
             ],
-            "@genome/graph": [
+            "@nomik/graph": [
                 "../../packages/graph/src/index.ts"
             ]
         }

@@ -19,7 +19,7 @@ export function createLogger(config: Partial<LogConfig> = {}, stream?: pino.Dest
         : undefined;
 
     return pino({
-        name: 'genome',
+        name: 'nomik',
         level,
         transport,
     }, stream);

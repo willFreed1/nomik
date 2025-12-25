@@ -1,5 +1,5 @@
 import type Parser from 'tree-sitter';
-import type { ClassNode } from '@genome/core';
+import type { ClassNode } from '@nomik/core';
 import { createNodeId } from '../utils';
 
 /** Extrait les classes, interfaces, types et enums comme noeuds Class */

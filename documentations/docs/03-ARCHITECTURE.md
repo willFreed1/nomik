@@ -1,10 +1,10 @@
-# GENOME — Architecture & Structure du projet
+# NOMIK — Architecture & Structure du projet
 
 ## Architecture de haut niveau
 
 ```
 ┌──────────────────────────────────────────────────────────────┐
-│                      SYSTÈME GENOME                           │
+│                      SYSTÈME NOMIK                           │
 │                                                              │
 │  ┌────────────┐   ┌────────────┐   ┌────────────────────┐   │
 │  │   Parser   │──▶│   Graph    │◀──│    MCP Server      │   │
@@ -20,7 +20,7 @@
 │                   └───────────┘                            │
 │                                                              │
 │  ┌──────────────────────────────────────────────────────┐   │
-│  │  CLI  (genome init/scan/status/impact/watch/serve/     │   │
+│  │  CLI  (nomik init/scan/status/impact/watch/serve/     │   │
 │  │        query/recent/setup-cursor/project)             │   │
 │  └──────────────────────────────────────────────────────┘   │
 └──────────────────────────────────────────────────────────────┘
@@ -44,7 +44,7 @@ graph LR
 ## Structure du monorepo (Turborepo + pnpm)
 
 ```
-genome/
+nomik/
 ├── packages/
 │   ├── core/                    # Noyau partagé (types, config, logger)
 │   │   ├── src/
@@ -143,26 +143,26 @@ genome/
 │   └── cli/                     # Interface en ligne de commande
 │       ├── src/
 │       │   ├── commands/
-│       │   │   ├── init.ts            # genome init — configuration
-│       │   │   ├── scan.ts            # genome scan — parse & index
-│       │   │   ├── status.ts          # genome status — santé du graphe
-│       │   │   ├── impact.ts          # genome impact <fonction>
-│       │   │   ├── watch.ts           # genome watch — mode incrémental
-│       │   │   ├── serve.ts           # genome serve — MCP + Viz
-│       │   │   ├── query.ts           # genome query — requête Cypher
-│       │   │   ├── recent.ts          # genome recent — changements récents
-│       │   │   ├── setup-cursor.ts    # genome setup-cursor
-│       │   │   └── project.ts         # genome project list/create/
+│       │   │   ├── init.ts            # nomik init — configuration
+│       │   │   ├── scan.ts            # nomik scan — parse & index
+│       │   │   ├── status.ts          # nomik status — santé du graphe
+│       │   │   ├── impact.ts          # nomik impact <fonction>
+│       │   │   ├── watch.ts           # nomik watch — mode incrémental
+│       │   │   ├── serve.ts           # nomik serve — MCP + Viz
+│       │   │   ├── query.ts           # nomik query — requête Cypher
+│       │   │   ├── recent.ts          # nomik recent — changements récents
+│       │   │   ├── setup-cursor.ts    # nomik setup-cursor
+│       │   │   └── project.ts         # nomik project list/create/
 │       │   │                          # switch/delete/info
 │       │   ├── utils/
-│       │   │   └── project-config.ts  # .genome/project.json
+│       │   │   └── project-config.ts  # .nomik/project.json
 │       │   └── index.ts               # Point d'entrée CLI (commander)
 │       ├── package.json
 │       └── tsconfig.json
 │
 ├── docker-compose.yml                 # Neo4j Community (racine du repo)
 │
-├── genome.config.ts                   # Config projet utilisateur
+├── nomik.config.ts                   # Config projet utilisateur
 ├── turbo.json                         # Pipeline Turborepo
 ├── pnpm-workspace.yaml                # Définition workspace pnpm
 ├── tsconfig.base.json                 # Config TS partagée
@@ -173,7 +173,7 @@ genome/
 
 ## Isolation multi-projet
 
-- **`.genome/project.json`** : stocke le `projectId` courant (projet actif)
+- **`.nomik/project.json`** : stocke le `projectId` courant (projet actif)
 - **projectId** : présent sur tous les nœuds et arêtes du graphe
 - **projectId** : injecte explicitement dans toutes les requetes et mutations
 - Les requêtes de lecture (impact, dead code, stats, etc.) filtrent par `projectId`
@@ -182,13 +182,13 @@ genome/
 
 | Module | Responsabilité | Dépend de | Expose |
 |--------|----------------|-----------|--------|
-| `@genome/core` | Types, config, logging | Rien | Types, Config, Logger |
-| `@genome/parser` | Code → symboles structurés | `core` | `parseFile()`, `parseProject()` |
-| `@genome/graph` | Stockage & requêtes sur le graphe | `core` | `GraphService`, `createGraphService` |
-| `@genome/watcher` | Détection des changements fichiers | `core`, `parser`, `graph` | `createWatcher()` |
-| `@genome/mcp-server` | Interface protocole MCP pour l'IA | `core`, `graph` | Outils et ressources MCP |
-| `@genome/viz` | Dashboard navigateur | `core` (types uniquement) | Application web |
-| `@genome-ai/cli` | Interface utilisateur CLI | Tous les packages | Binaire CLI |
+| `@nomik/core` | Types, config, logging | Rien | Types, Config, Logger |
+| `@nomik/parser` | Code → symboles structurés | `core` | `parseFile()`, `parseProject()` |
+| `@nomik/graph` | Stockage & requêtes sur le graphe | `core` | `GraphService`, `createGraphService` |
+| `@nomik/watcher` | Détection des changements fichiers | `core`, `parser`, `graph` | `createWatcher()` |
+| `@nomik/mcp-server` | Interface protocole MCP pour l'IA | `core`, `graph` | Outils et ressources MCP |
+| `@nomik/viz` | Dashboard navigateur | `core` (types uniquement) | Application web |
+| `@nomik-ai/cli` | Interface utilisateur CLI | Tous les packages | Binaire CLI |
 
 > [!CAUTION]
 > **Pas de dépendances circulaires.** Le graphe de dépendances est strictement unidirectionnel : `core` → `parser`/`graph` → `watcher`/`mcp-server` → `cli`. Le package `viz` est isolé et communique via l'API HTTP (Neo4j direct ou serveur).

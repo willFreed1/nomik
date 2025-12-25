@@ -1,5 +1,5 @@
 import type Parser from 'tree-sitter';
-import type { ImportsEdge } from '@genome/core';
+import type { ImportsEdge } from '@nomik/core';
 
 export interface ImportInfo {
     source: string;

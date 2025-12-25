@@ -1,5 +1,5 @@
 import neo4j, { type Driver, type Session } from 'neo4j-driver';
-import { type GraphConfig, GraphConnectionError, getLogger } from '@genome/core';
+import { type GraphConfig, GraphConnectionError, getLogger } from '@nomik/core';
 import type { GraphDriver } from './driver.interface.js';
 
 const MAX_RETRIES = 3;

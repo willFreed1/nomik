@@ -1,19 +1,19 @@
-# GENOME — MCP Integration (Cursor AI, Claude Desktop, Claude CLI)
+# NOMIK — MCP Integration (Cursor AI, Claude Desktop, Claude CLI)
 
 ## What Is MCP?
 
 The **Model Context Protocol (MCP)** is an open standard by Anthropic that lets AI assistants connect to external data sources and tools. Think of it as "USB for AI" — a universal plug that lets any AI client talk to any data provider.
 
-GENOME exposes an **MCP Server** that gives AI assistants direct access to the code knowledge graph.
+NOMIK exposes an **MCP Server** that gives AI assistants direct access to the code knowledge graph.
 
-## How Cursor AI Uses GENOME
+## How Cursor AI Uses NOMIK
 
 ### Architecture
 
 ```
 ┌────────────────────┐     stdio/SSE      ┌──────────────────┐
 │                    │◀──────────────────▶│                  │
-│   Cursor IDE       │   MCP Protocol     │  GENOME MCP      │
+│   Cursor IDE       │   MCP Protocol     │  NOMIK MCP      │
 │   (MCP Client)     │                    │  Server           │
 │                    │                    │                  │
 │  "What breaks if   │                    │  ┌─────────┐     │
@@ -29,7 +29,7 @@ GENOME exposes an **MCP Server** that gives AI assistants direct access to the c
 The simplest method is to use the dedicated command:
 
 ```bash
-genome setup-cursor
+nomik setup-cursor
 ```
 
 This automatically creates `.cursor/mcp.json` with the correct config. Otherwise, manually:
@@ -37,21 +37,21 @@ This automatically creates `.cursor/mcp.json` with the correct config. Otherwise
 ```json
 {
   "mcpServers": {
-    "genome": {
+    "nomik": {
       "command": "node",
       "args": ["packages/mcp-server/dist/index.js"],
       "env": {
-        "GENOME_GRAPH_URI": "bolt://localhost:7687",
-        "GENOME_GRAPH_USER": "neo4j",
-        "GENOME_GRAPH_PASS": "genome_local",
-        "GENOME_PROJECT_ID": "my-project"
+        "NOMIK_GRAPH_URI": "bolt://localhost:7687",
+        "NOMIK_GRAPH_USER": "neo4j",
+        "NOMIK_GRAPH_PASS": "nomik_local",
+        "NOMIK_PROJECT_ID": "my-project"
       }
     }
   }
 }
 ```
 
-### MCP Tools Exposed by GENOME
+### MCP Tools Exposed by NOMIK
 
 | Tool Name | Description | Example Prompt |
 |---|---|---|
@@ -62,17 +62,17 @@ This automatically creates `.cursor/mcp.json` with the correct config. Otherwise
 | `kb_graph_stats` | Graph health metrics (dead code, god objects, counts) | "Are there any God Objects or dependency cycles?" |
 | `kb_find_path` | Shortest path between two code entities | "How does `LoginButton` connect to `users` DB table?" |
 | `kb_recent_changes` | Recently modified nodes | "What changed in the last hour?" |
-| `kb_list_projects` | List all projects in the graph | "What projects does GENOME track?" |
+| `kb_list_projects` | List all projects in the graph | "What projects does NOMIK track?" |
 
-> **Note**: All queries are automatically filtered by `projectId` via the `GENOME_PROJECT_ID` environment variable. This ensures isolation between projects.
+> **Note**: All queries are automatically filtered by `projectId` via the `NOMIK_PROJECT_ID` environment variable. This ensures isolation between projects.
 
 ### Example: What Cursor Sees
 
 When you ask Cursor: *"What happens if I modify the payment processing function?"*
 
-**Without GENOME** — Cursor searches files for "payment", finds 47 matches, stuffs them into context, likely misses the cron job dependency.
+**Without NOMIK** — Cursor searches files for "payment", finds 47 matches, stuffs them into context, likely misses the cron job dependency.
 
-**With GENOME** — Cursor calls `kb_impact`:
+**With NOMIK** — Cursor calls `kb_impact`:
 
 ```json
 // Tool call from Cursor
@@ -84,7 +84,7 @@ When you ask Cursor: *"What happens if I modify the payment processing function?
   }
 }
 
-// GENOME response (liste plate, profondeur et relation reelles)
+// NOMIK response (liste plate, profondeur et relation reelles)
 [
   {
     "name": "POST /api/checkout",
@@ -118,21 +118,21 @@ When you ask Cursor: *"What happens if I modify the payment processing function?
 // claude_desktop_config.json
 {
   "mcpServers": {
-    "genome": {
+    "nomik": {
       "command": "node",
       "args": ["packages/mcp-server/dist/index.js"],
       "env": {
-        "GENOME_GRAPH_URI": "bolt://localhost:7687",
-        "GENOME_GRAPH_USER": "neo4j",
-        "GENOME_GRAPH_PASS": "genome_local",
-        "GENOME_PROJECT_ID": "my-project"
+        "NOMIK_GRAPH_URI": "bolt://localhost:7687",
+        "NOMIK_GRAPH_USER": "neo4j",
+        "NOMIK_GRAPH_PASS": "nomik_local",
+        "NOMIK_PROJECT_ID": "my-project"
       }
     }
   }
 }
 ```
 
-> **Note** : La commande `genome` globale sera disponible apres publication sur npm. En attendant, utilisez le chemin `node packages/mcp-server/dist/index.js`.
+> **Note** : La commande `nomik` globale sera disponible apres publication sur npm. En attendant, utilisez le chemin `node packages/mcp-server/dist/index.js`.
 
 ## MCP Transport Options
 

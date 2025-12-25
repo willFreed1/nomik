@@ -1,5 +1,5 @@
 {
-    "name": "@genome/viz",
+    "name": "@nomik/viz",
     "private": true,
     "version": "0.1.0",
     "type": "module",

@@ -1,4 +1,4 @@
-# GENOME — Technology Stack Decision
+# NOMIK — Technology Stack Decision
 
 ## The Verdict: **TypeScript (Node.js)**
 
@@ -19,13 +19,13 @@
 ### The Decisive Factors
 
 #### 1. MCP SDK Is TypeScript-First
-Anthropic's **official MCP SDK** (`@modelcontextprotocol/sdk`) is the **reference implementation** in TypeScript. Every MCP feature lands here first. Building GENOME's MCP server in TypeScript means:
+Anthropic's **official MCP SDK** (`@modelcontextprotocol/sdk`) is the **reference implementation** in TypeScript. Every MCP feature lands here first. Building NOMIK's MCP server in TypeScript means:
 - Zero lag on protocol updates
 - Battle-tested patterns from the official examples
 - Direct compatibility with Cursor, Claude Desktop, and every MCP client
 
 #### 2. Single-Language Stack
-TypeScript covers **every layer** of GENOME:
+TypeScript covers **every layer** of NOMIK:
 - **Parser** → Tree-sitter Node bindings (`tree-sitter`, `tree-sitter-typescript`, etc.)
 - **Graph** → Neo4j official driver (`neo4j-driver`)
 - **MCP Server** → `@modelcontextprotocol/sdk`
@@ -62,7 +62,7 @@ interface DependsOnEdge {
 
 ### Languages supported by the parser
 
-GENOME already analyzes several languages via Tree-sitter:
+NOMIK already analyzes several languages via Tree-sitter:
 
 | Language | Grammar | Extractors | Status |
 |---|---|---|---|

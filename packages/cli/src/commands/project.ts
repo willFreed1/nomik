@@ -1,13 +1,13 @@
 import { Command } from 'commander';
-import { createLogger, setLogger, loadConfigFromEnv, validateConfig } from '@genome/core';
-import { createGraphService } from '@genome/graph';
+import { createLogger, setLogger, loadConfigFromEnv, validateConfig } from '@nomik/core';
+import { createGraphService } from '@nomik/graph';
 import { readProjectConfig, writeProjectConfig, createProjectNode, PROJECT_CONFIG_VERSION } from '../utils/project-config.js';
 
-/** Commande principale : genome project <sous-commande> */
+/** Commande principale : nomik project <sous-commande> */
 export const projectCommand = new Command('project')
-    .description('Manage GENOME projects (multi-project isolation)');
+    .description('Manage NOMIK projects (multi-project isolation)');
 
-/** genome project list */
+/** nomik project list */
 projectCommand
     .command('list')
     .description('List all projects in the knowledge graph')
@@ -22,10 +22,10 @@ projectCommand
             const local = readProjectConfig();
 
             console.log('');
-            console.log('  \x1b[36m\x1b[1mGENOME Projects\x1b[0m');
+            console.log('  \x1b[36m\x1b[1mNOMIK Projects\x1b[0m');
             console.log('');
             if (projects.length === 0) {
-                console.log('  \x1b[2mNo projects found. Run "genome project create <name>" or "genome init".\x1b[0m');
+                console.log('  \x1b[2mNo projects found. Run "nomik project create <name>" or "nomik init".\x1b[0m');
             } else {
                 for (const p of projects) {
                     const isCurrent = local?.projectId === p.id;
@@ -40,7 +40,7 @@ projectCommand
         }
     });
 
-/** genome project create <name> */
+/** nomik project create <name> */
 projectCommand
     .command('create <name>')
     .description('Create a new project and set it as current')
@@ -65,16 +65,16 @@ projectCommand
             }
 
             writeProjectConfig({ version: PROJECT_CONFIG_VERSION, projectId: project.id, projectName: name, createdAt: new Date().toISOString() });
-            console.log(`  \x1b[32m✓\x1b[0m .genome/project.json written`);
+            console.log(`  \x1b[32m✓\x1b[0m .nomik/project.json written`);
             console.log('');
-            console.log(`  Run \x1b[33mgenome scan .\x1b[0m to index this project.`);
+            console.log(`  Run \x1b[33mnomik scan .\x1b[0m to index this project.`);
             console.log('');
         } finally {
             await graph.disconnect();
         }
     });
 
-/** genome project switch <name> */
+/** nomik project switch <name> */
 projectCommand
     .command('switch <name>')
     .description('Switch to an existing project')
@@ -90,8 +90,8 @@ projectCommand
             const project = await graph.getProject(slug);
             if (!project) {
                 console.log(`  \x1b[31m✗\x1b[0m Project "${name}" not found in Neo4j.`);
-                console.log(`  \x1b[2mRun "genome project list" to see available projects.\x1b[0m`);
-                console.log(`  \x1b[2mRun "genome project create ${name}" to create it.\x1b[0m`);
+                console.log(`  \x1b[2mRun "nomik project list" to see available projects.\x1b[0m`);
+                console.log(`  \x1b[2mRun "nomik project create ${name}" to create it.\x1b[0m`);
                 return;
             }
 
@@ -103,7 +103,7 @@ projectCommand
         }
     });
 
-/** genome project delete <name> */
+/** nomik project delete <name> */
 projectCommand
     .command('delete <name>')
     .description('Delete a project and ALL its data from Neo4j')
@@ -128,7 +128,7 @@ projectCommand
             // Si c'est le projet courant, nettoyer la config locale
             const local = readProjectConfig();
             if (local?.projectId === slug) {
-                console.log(`  \x1b[33m!\x1b[0m This was the current project. Run "genome project create" or "genome project switch".`);
+                console.log(`  \x1b[33m!\x1b[0m This was the current project. Run "nomik project create" or "nomik project switch".`);
             }
             console.log('');
         } finally {
@@ -136,7 +136,7 @@ projectCommand
         }
     });
 
-/** genome project info */
+/** nomik project info */
 projectCommand
     .command('info')
     .description('Show current project details')
@@ -146,7 +146,7 @@ projectCommand
 
         const local = readProjectConfig();
         if (!local) {
-            console.log('  \x1b[33m!\x1b[0m No project configured. Run "genome init" or "genome project create <name>".');
+            console.log('  \x1b[33m!\x1b[0m No project configured. Run "nomik init" or "nomik project create <name>".');
             return;
         }
 

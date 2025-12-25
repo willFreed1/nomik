@@ -1,13 +1,13 @@
 {
-  "name": "genome",
+  "name": "nomik",
   "version": "0.1.0",
   "private": true,
-  "description": "The Autonomous Knowledge Supervisor — AI-native code intelligence graph",
+  "description": "The Living Blueprint — AI-native code intelligence graph",
   "author": "willFreed1",
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "https://github.com/willFreed1/genome"
+    "url": "https://github.com/willFreed1/nomik"
   },
   "engines": {
     "node": ">=20.0.0",
@@ -20,8 +20,8 @@
     "test": "turbo run test",
     "typecheck": "turbo run typecheck",
     "clean": "turbo run clean",
-    "genome": "node packages/cli/dist/index.js",
-    "build:mcp": "turbo run build --filter=@genome/mcp-server"
+    "nomik": "node packages/cli/dist/index.js",
+    "build:mcp": "turbo run build --filter=@nomik/mcp-server"
   },
   "devDependencies": {
     "@types/node": "^20.11.0",

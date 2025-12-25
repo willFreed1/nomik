@@ -1,5 +1,5 @@
 {
-    "name": "@genome/graph",
+    "name": "@nomik/graph",
     "version": "0.1.0",
     "private": true,
     "type": "module",
@@ -19,7 +19,7 @@
         "clean": "node -e \"require('fs').rmSync('dist',{recursive:true,force:true})\""
     },
     "dependencies": {
-        "@genome/core": "workspace:*",
+        "@nomik/core": "workspace:*",
         "neo4j-driver": "^5.27.0"
     },
     "devDependencies": {

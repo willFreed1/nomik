@@ -2,7 +2,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import os from 'node:os';
 import { Command } from 'commander';
-import { createLogger, setLogger } from '@genome/core';
+import { createLogger, setLogger } from '@nomik/core';
 import { readProjectConfig } from '../utils/project-config.js';
 
 /** Detecte le chemin du MCP server (installe globalement ou local) */
@@ -18,7 +18,7 @@ function findMcpServerPath(): string {
 
     // Cas 3 : fallback — cherche dans node_modules
     try {
-        const resolved = import.meta.resolve?.('@genome/mcp-server');
+        const resolved = import.meta.resolve?.('@nomik/mcp-server');
         if (resolved) return new URL(resolved).pathname.replace(/^\/([A-Z]:)/, '$1');
     } catch { /* ignore */ }
 
@@ -27,11 +27,11 @@ function findMcpServerPath(): string {
 
 /** Commande setup-cursor : configure automatiquement .cursor/mcp.json */
 export const setupCursorCommand = new Command('setup-cursor')
-    .description('Auto-configure Cursor IDE to use GENOME MCP server')
+    .description('Auto-configure Cursor IDE to use NOMIK MCP server')
     .option('--global', 'Configure globally for all projects (user-level)')
     .option('--graph-uri <uri>', 'Neo4j URI', 'bolt://localhost:7687')
     .option('--graph-user <user>', 'Neo4j username', 'neo4j')
-    .option('--graph-pass <pass>', 'Neo4j password', 'genome_local')
+    .option('--graph-pass <pass>', 'Neo4j password', 'nomik_local')
     .action(async (opts: { global?: boolean; graphUri: string; graphUser: string; graphPass: string }) => {
         const logger = createLogger({ level: 'info', pretty: true });
         setLogger(logger);
@@ -40,17 +40,17 @@ export const setupCursorCommand = new Command('setup-cursor')
 
         const local = readProjectConfig();
         const envBlock: Record<string, string> = {
-            GENOME_GRAPH_URI: opts.graphUri,
-            GENOME_GRAPH_USER: opts.graphUser,
-            GENOME_GRAPH_PASS: opts.graphPass,
+            NOMIK_GRAPH_URI: opts.graphUri,
+            NOMIK_GRAPH_USER: opts.graphUser,
+            NOMIK_GRAPH_PASS: opts.graphPass,
         };
         if (local?.projectId) {
-            envBlock.GENOME_PROJECT_ID = local.projectId;
+            envBlock.NOMIK_PROJECT_ID = local.projectId;
         }
 
         const config = {
             mcpServers: {
-                genome: {
+                nomik: {
                     command: 'node',
                     args: [mcpPath],
                     env: envBlock,
@@ -97,7 +97,7 @@ export const setupCursorCommand = new Command('setup-cursor')
             }
         }
 
-        // Merge : garder les autres serveurs MCP, ajouter/remplacer genome
+        // Merge : garder les autres serveurs MCP, ajouter/remplacer nomik
         const merged = {
             ...existing,
             mcpServers: {
@@ -109,7 +109,7 @@ export const setupCursorCommand = new Command('setup-cursor')
         fs.writeFileSync(configPath, JSON.stringify(merged, null, 2) + '\n', 'utf-8');
 
         console.log('');
-        console.log('  \x1b[36m\x1b[1mGENOME MCP configured for Cursor!\x1b[0m');
+        console.log('  \x1b[36m\x1b[1mNOMIK MCP configured for Cursor!\x1b[0m');
         console.log('');
         console.log(`  Config written to: \x1b[33m${configPath}\x1b[0m`);
         console.log(`  MCP server:        \x1b[33m${mcpPath}\x1b[0m`);

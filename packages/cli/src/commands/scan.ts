@@ -1,11 +1,11 @@
 import { Command } from 'commander';
-import { createLogger, loadConfigFromEnv, validateConfig } from '@genome/core';
-import { createParserEngine, discoverFiles, getGitInfo } from '@genome/parser';
-import { createGraphService } from '@genome/graph';
+import { createLogger, loadConfigFromEnv, validateConfig } from '@nomik/core';
+import { createParserEngine, discoverFiles, getGitInfo } from '@nomik/parser';
+import { createGraphService } from '@nomik/graph';
 import { readProjectConfig, writeProjectConfig, createProjectNode, defaultProjectName, PROJECT_CONFIG_VERSION } from '../utils/project-config.js';
 
 export const scanCommand = new Command('scan')
-    .description('Parse and index a codebase into the GENOME knowledge graph')
+    .description('Parse and index a codebase into the NOMIK knowledge graph')
     .argument('<path>', 'Path to the project root')
     .option('--language <lang>', 'Language to parse', 'typescript')
     .option('--project <name>', 'Project name (auto-detected from directory if not set)')
@@ -42,7 +42,7 @@ export const scanCommand = new Command('scan')
             logger.info({ project: name, id: projectId }, 'auto-created project from directory name');
         }
 
-        logger.info({ path: targetPath, project: projectId, gitSha: gitInfo?.shortSha ?? 'n/a' }, 'GENOME — Scanning target');
+        logger.info({ path: targetPath, project: projectId, gitSha: gitInfo?.shortSha ?? 'n/a' }, 'NOMIK — Scanning target');
 
         const files = await discoverFiles(config.target);
         logger.info({ count: files.length }, 'Files discovered');
@@ -121,7 +121,7 @@ export const scanCommand = new Command('scan')
 
         } catch (err) {
             if (err instanceof Error && err.message.includes('connect')) {
-                logger.error('Cannot connect to Neo4j. Is it running? (Run "genome init" or "docker compose up -d")');
+                logger.error('Cannot connect to Neo4j. Is it running? (Run "nomik init" or "docker compose up -d")');
             } else {
                 logger.error({ err }, 'Scan failed');
             }

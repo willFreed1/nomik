@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { upsertNodes, createEdges, clearFileData, upsertProject, deleteProjectData, listProjects, getProject } from '../queries/write.js';
 import type { GraphDriver } from '../drivers/driver.interface.js';
-import type { GraphNode, GraphEdge, ProjectNode } from '@genome/core';
+import type { GraphNode, GraphEdge, ProjectNode } from '@nomik/core';
 
 const TEST_PROJECT_ID = 'test-project';
 

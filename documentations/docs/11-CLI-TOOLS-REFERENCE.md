@@ -1,4 +1,4 @@
-# GENOME — Reference complete CLI & outils MCP
+# NOMIK — Reference complete CLI & outils MCP
 
 > Toutes les commandes CLI et tous les outils MCP avec exemples d'utilisation.
 
@@ -6,132 +6,132 @@
 
 ## CLI — 10 commandes
 
-### `genome init`
+### `nomik init`
 
-Initialise un nouveau projet GENOME : cree la config, demarre Neo4j via Docker, cree `.genome/project.json`.
+Initialise un nouveau projet NOMIK : cree la config, demarre Neo4j via Docker, cree `.nomik/project.json`.
 
 ```bash
-genome init
-genome init --no-docker   # Sans Docker
+nomik init
+nomik init --no-docker   # Sans Docker
 ```
 
 ---
 
-### `genome scan <path>`
+### `nomik scan <path>`
 
 Scanne un repertoire, parse les fichiers (TS/JS/Python/Rust/Markdown) et ingere les noeuds/edges dans Neo4j. Rafraichit les donnees par fichier (supprime l'ancien contenu avant re-insertion).
 
 ```bash
-genome scan .
-genome scan ./src --project my-api
+nomik scan .
+nomik scan ./src --project my-api
 ```
 
 **Comportement** : pour chaque fichier, `clearFileData()` supprime les anciens noeuds, puis re-insere. Ce n'est pas un append — c'est un refresh par fichier.
 
 ---
 
-### `genome status`
+### `nomik status`
 
 Verifie la connexion Neo4j et affiche les statistiques du projet courant (noeuds, edges, fichiers, fonctions, classes, routes).
 
 ```bash
-genome status
+nomik status
 ```
 
 ---
 
-### `genome impact <symbol>`
+### `nomik impact <symbol>`
 
 Analyse d'impact : quels noeuds sont affectes si on modifie un symbole. Utilise APOC `expandConfig` pour traverser le graphe en profondeur avec les types de relation reels.
 
 ```bash
-genome impact "parseFile" --depth 5
-genome impact "GraphService" --depth 3
+nomik impact "parseFile" --depth 5
+nomik impact "GraphService" --depth 3
 ```
 
 **Sortie** : liste de noeuds impactes avec profondeur reelle et type de relation (`CALLS`, `DEPENDS_ON`, etc.).
 
 ---
 
-### `genome watch [path]`
+### `nomik watch [path]`
 
 Surveillance continue des fichiers. Re-indexe automatiquement les fichiers modifies (chokidar, debounce 500ms par defaut).
 
 ```bash
-genome watch .
-genome watch ./src --debounce 1000
+nomik watch .
+nomik watch ./src --debounce 1000
 ```
 
 ---
 
-### `genome serve`
+### `nomik serve`
 
 Demarre le serveur MCP et le dashboard de visualisation.
 
 ```bash
-genome serve
+nomik serve
 ```
 
 ---
 
-### `genome query "<cypher>"`
+### `nomik query "<cypher>"`
 
 Execute une requete Cypher brute contre le graphe.
 
 ```bash
 # Format tableau
-genome query "MATCH (n:Function) RETURN n.name, n.filePath LIMIT 10"
+nomik query "MATCH (n:Function) RETURN n.name, n.filePath LIMIT 10"
 
 # Format JSON
-genome query "MATCH (n)-[r]->(m) RETURN type(r), count(*)" --json
+nomik query "MATCH (n)-[r]->(m) RETURN type(r), count(*)" --json
 
 # Dead code — fonctions jamais appelees (exclut constructeurs, methodes de classes, React, barrel re-exports)
-genome query "MATCH (f:Function) WHERE NOT (f)<-[:CALLS]-() AND NOT (f)<-[:HANDLES]-() AND f.name <> 'constructor' WITH f WHERE NOT f.filePath ENDS WITH '.tsx' AND NOT f.filePath ENDS WITH '.jsx' OPTIONAL MATCH (parent:File)-[:CONTAINS]->(f) WITH f, parent WHERE parent IS NULL OR (NOT parent.path ENDS WITH 'index.ts' AND NOT parent.path ENDS WITH 'index.js') RETURN f.name, f.filePath ORDER BY f.filePath"
+nomik query "MATCH (f:Function) WHERE NOT (f)<-[:CALLS]-() AND NOT (f)<-[:HANDLES]-() AND f.name <> 'constructor' WITH f WHERE NOT f.filePath ENDS WITH '.tsx' AND NOT f.filePath ENDS WITH '.jsx' OPTIONAL MATCH (parent:File)-[:CONTAINS]->(f) WITH f, parent WHERE parent IS NULL OR (NOT parent.path ENDS WITH 'index.ts' AND NOT parent.path ENDS WITH 'index.js') RETURN f.name, f.filePath ORDER BY f.filePath"
 
 # God objects — couplage cross-fichier inattendu (seuil: 15)
-genome query "MATCH (f:Function)-[:CALLS]->(target) MATCH (ff:File)-[:CONTAINS]->(f) WHERE NOT (ff)-[:CONTAINS]->(target) MATCH (tf:File)-[:CONTAINS]->(target) WHERE NOT (ff)-[:DEPENDS_ON]->(tf) WITH f, count(DISTINCT target) as deps WHERE deps > 15 RETURN f.name, f.filePath, deps ORDER BY deps DESC"
+nomik query "MATCH (f:Function)-[:CALLS]->(target) MATCH (ff:File)-[:CONTAINS]->(f) WHERE NOT (ff)-[:CONTAINS]->(target) MATCH (tf:File)-[:CONTAINS]->(target) WHERE NOT (ff)-[:DEPENDS_ON]->(tf) WITH f, count(DISTINCT target) as deps WHERE deps > 15 RETURN f.name, f.filePath, deps ORDER BY deps DESC"
 
 # Chemin le plus court entre deux symboles
-genome query "MATCH (a {name: 'parseFile'}), (b {name: 'GraphService'}) MATCH path = shortestPath((a)-[*..10]-(b)) RETURN [n IN nodes(path) | n.name] as chain"
+nomik query "MATCH (a {name: 'parseFile'}), (b {name: 'GraphService'}) MATCH path = shortestPath((a)-[*..10]-(b)) RETURN [n IN nodes(path) | n.name] as chain"
 ```
 
 ---
 
-### `genome recent`
+### `nomik recent`
 
 Affiche les noeuds recemment modifies (scope par projet).
 
 ```bash
-genome recent
-genome recent --since 2026-02-10T00:00:00Z --limit 50 --json
+nomik recent
+nomik recent --since 2026-02-10T00:00:00Z --limit 50 --json
 ```
 
 ---
 
-### `genome setup-cursor`
+### `nomik setup-cursor`
 
-Configure automatiquement `.cursor/mcp.json` pour connecter Cursor AI a GENOME. Injecte `GENOME_PROJECT_ID` automatiquement.
+Configure automatiquement `.cursor/mcp.json` pour connecter Cursor AI a NOMIK. Injecte `NOMIK_PROJECT_ID` automatiquement.
 
 ```bash
-genome setup-cursor
-genome setup-cursor --global   # Config globale (tous les projets)
+nomik setup-cursor
+nomik setup-cursor --global   # Config globale (tous les projets)
 ```
 
 ---
 
-### `genome project <subcommand>`
+### `nomik project <subcommand>`
 
 Gestion multi-projet — isolation des donnees dans Neo4j via `projectId`.
 
 ```bash
-genome project list              # Liste tous les projets
-genome project create my-api     # Cree un projet
-genome project switch my-api     # Change de projet actif
-genome project delete my-api     # Supprime un projet et ses donnees
-genome project info              # Stats du projet courant
+nomik project list              # Liste tous les projets
+nomik project create my-api     # Cree un projet
+nomik project switch my-api     # Change de projet actif
+nomik project delete my-api     # Supprime un projet et ses donnees
+nomik project info              # Stats du projet courant
 ```
 
-Le projet courant est stocke dans `.genome/project.json`.
+Le projet courant est stocke dans `.nomik/project.json`.
 
 ---
 
@@ -279,7 +279,7 @@ Liste tous les projets dans le graphe Neo4j.
 | _(aucun)_ | — | — | — |
 
 **Exemple de prompt Cursor** :
-- "What projects does GENOME track?"
+- "What projects does NOMIK track?"
 
 ---
 
@@ -316,11 +316,11 @@ ORDER BY depth DESC
 
 | Variable | Utilisation | Defaut |
 |---|---|---|
-| `GENOME_GRAPH_DRIVER` | Driver de base de donnees (`neo4j`) | `neo4j` |
-| `GENOME_GRAPH_URI` | URI de connexion Neo4j | `bolt://localhost:7687` |
-| `GENOME_GRAPH_USER` | Utilisateur Neo4j | `neo4j` |
-| `GENOME_GRAPH_PASS` | Mot de passe Neo4j | `genome_local` |
-| `GENOME_LOG_LEVEL` | Niveau de log (`debug`, `info`, `warn`, `error`) | `info` |
-| `GENOME_MCP_PORT` | Port du serveur MCP (mode SSE) | `3334` |
-| `GENOME_VIZ_PORT` | Port du dashboard de visualisation | `3333` |
-| `GENOME_PROJECT_ID` | ID du projet pour le scope MCP | _(non defini = tous les projets)_ |
+| `NOMIK_GRAPH_DRIVER` | Driver de base de donnees (`neo4j`) | `neo4j` |
+| `NOMIK_GRAPH_URI` | URI de connexion Neo4j | `bolt://localhost:7687` |
+| `NOMIK_GRAPH_USER` | Utilisateur Neo4j | `neo4j` |
+| `NOMIK_GRAPH_PASS` | Mot de passe Neo4j | `nomik_local` |
+| `NOMIK_LOG_LEVEL` | Niveau de log (`debug`, `info`, `warn`, `error`) | `info` |
+| `NOMIK_MCP_PORT` | Port du serveur MCP (mode SSE) | `3334` |
+| `NOMIK_VIZ_PORT` | Port du dashboard de visualisation | `3333` |
+| `NOMIK_PROJECT_ID` | ID du projet pour le scope MCP | _(non defini = tous les projets)_ |

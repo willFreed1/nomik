@@ -1,4 +1,4 @@
-import type { GraphConfig } from '@genome/core';
+import type { GraphConfig } from '@nomik/core';
 import type { Session } from 'neo4j-driver';
 
 export interface GraphDriver {

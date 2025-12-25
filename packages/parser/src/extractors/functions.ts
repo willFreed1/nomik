@@ -1,5 +1,5 @@
 import type Parser from 'tree-sitter';
-import type { FunctionNode, ParameterInfo } from '@genome/core';
+import type { FunctionNode, ParameterInfo } from '@nomik/core';
 import { createNodeId } from '../utils';
 
 export function extractFunctions(tree: Parser.Tree, filePath: string): FunctionNode[] {

@@ -1,11 +1,11 @@
 {
-    "name": "@genome-ai/cli",
+    "name": "@nomik-ai/cli",
     "version": "0.1.0",
-    "description": "GENOME — AI-native code intelligence graph CLI. Scan, watch, query your codebase knowledge graph.",
+    "description": "NOMIK — The Living Blueprint. AI-native code intelligence graph CLI. Scan, watch, query your codebase knowledge graph.",
     "type": "module",
     "main": "./dist/index.js",
     "bin": {
-        "genome": "./dist/index.js"
+        "nomik": "./dist/index.js"
     },
     "files": [
         "dist"
@@ -25,7 +25,7 @@
     "license": "MIT",
     "repository": {
         "type": "git",
-        "url": "https://github.com/willFreed1/GENOME",
+        "url": "https://github.com/willFreed1/NOMIK",
         "directory": "packages/cli"
     },
     "engines": {
@@ -56,10 +56,10 @@
         "zod": "^3.22.0"
     },
     "devDependencies": {
-        "@genome/core": "workspace:*",
-        "@genome/parser": "workspace:*",
-        "@genome/graph": "workspace:*",
-        "@genome/watcher": "workspace:*",
+        "@nomik/core": "workspace:*",
+        "@nomik/parser": "workspace:*",
+        "@nomik/graph": "workspace:*",
+        "@nomik/watcher": "workspace:*",
         "tsup": "^8.0.0",
         "typescript": "^5.7.0"
     }

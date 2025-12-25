@@ -8,7 +8,7 @@ export default defineConfig([
         clean: true,
         dts: false,
         banner: { js: '#!/usr/bin/env node' },
-        noExternal: ['@genome/core', '@genome/parser', '@genome/graph', '@genome/watcher'],
+        noExternal: ['@nomik/core', '@nomik/parser', '@nomik/graph', '@nomik/watcher'],
         external: ['neo4j-driver', 'tree-sitter', 'tree-sitter-typescript', 'tree-sitter-javascript', 'tree-sitter-python', 'tree-sitter-rust', 'pino', 'pino-pretty', 'chokidar', 'glob', 'zod'],
     },
     {
@@ -16,7 +16,7 @@ export default defineConfig([
         format: ['esm'],
         outDir: 'dist',
         dts: false,
-        noExternal: ['@genome/core', '@genome/graph', '@modelcontextprotocol/sdk'],
+        noExternal: ['@nomik/core', '@nomik/graph', '@modelcontextprotocol/sdk'],
         external: ['neo4j-driver', 'pino', 'pino-pretty', 'zod'],
     },
 ]);

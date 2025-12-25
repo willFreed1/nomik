@@ -1,7 +1,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { glob } from 'glob';
-import type { TargetConfig } from '@genome/core';
+import type { TargetConfig } from '@nomik/core';
 import { isSupportedFile } from './languages/index';
 
 /** Chemins a exclure meme si le glob les laisse passer (symlinks pnpm) */

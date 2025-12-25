@@ -1,12 +1,12 @@
-import type { GraphService } from '@genome/graph';
-import { GenomeError } from '@genome/core';
+import type { GraphService } from '@nomik/graph';
+import { NomikError } from '@nomik/core';
 
 /** Labels Neo4j reconnus par le scan */
 const KNOWN_LABELS = ['File', 'Function', 'Class', 'Variable', 'Module', 'Route', 'DBTable', 'ExternalAPI', 'CronJob', 'Event', 'EnvVar'];
 
 /** Recupere le projectId depuis l'env (injecte par Cursor/IDE) */
 function getProjectId(): string | undefined {
-    return process.env.GENOME_PROJECT_ID || undefined;
+    return process.env.NOMIK_PROJECT_ID || undefined;
 }
 
 const TOOLS = {
@@ -94,7 +94,7 @@ const TOOLS = {
     },
     kb_list_projects: {
         name: 'kb_list_projects',
-        description: 'List all projects tracked in the GENOME knowledge graph.',
+        description: 'List all projects tracked in the NOMIK knowledge graph.',
         inputSchema: {
             type: 'object',
             properties: {},
@@ -244,6 +244,6 @@ export async function handleCallTool(graph: GraphService, name: string, args: an
         }
 
         default:
-            throw new GenomeError(`Unknown tool: ${name}`, 'INVALID_CONFIG', 'low', true);
+            throw new NomikError(`Unknown tool: ${name}`, 'INVALID_CONFIG', 'low', true);
     }
 }

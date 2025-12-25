@@ -36,7 +36,7 @@ export type {
 } from './edges.js';
 
 export {
-    genomeConfigSchema,
+    nomikConfigSchema,
     graphConfigSchema,
     targetConfigSchema,
     parserConfigSchema,
@@ -48,7 +48,7 @@ export {
 } from './config.js';
 
 export type {
-    GenomeConfig,
+    NomikConfig,
     GraphConfig,
     TargetConfig,
     ParserConfig,

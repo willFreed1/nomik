@@ -7,7 +7,7 @@ import { discoverFiles } from '../discovery';
 let tmpDir: string;
 
 beforeAll(() => {
-    tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'genome-test-'));
+    tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'nomik-test-'));
 
     // Creer une arborescence de test
     fs.mkdirSync(path.join(tmpDir, 'src'), { recursive: true });

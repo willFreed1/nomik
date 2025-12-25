@@ -1,8 +1,8 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import Parser from 'tree-sitter';
-import { type ClassNode, type FunctionNode, type GraphNode, type GraphEdge, type CallsEdge, type ExtendsEdge, type ImplementsEdge, ParseError, getLogger } from '@genome/core';
-import type { FileNode } from '@genome/core';
+import { type ClassNode, type FunctionNode, type GraphNode, type GraphEdge, type CallsEdge, type ExtendsEdge, type ImplementsEdge, ParseError, getLogger } from '@nomik/core';
+import type { FileNode } from '@nomik/core';
 import { detectLanguage, grammars } from './languages/index';
 import { extractFunctions } from './extractors/functions';
 import { extractClasses } from './extractors/classes';

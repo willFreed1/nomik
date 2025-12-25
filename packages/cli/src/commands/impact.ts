@@ -1,6 +1,6 @@
 import { Command } from 'commander';
-import { loadConfigFromEnv, validateConfig } from '@genome/core';
-import { createGraphService } from '@genome/graph';
+import { loadConfigFromEnv, validateConfig } from '@nomik/core';
+import { createGraphService } from '@nomik/graph';
 import { readProjectConfig } from '../utils/project-config.js';
 
 export const impactCommand = new Command('impact')

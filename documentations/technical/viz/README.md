@@ -1,6 +1,6 @@
-# @genome/viz
+# @nomik/viz
 
-Visualization dashboard for GENOME. React application to interactively explore the knowledge graph in 2D and 3D.
+Visualization dashboard for NOMIK. React application to interactively explore the knowledge graph in 2D and 3D.
 
 ## Features
 

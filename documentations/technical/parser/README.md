@@ -1,4 +1,4 @@
-# @genome/parser
+# @nomik/parser
 
 Intelligence engine responsible for converting source code into nodes and edges for the knowledge graph.
 

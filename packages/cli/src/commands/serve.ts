@@ -1,5 +1,5 @@
 import { Command } from 'commander';
-import { createLogger, setLogger } from '@genome/core';
+import { createLogger, setLogger } from '@nomik/core';
 import { spawn } from 'node:child_process';
 import path from 'node:path';
 

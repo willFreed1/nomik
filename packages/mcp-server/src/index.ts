@@ -1,8 +1,8 @@
 import { Server } from '@modelcontextprotocol/sdk/server/index.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 import { CallToolRequestSchema, ListResourcesRequestSchema, ListToolsRequestSchema, ReadResourceRequestSchema } from '@modelcontextprotocol/sdk/types.js';
-import { createGraphService } from '@genome/graph';
-import { loadConfigFromEnv, createLogger, setLogger, type LogConfig } from '@genome/core';
+import { createGraphService } from '@nomik/graph';
+import { loadConfigFromEnv, createLogger, setLogger, type LogConfig } from '@nomik/core';
 import { handleListResources, handleReadResource } from './resources';
 import { handleCallTool, handleListTools } from './tools';
 
@@ -11,7 +11,7 @@ const logger = createLogger({ level: logLevel, pretty: false }, process.stderr);
 setLogger(logger);
 
 async function main() {
-    logger.info('Starting GENOME MCP Server...');
+    logger.info('Starting NOMIK MCP Server...');
 
     const config = loadConfigFromEnv();
     if (!config.graph) {
@@ -46,7 +46,7 @@ async function main() {
 
     const server = new Server(
         {
-            name: '@genome/mcp-server',
+            name: '@nomik/mcp-server',
             version: '0.1.0',
         },
         {

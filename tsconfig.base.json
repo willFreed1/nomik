@@ -24,22 +24,22 @@
         "noUncheckedIndexedAccess": true,
         "baseUrl": ".",
         "paths": {
-            "@genome/core": [
+            "@nomik/core": [
                 "./packages/core/src/index.ts"
             ],
-            "@genome/parser": [
+            "@nomik/parser": [
                 "./packages/parser/src/index.ts"
             ],
-            "@genome/graph": [
+            "@nomik/graph": [
                 "./packages/graph/src/index.ts"
             ],
-            "@genome/cli": [
+            "@nomik/cli": [
                 "./packages/cli/src/index.ts"
             ],
-            "@genome/mcp-server": [
+            "@nomik/mcp-server": [
                 "./packages/mcp-server/src/index.ts"
             ],
-            "@genome/watcher": [
+            "@nomik/watcher": [
                 "./packages/watcher/src/index.ts"
             ]
         }

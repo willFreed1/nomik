@@ -1,8 +1,8 @@
-# GENOME — Security Architecture
+# NOMIK — Security Architecture
 
 ## Threat Model
 
-GENOME operates as a **local sidecar** — it never touches production systems directly. However, it processes and stores sensitive information about your codebase, making security non-negotiable.
+NOMIK operates as a **local sidecar** — it never touches production systems directly. However, it processes and stores sensitive information about your codebase, making security non-negotiable.
 
 | Threat | Risk | Mitigation |
 |---|---|---|
@@ -55,10 +55,10 @@ services:
 
 ```bash
 # .env (NEVER committed to git)
-GENOME_GRAPH_URI=bolt://localhost:7687
-GENOME_GRAPH_USER=neo4j
-GENOME_GRAPH_PASS=genome_local_$(openssl rand -hex 8)
-GENOME_MCP_SECRET=mcp_$(openssl rand -hex 16)
+NOMIK_GRAPH_URI=bolt://localhost:7687
+NOMIK_GRAPH_USER=neo4j
+NOMIK_GRAPH_PASS=nomik_local_$(openssl rand -hex 8)
+NOMIK_MCP_SECRET=mcp_$(openssl rand -hex 16)
 ```
 
 ```gitignore
@@ -76,7 +76,7 @@ For remote MCP access (SSE/HTTP transport), implement token-based auth:
 // MCP server middleware (Phase 2)
 const server = new McpServer({
   authenticate: async (request) => {
-    const token = request.headers['x-genome-token'];
+    const token = request.headers['x-nomik-token'];
     if (!token || !verifyToken(token)) {
       throw new McpError('Unauthorized', 401);
     }
