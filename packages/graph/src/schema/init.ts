@@ -34,7 +34,7 @@ const SCHEMA_INIT = [
 export async function initializeSchema(driver: GraphDriver): Promise<void> {
     for (const stmt of SCHEMA_INIT) {
         try {
-            await driver.runWrite(stmt);
+        await driver.runWrite(stmt);
         } catch {
             // Ignorer si la contrainte/index existe deja sous un autre nom
         }

@@ -112,10 +112,10 @@ nomik/
 │   │
 │   ├── mcp-server/              # Serveur protocole MCP
 │   │   ├── src/
-│   │   │   ├── tools.ts              # 8 outils : kb_search, kb_impact,
-│   │   │   │                          # kb_dependency_trace, kb_get_context,
-│   │   │   │                          # kb_graph_stats, kb_find_path,
-│   │   │   │                          # kb_recent_changes, kb_list_projects
+│   │   │   ├── tools.ts              # 8 outils : nm_search, nm_impact,
+│   │   │   │                          # nm_dependency_trace, nm_get_context,
+│   │   │   │                          # nm_graph_stats, nm_find_path,
+│   │   │   │                          # nm_recent_changes, nm_list_projects
 │   │   │   ├── resources.ts           # Ressources MCP
 │   │   │   └── index.ts
 │   │   ├── package.json

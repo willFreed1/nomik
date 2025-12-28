@@ -10,8 +10,8 @@ function getProjectId(): string | undefined {
 }
 
 const TOOLS = {
-    kb_search: {
-        name: 'kb_search',
+    nm_search: {
+        name: 'nm_search',
         description: 'Semantic search for nodes in the knowledge graph. Use this to find classes, functions, or files.',
         inputSchema: {
             type: 'object',
@@ -22,8 +22,8 @@ const TOOLS = {
             required: ['query'],
         },
     },
-    kb_impact: {
-        name: 'kb_impact',
+    nm_impact: {
+        name: 'nm_impact',
         description: 'Analyze downstream impact of a change to a symbol. Returns a list of dependent nodes.',
         inputSchema: {
             type: 'object',
@@ -34,8 +34,8 @@ const TOOLS = {
             required: ['symbolId'],
         },
     },
-    kb_dependency_trace: {
-        name: 'kb_dependency_trace',
+    nm_trace: {
+        name: 'nm_trace',
         description: 'Show the full dependency chain between two symbols. Returns the shortest path.',
         inputSchema: {
             type: 'object',
@@ -46,8 +46,8 @@ const TOOLS = {
             required: ['from', 'to'],
         },
     },
-    kb_get_context: {
-        name: 'kb_get_context',
+    nm_context: {
+        name: 'nm_context',
         description: 'Get rich context for a file or function: what it contains, what it calls, what calls it, its imports.',
         inputSchema: {
             type: 'object',
@@ -57,8 +57,8 @@ const TOOLS = {
             required: ['name'],
         },
     },
-    kb_graph_stats: {
-        name: 'kb_graph_stats',
+    nm_health: {
+        name: 'nm_health',
         description: 'Codebase health metrics: node counts, edge counts, dead code, god objects.',
         inputSchema: {
             type: 'object',
@@ -69,8 +69,8 @@ const TOOLS = {
             },
         },
     },
-    kb_find_path: {
-        name: 'kb_find_path',
+    nm_path: {
+        name: 'nm_path',
         description: 'Find the shortest path between two code entities in the knowledge graph. Returns detailed steps with node types and relationship types.',
         inputSchema: {
             type: 'object',
@@ -81,8 +81,8 @@ const TOOLS = {
             required: ['from', 'to'],
         },
     },
-    kb_recent_changes: {
-        name: 'kb_recent_changes',
+    nm_changes: {
+        name: 'nm_changes',
         description: 'Show nodes that changed recently. Use to answer "what changed today/this week?"',
         inputSchema: {
             type: 'object',
@@ -92,8 +92,8 @@ const TOOLS = {
             },
         },
     },
-    kb_list_projects: {
-        name: 'kb_list_projects',
+    nm_projects: {
+        name: 'nm_projects',
         description: 'List all projects tracked in the NOMIK knowledge graph.',
         inputSchema: {
             type: 'object',
@@ -119,7 +119,7 @@ export async function handleCallTool(graph: GraphService, name: string, args: an
     const projectId = getProjectId();
 
     switch (name) {
-        case 'kb_search': {
+        case 'nm_search': {
             const query = String(args.query ?? '');
             const limit = Number(args.limit) || 10;
             const projectFilter = projectId ? 'AND n.projectId = $projectId' : '';
@@ -144,21 +144,21 @@ export async function handleCallTool(graph: GraphService, name: string, args: an
             return [{ type: 'text', text: JSON.stringify(nodes, null, 2) }];
         }
 
-        case 'kb_impact': {
+        case 'nm_impact': {
             const symId = String(args.symbolId);
             const depth = Number(args.depth) || 3;
             const impacts = await graph.getImpact(symId, depth, projectId);
             return [{ type: 'text', text: JSON.stringify(impacts, null, 2) }];
         }
 
-        case 'kb_dependency_trace': {
+        case 'nm_trace': {
             const from = String(args.from);
             const to = String(args.to);
             const paths = await graph.getDependencyChain(from, to, projectId);
             return [{ type: 'text', text: JSON.stringify(paths, null, 2) }];
         }
 
-        case 'kb_get_context': {
+        case 'nm_context': {
             const target = String(args.name);
             const projectFilter = projectId ? 'AND n.projectId = $projectId' : '';
 
@@ -197,7 +197,7 @@ export async function handleCallTool(graph: GraphService, name: string, args: an
             return [{ type: 'text', text: JSON.stringify(context, null, 2) }];
         }
 
-        case 'kb_graph_stats': {
+        case 'nm_health': {
             const stats = await graph.getStats(projectId);
             const result: any = { ...stats };
 
@@ -221,7 +221,7 @@ export async function handleCallTool(graph: GraphService, name: string, args: an
             return [{ type: 'text', text: JSON.stringify(result, null, 2) }];
         }
 
-        case 'kb_find_path': {
+        case 'nm_path': {
             const from = String(args.from);
             const to = String(args.to);
             const detailed = await graph.getDetailedPath(from, to, projectId);
@@ -231,14 +231,14 @@ export async function handleCallTool(graph: GraphService, name: string, args: an
             return [{ type: 'text', text: JSON.stringify({ from, to, paths: detailed }, null, 2) }];
         }
 
-        case 'kb_recent_changes': {
+        case 'nm_changes': {
             const since = args.since ?? new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
             const limit = Number(args.limit) || 30;
             const changes = await graph.getRecentChanges(since, limit, projectId);
             return [{ type: 'text', text: JSON.stringify(changes, null, 2) }];
         }
 
-        case 'kb_list_projects': {
+        case 'nm_projects': {
             const projects = await graph.listProjects();
             return [{ type: 'text', text: JSON.stringify(projects, null, 2) }];
         }

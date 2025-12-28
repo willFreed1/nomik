@@ -139,7 +139,7 @@ Le projet courant est stocke dans `.nomik/project.json`.
 
 Ces outils sont exposes automatiquement quand le serveur MCP est connecte a Cursor ou Claude.
 
-### `kb_search`
+### `nm_search`
 
 Recherche de noeuds par nom, chemin ou pattern. Supporte les wildcards.
 
@@ -155,7 +155,7 @@ Recherche de noeuds par nom, chemin ou pattern. Supporte les wildcards.
 
 ---
 
-### `kb_impact`
+### `nm_impact`
 
 Analyse d'impact descendante. Retourne les noeuds dependants avec la **profondeur reelle** et le **type de relation reel** (pas de donnees hardcodees).
 
@@ -178,7 +178,7 @@ Analyse d'impact descendante. Retourne les noeuds dependants avec la **profondeu
 
 ---
 
-### `kb_dependency_trace`
+### `nm_trace`
 
 Chaine de dependance complete entre deux symboles. Retourne le chemin le plus court sous forme de liste de noms.
 
@@ -193,7 +193,7 @@ Chaine de dependance complete entre deux symboles. Retourne le chemin le plus co
 
 ---
 
-### `kb_find_path`
+### `nm_path`
 
 Chemin le plus court entre deux entites avec **detail complet** : types de noeuds, types de relations a chaque etape.
 
@@ -202,7 +202,7 @@ Chemin le plus court entre deux entites avec **detail complet** : types de noeud
 | `from` | string | oui | Nom du noeud source |
 | `to` | string | oui | Nom du noeud cible |
 
-> **Difference avec `kb_dependency_trace`** : `kb_find_path` retourne les types de noeuds et de relations a chaque etape. `kb_dependency_trace` retourne uniquement les noms.
+> **Difference avec `nm_trace`** : `nm_path` retourne les types de noeuds et de relations a chaque etape. `nm_trace` retourne uniquement les noms.
 
 **Reponse** :
 ```json
@@ -225,7 +225,7 @@ Chemin le plus court entre deux entites avec **detail complet** : types de noeud
 
 ---
 
-### `kb_get_context`
+### `nm_context`
 
 Contexte riche pour un fichier ou une fonction : ce qu'il contient, ce qu'il appelle, qui l'appelle, ses imports, ses heritages.
 
@@ -239,7 +239,7 @@ Contexte riche pour un fichier ou une fonction : ce qu'il contient, ce qu'il app
 
 ---
 
-### `kb_graph_stats`
+### `nm_health`
 
 Metriques de sante du graphe : comptages, dead code, god objects, types d'edges.
 
@@ -255,7 +255,7 @@ Metriques de sante du graphe : comptages, dead code, god objects, types d'edges.
 
 ---
 
-### `kb_recent_changes`
+### `nm_changes`
 
 Noeuds modifies recemment (par `updatedAt`).
 
@@ -270,7 +270,7 @@ Noeuds modifies recemment (par `updatedAt`).
 
 ---
 
-### `kb_list_projects`
+### `nm_projects`
 
 Liste tous les projets dans le graphe Neo4j.
 

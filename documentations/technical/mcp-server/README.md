@@ -11,14 +11,14 @@ Model Context Protocol (MCP) server for NOMIK. Exposes the knowledge graph to AI
 
 | Tool | Description | Parameters |
 |---|---|---|
-| `kb_search` | Search for nodes by name, path or id | `query` (string), `limit` (number) |
-| `kb_impact` | Impact analysis of a symbol (APOC traversal) | `symbolId` (string), `depth` (number) |
-| `kb_dependency_trace` | Dependency chain between two symbols | `from` (string), `to` (string) |
-| `kb_get_context` | Rich context of a file or function | `name` (string) |
-| `kb_graph_stats` | Health metrics (dead code, god objects, counts) | `includeDeadCode` (bool), `includeGodObjects` (bool), `godObjectThreshold` (number) |
-| `kb_find_path` | Shortest path between two entities | `from` (string), `to` (string) |
-| `kb_recent_changes` | Recently modified nodes | `since` (ISO date), `limit` (number) |
-| `kb_list_projects` | List all projects in the graph | none |
+| `nm_search` | Search for nodes by name, path or id | `query` (string), `limit` (number) |
+| `nm_impact` | Impact analysis of a symbol (APOC traversal) | `symbolId` (string), `depth` (number) |
+| `nm_dependency_trace` | Dependency chain between two symbols | `from` (string), `to` (string) |
+| `nm_get_context` | Rich context of a file or function | `name` (string) |
+| `nm_graph_stats` | Health metrics (dead code, god objects, counts) | `includeDeadCode` (bool), `includeGodObjects` (bool), `godObjectThreshold` (number) |
+| `nm_find_path` | Shortest path between two entities | `from` (string), `to` (string) |
+| `nm_recent_changes` | Recently modified nodes | `since` (ISO date), `limit` (number) |
+| `nm_list_projects` | List all projects in the graph | none |
 
 ### Multi-project isolation
 
