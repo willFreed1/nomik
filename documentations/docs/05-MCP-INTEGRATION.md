@@ -57,12 +57,12 @@ This automatically creates `.cursor/mcp.json` with the correct config. Otherwise
 |---|---|---|
 | `nm_search` | Search for nodes by name, type or pattern | "Find all API route handlers" |
 | `nm_impact` | Impact analysis: what breaks if we modify this symbol? | "What's the impact of changing `processPayment()`?" |
-| `nm_dependency_trace` | Complete dependency chain between two symbols | "Show me everything that depends on `UserService`" |
-| `nm_get_context` | Rich context for a file or function (calls, calledBy, imports, contains) | "Give me context for `auth.middleware.ts`" |
-| `nm_graph_stats` | Graph health metrics (dead code, god objects, counts) | "Are there any God Objects or dependency cycles?" |
-| `nm_find_path` | Shortest path between two code entities | "How does `LoginButton` connect to `users` DB table?" |
-| `nm_recent_changes` | Recently modified nodes | "What changed in the last hour?" |
-| `nm_list_projects` | List all projects in the graph | "What projects does NOMIK track?" |
+| `nm_trace` | Complete dependency chain between two symbols | "Show me everything that depends on `UserService`" |
+| `nm_context` | Rich context for a file or function (calls, calledBy, imports, contains) | "Give me context for `auth.middleware.ts`" |
+| `nm_health` | Graph health metrics (dead code, god objects, counts) | "Are there any God Objects or dependency cycles?" |
+| `nm_path` | Shortest path between two code entities | "How does `LoginButton` connect to `users` DB table?" |
+| `nm_changes` | Recently modified nodes | "What changed in the last hour?" |
+| `nm_projects` | List all projects in the graph | "What projects does NOMIK track?" |
 
 > **Note**: All queries are automatically filtered by `projectId` via the `NOMIK_PROJECT_ID` environment variable. This ensures isolation between projects.
 

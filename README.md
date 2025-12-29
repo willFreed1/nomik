@@ -36,12 +36,12 @@ Once connected, Cursor AI gets these tools automatically:
 |---|---|---|
 | `nm_search` | Find nodes by name/path | "Find all auth-related functions" |
 | `nm_impact` | Impact analysis | "What breaks if I change `parseFile`?" |
-| `kb_get_context` | Full context for a symbol | "Show me everything about `GraphService`" |
-| `kb_graph_stats` | Codebase health metrics | "Any dead code or god objects?" |
-| `kb_find_path` | Shortest path between symbols | "How does `scanCommand` connect to `neo4j`?" |
-| `kb_recent_changes` | Recently modified nodes | "What changed in the last hour?" |
-| `kb_dependency_trace` | Full dependency chain | "Show me the path from A to B" |
-| `kb_list_projects` | List all tracked projects | "What projects does NOMIK know about?" |
+| `nm_context` | Full context for a symbol | "Show me everything about `GraphService`" |
+| `nm_health` | Codebase health metrics | "Any dead code or god objects?" |
+| `nm_path` | Shortest path between symbols | "How does `scanCommand` connect to `neo4j`?" |
+| `nm_changes` | Recently modified nodes | "What changed in the last hour?" |
+| `nm_trace` | Full dependency chain | "Show me the path from A to B" |
+| `nm_projects` | List all tracked projects | "What projects does NOMIK know about?" |
 
 ## CLI Commands
 

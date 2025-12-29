@@ -72,19 +72,37 @@
 
 ## Non-MVP (Post-Launch Backlog)
 
-| Feature | Phase | Priority | Status |
-|---|---|---|---|
-| Python language support | Post-MVP | HIGH | **DONE** |
-| Rust language support | Post-MVP | HIGH | **DONE** |
-| Multi-project isolation (projectId) | Post-MVP | HIGH | **DONE** |
-| Go language support | Post-MVP | MEDIUM | Not started |
-| Cross-language edge resolution | Post-MVP | HIGH | Not started |
-| PR impact diff (GitHub integration) | Post-MVP | HIGH | Not started |
-| Graph time-travel (per-commit snapshots) | Post-MVP | MEDIUM | Not started |
-| Cross-project duplicate detection | Post-MVP | MEDIUM | Not started |
-| Multi-repo federated graph | Enterprise | HIGH | Not started |
-| RBAC + multi-tenancy | Enterprise | HIGH | Not started |
-| SSO (OIDC/SAML) | Enterprise | MEDIUM | Not started |
-| Cloud-hosted SaaS offering | Enterprise | HIGH | Not started |
-| Infra integration (K8s, Terraform) | Phase 2 Vision | MEDIUM | Not started |
-| Business logic linking (Jira/ADRs) | Phase 3 Vision | LOW | Not started |
+### Completed
+
+| Feature | Priority | Status |
+|---|---|---|
+| Python language support | HIGH | **DONE** |
+| Rust language support | HIGH | **DONE** |
+| Multi-project isolation (projectId) | HIGH | **DONE** |
+| Health score 100% (0 dead code, 0 god objects) | HIGH | **DONE** |
+| Rebrand GENOME → NOMIK | HIGH | **DONE** |
+
+### Planned Roadmap (Q1–Q3 2026)
+
+| Timeline | Feature | Priority | Status | Impact |
+|---|---|---|---|---|
+| **Q1 2026** | Database Tracking (SQL/Prisma/TypeORM) | 🔥 CRITICAL | **Planned** | Full-stack `UI→API→DB` visibility. Enterprise must-have |
+| **Q2 2026** | C# / .NET Language Support | HIGH | Not started | Opens Fortune 500 (banks, insurance, government) |
+| **Q2 2026** | Go Language Support | HIGH | Not started | Cloud/infra visibility (K8s operators, microservices) |
+| **Q2–Q3 2026** | PR Impact Analyzer | HIGH | Not started | Production safety, GitHub Actions integration |
+| **Q3–Q4 2026** | Logic Intent Parser | MEDIUM | Not started | Proprietary moat — business logic understanding |
+
+### Enterprise Backlog
+
+| Feature | Priority | Status |
+|---|---|---|
+| Cross-language edge resolution | HIGH | Not started |
+| Graph time-travel (per-commit snapshots) | MEDIUM | Not started |
+| Observability integration (OpenTelemetry) | HIGH | Not started |
+| Infrastructure tracking (Terraform/K8s) | MEDIUM | Not started |
+| Cross-project duplicate detection | MEDIUM | Not started |
+| Multi-repo federated graph | HIGH | Not started |
+| RBAC + multi-tenancy | HIGH | Not started |
+| SSO (OIDC/SAML) | MEDIUM | Not started |
+| Cloud-hosted SaaS offering | HIGH | Not started |
+| Business logic linking (Jira/ADRs) | MEDIUM | Not started |

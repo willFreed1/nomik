@@ -56,3 +56,74 @@ The **Code Fingerprint**: A self-healing, auto-populating mental model. If the A
 | Schema migration PR | Peak traffic detected | Data-integrity SLA | ⚠️ "Delay deploy 4h to avoid table locks" |
 | New high-memory dep | Server at 70% RAM | Cost-reduction Q4 target | ⚠️ "Exceeds hardware, contradicts budget" |
 | Remove legacy API | 2 workers still calling it | Built for Task-1234 in 2024 | ⚠️ "Removal breaks internal reporting" |
+
+## 6. Product Roadmap — Full-Stack Intelligence
+
+### Current State (v0.9 — Feb 2026)
+
+NOMIK already tracks **code → code** relationships across TypeScript, JavaScript, Python, Rust, and Markdown. The knowledge graph includes functions, classes, interfaces, imports, call chains, and file dependencies. Health score: **100% Healthy** (0 dead code, 0 god objects).
+
+### Phase 1 — Database Tracking (Q1 2026)
+
+**Goal**: Complete full-stack visibility: `UI → API → Function → DB Table → Column`.
+
+The #1 question every engineering team asks: *"What breaks if I change this database column?"* Without DB tracking, NOMIK can't answer it.
+
+| Feature | Detail |
+|---|---|
+| SQL migration parser | Parse `.sql`, Prisma schemas, TypeORM models, EF migrations |
+| `DBTable` / `DBColumn` nodes | New node types in the knowledge graph |
+| `QUERIES` edges | `Function → DBTable` when SQL queries are detected in code |
+| ORM detection | Prisma (`prisma.user.findMany()`), TypeORM (`@Entity()`), raw SQL |
+| `nm_db_impact` MCP tool | "Which functions query this table?" |
+| Viz integration | Database tables shown as distinct nodes in the dashboard |
+
+**Impact**: Unlocks "Which functions break if I change this database column?" — the enterprise must-have.
+
+### Phase 2 — Enterprise Language Support (Q2 2026)
+
+**Goal**: Open enterprise markets with .NET/C# and Go support.
+
+| Language | Why | Key Extractors |
+|---|---|---|
+| **C# / .NET** | 80% of enterprise codebases (banks, insurance, government) | Classes, methods, `async Task`, LINQ, DI patterns, `[ApiController]` routes |
+| **Go** | Cloud/infra dominance (K8s, microservices, CLI tools) | Functions, structs, interfaces, goroutines, channels, `http.HandleFunc` routes |
+
+**Impact**: Opens Fortune 500 companies. Most code analysis tools are weak on C#.
+
+### Phase 3 — PR Impact Analyzer (Q2–Q3 2026)
+
+**Goal**: Production safety — show risk *before* merge.
+
+| Feature | Detail |
+|---|---|
+| `nomik pr-impact <base>..<head>` | CLI command for PR risk assessment |
+| Git diff → graph traversal | Changed functions → affected nodes → risk rating |
+| GitHub Actions integration | Auto-comment on PRs with impact report (red/yellow/green) |
+| Risk scoring | "This PR changes 47 functions across 12 services" |
+
+**Impact**: The killer demo feature. "We prevented 3 prod incidents this month."
+
+### Phase 4 — Logic Intent Parser (Q3–Q4 2026)
+
+**Goal**: Proprietary moat — understand *business logic*, not just code structure.
+
+| Feature | Detail |
+|---|---|
+| Comment/docstring parsing | `# Business Rule: Only admins can delete users` |
+| `BusinessRule` nodes | Linked to functions, queryable via MCP |
+| Natural language queries | "What business rules affect the checkout flow?" |
+| ADR/Jira linking | Connect decisions to code that implements them |
+
+**Impact**: The 10x differentiator. Only possible after full-stack graph is built.
+
+### Beyond — The Living Blueprint
+
+| Feature | Phase | Priority |
+|---|---|---|
+| Observability integration (OpenTelemetry) | Q4 2026 | HIGH |
+| Infrastructure tracking (Terraform/K8s) | Q4 2026 | MEDIUM |
+| Multi-repo federated graph | Enterprise | HIGH |
+| RBAC + SSO (OIDC/SAML) | Enterprise | HIGH |
+| Cloud-hosted SaaS offering | Enterprise | HIGH |
+| Graph time-travel (per-commit snapshots) | Post-MVP | MEDIUM |

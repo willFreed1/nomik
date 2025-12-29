@@ -48,7 +48,7 @@ Persistence and query layer.
 
 ### 5. [MCP Server](./mcp-server/README.md) (`@nomik/mcp-server`)
 AI interface via Model Context Protocol.
-- **Tools** (8): `nm_search`, `nm_impact`, `nm_dependency_trace`, `nm_get_context`, `nm_graph_stats`, `nm_find_path`, `nm_recent_changes`, `nm_list_projects`.
+- **Tools** (8): `nm_search`, `nm_impact`, `nm_trace`, `nm_context`, `nm_health`, `nm_path`, `nm_changes`, `nm_projects`.
 - **Resources**: `nomik://stats`.
 - **Isolation**: Reads `NOMIK_PROJECT_ID` from the environment to scope all requests.
 

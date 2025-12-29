@@ -72,13 +72,14 @@ NOMIK already analyzes several languages via Tree-sitter:
 | Markdown | Custom parser (regex) | sections, headings | **Done** |
 | Go | `tree-sitter-go` | Not started | Backlog |
 
-### Future languages (Post-MVP)
+### Planned languages (Roadmap Q2 2026)
 
-| Phase | Language | Goal |
-|---|---|---|
-| Post-MVP | **Go** | Go language support in the parser |
-| Scale | **Native Rust** | High-performance parser for repos >1M lines |
-| Enterprise | **Java / C#** | Enterprise ecosystems |
+| Phase | Language | Goal | Status |
+|---|---|---|---|
+| **Q2 2026** | **C# / .NET** | Enterprise ecosystems (banks, government) | Planned |
+| **Q2 2026** | **Go** | Cloud/infra (K8s, microservices) | Planned |
+| Scale | **Java** | Enterprise JVM ecosystem | Backlog |
+| Scale | **Native Rust** | High-performance parser for repos >1M lines | Backlog |
 
 ### Runtime Requirements
 
