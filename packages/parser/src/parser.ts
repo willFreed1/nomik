@@ -1,8 +1,8 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import Parser from 'tree-sitter';
-import { type ClassNode, type FunctionNode, type GraphNode, type GraphEdge, type CallsEdge, type ExtendsEdge, type ImplementsEdge, ParseError, getLogger } from '@nomik/core';
-import type { FileNode } from '@nomik/core';
+import { type ClassNode, type FunctionNode, type GraphNode, type GraphEdge, type CallsEdge, type ExtendsEdge, type ImplementsEdge, type HandlesEdge, ParseError, getLogger } from '@nomik/core';
+import type { FileNode, RouteNode } from '@nomik/core';
 import { detectLanguage, grammars } from './languages/index';
 import { extractFunctions } from './extractors/functions';
 import { extractClasses } from './extractors/classes';
@@ -98,6 +98,7 @@ export function createParserEngine(): ParserEngine {
             routes = [];
             exports = [];
         } else {
+            // typescript, tsx, javascript — memes extracteurs (tsx utilise le grammar TSX de tree-sitter)
             functions = extractFunctions(tree, absolutePath);
             classes = extractClasses(tree, absolutePath);
             imports = extractImports(tree, absolutePath);
@@ -138,6 +139,12 @@ export function createParserEngine(): ParserEngine {
         // Edges IMPLEMENTS : Class → Interface (par nom)
         const implementsEdges = resolveImplementsEdges(classes, absolutePath);
 
+        // Edges HANDLES : Route → handler function (Express router.get('/path', handler))
+        const handlesEdges = resolveRouteHandlesEdges(routes, localFuncMap);
+
+        // Edges framework : File → Function pour les entry points Next.js, Nuxt, etc.
+        const frameworkEdges = resolveFrameworkEntryEdges(fileNode, functions);
+
         const edges: GraphEdge[] = [
             ...containsEdges,
             ...importEdges,
@@ -145,6 +152,8 @@ export function createParserEngine(): ParserEngine {
             ...fileCallEdges,
             ...extendsEdges,
             ...implementsEdges,
+            ...handlesEdges,
+            ...frameworkEdges,
         ];
 
         logger.debug({ filePath: absolutePath, nodes: nodes.length, edges: edges.length }, 'parsed file');
@@ -184,12 +193,22 @@ export function createParserEngine(): ParserEngine {
             }
         }
 
-        // Resolution DEPENDS_ON : File → File via imports relatifs
+        // Resolution des aliases de chemin (tsconfig.json paths: { "@/*": ["./src/*"] })
+        // Supporte les monorepos avec plusieurs tsconfig (web-app/, backend/, etc.)
+        const allAliasConfigs = findAllPathAliases(filePaths);
+
+        // Resolution DEPENDS_ON : File → File via imports relatifs ET aliases
         let dependsOnCount = 0;
         for (const r of results) {
             for (const imp of r.imports) {
-                if (!imp.source.startsWith('.')) continue;
-                const resolved = resolveImportPath(r.file.path, imp.source, filePathToId);
+                let resolved: string | null = null;
+
+                if (imp.source.startsWith('.')) {
+                    resolved = resolveImportPath(r.file.path, imp.source, filePathToId);
+                } else if (allAliasConfigs.length > 0) {
+                    resolved = resolveAliasImportMulti(imp.source, r.file.path, allAliasConfigs, filePathToId);
+                }
+
                 if (resolved) {
                     const edgeId = `${r.file.id}->depends_on->${resolved}`;
                     const exists = r.edges.some(e => e.id === edgeId);
@@ -199,7 +218,7 @@ export function createParserEngine(): ParserEngine {
                             type: 'DEPENDS_ON' as const,
                             sourceId: r.file.id,
                             targetId: resolved,
-                            confidence: 1.0,
+                            confidence: imp.source.startsWith('.') ? 1.0 : 0.9,
                             kind: 'import' as const,
                         });
                         dependsOnCount++;
@@ -253,6 +272,15 @@ export function createParserEngine(): ParserEngine {
                             crossFileExtendsCount++;
                         }
                     }
+                }
+            }
+
+            // HANDLES cross-fichier : Route → Function handler dans un autre fichier
+            const crossHandlesEdges = resolveCrossFileHandlesEdges(r.nodes, localIds, globalFuncMultiMap);
+            for (const edge of crossHandlesEdges) {
+                if (!existingEdgeIds.has(edge.id)) {
+                    r.edges.push(edge);
+                    existingEdgeIds.add(edge.id);
                 }
             }
         }
@@ -459,6 +487,83 @@ function resolveImplementsEdges(
     return edges;
 }
 
+/** Resolution des edges HANDLES : Route → handler function (intra-fichier)
+ *  Cree un lien semantique entre un noeud Route et la fonction qui le gere
+ *  Gere les handlers locaux et les member_expression (controller.method)
+ */
+function resolveRouteHandlesEdges(
+    routes: GraphNode[],
+    funcMap: Map<string, string>,
+): HandlesEdge[] {
+    const edges: HandlesEdge[] = [];
+    for (const node of routes) {
+        if (node.type !== 'route') continue;
+        const route = node as RouteNode;
+        if (!route.handlerName || route.handlerName === 'anonymous') continue;
+
+        const methodName = extractHandlerMethodName(route.handlerName);
+        const targetId = funcMap.get(methodName);
+        if (targetId) {
+            edges.push({
+                id: `${route.id}->handles->${targetId}`,
+                type: 'HANDLES' as const,
+                sourceId: route.id,
+                targetId,
+                confidence: 0.9,
+                middleware: route.middleware ?? [],
+            });
+        }
+    }
+    return edges;
+}
+
+/** Resolution des edges HANDLES cross-fichier : Route → Function dans un autre fichier
+ *  Cas typique : attributeRoutes.ts contient router.get('/sets', attributeController.getAllSets)
+ *  mais getAllSets est defini dans attributeController.ts
+ */
+function resolveCrossFileHandlesEdges(
+    nodes: GraphNode[],
+    localIds: Set<string>,
+    multiMap: Map<string, string[]>,
+): HandlesEdge[] {
+    const edges: HandlesEdge[] = [];
+    const seen = new Set<string>();
+
+    for (const node of nodes) {
+        if (node.type !== 'route') continue;
+        const route = node as RouteNode;
+        if (!route.handlerName || route.handlerName === 'anonymous') continue;
+
+        const methodName = extractHandlerMethodName(route.handlerName);
+        const candidateIds = multiMap.get(methodName) ?? [];
+
+        // Only target functions in OTHER files (cross-file)
+        const remoteIds = candidateIds.filter((id) => !localIds.has(id));
+        for (const targetId of remoteIds) {
+            const key = `${route.id}->${targetId}`;
+            if (seen.has(key)) continue;
+            seen.add(key);
+
+            edges.push({
+                id: `${route.id}->handles->${targetId}`,
+                type: 'HANDLES' as const,
+                sourceId: route.id,
+                targetId,
+                confidence: 0.85,
+                middleware: route.middleware ?? [],
+            });
+        }
+    }
+    return edges;
+}
+
+/** Extrait le nom de methode depuis un handlerName (supporte "controller.method" et "method") */
+function extractHandlerMethodName(handlerName: string): string {
+    return handlerName.includes('.')
+        ? handlerName.split('.').pop()!
+        : handlerName;
+}
+
 /** Resolution d'un import relatif vers l'id du fichier cible
  *  Gere le remapping ESM .js → .ts et les extensions Python/Rust
  */
@@ -506,4 +611,184 @@ function resolveImportPath(
         if (id) return id;
     }
     return null;
+}
+
+// ────────────────────────────────────────────────────────────────────────
+// Path Alias Resolution (tsconfig.json / jsconfig.json)
+// ────────────────────────────────────────────────────────────────────────
+
+interface PathAliasConfig {
+    configDir: string; // directory containing the tsconfig
+    baseDir: string;   // resolved baseUrl
+    aliases: Map<string, string>; // prefix → resolved target directory
+}
+
+/** Parse un fichier tsconfig.json/jsconfig.json et extrait les path aliases */
+function parseTsConfigFile(configPath: string): PathAliasConfig | null {
+    try {
+        const content = fs.readFileSync(configPath, 'utf-8');
+        // tsconfig supporte JSONC (commentaires) — on les retire
+        const cleaned = content
+            .replace(/\/\/.*$/gm, '')
+            .replace(/\/\*[\s\S]*?\*\//g, '')
+            .replace(/,\s*([\]}])/g, '$1'); // trailing commas
+        const config = JSON.parse(cleaned);
+
+        const compilerOptions = config.compilerOptions ?? {};
+        const baseUrl = compilerOptions.baseUrl ?? '.';
+        const paths: Record<string, string[]> = compilerOptions.paths ?? {};
+
+        const configDir = path.dirname(configPath);
+        const baseDir = path.resolve(configDir, baseUrl);
+        const aliases = new Map<string, string>();
+
+        for (const [pattern, targets] of Object.entries(paths)) {
+            if (!Array.isArray(targets) || targets.length === 0) continue;
+            // "@/*" → prefix "@/", target "./src/*" → "<baseDir>/src/"
+            const prefix = pattern.replace(/\*$/, '');
+            const target = (targets[0] as string).replace(/\*$/, '');
+            aliases.set(prefix, path.resolve(baseDir, target));
+        }
+
+        if (aliases.size === 0) return null;
+
+        getLogger().debug({ configPath, aliases: Object.fromEntries(aliases) }, 'path aliases detected');
+        return { configDir: path.resolve(configDir), baseDir, aliases };
+    } catch {
+        return null;
+    }
+}
+
+/** Decouvre TOUS les tsconfig.json/jsconfig.json dans l'arborescence des fichiers scannes
+ *  Supporte les monorepos : web-app/tsconfig.json, backend/tsconfig.json, etc.
+ *  Retourne les configs triees par profondeur (le plus profond en premier)
+ *  pour que la resolution nearest-match fonctionne correctement.
+ */
+function findAllPathAliases(filePaths: string[]): PathAliasConfig[] {
+    const configs: PathAliasConfig[] = [];
+    const checkedDirs = new Set<string>();
+    const configNames = ['tsconfig.json', 'jsconfig.json'];
+
+    // Parcourir chaque fichier et remonter son arborescence
+    for (const fp of filePaths) {
+        let dir = path.dirname(fp);
+        while (dir !== path.dirname(dir)) {
+            if (checkedDirs.has(dir)) break; // Deja verifie ce repertoire et ses parents
+            checkedDirs.add(dir);
+
+            for (const name of configNames) {
+                const configPath = path.join(dir, name);
+                if (fs.existsSync(configPath)) {
+                    const config = parseTsConfigFile(configPath);
+                    if (config) configs.push(config);
+                    break; // Un seul config par repertoire
+                }
+            }
+
+            dir = path.dirname(dir);
+        }
+    }
+
+    // Trier par profondeur decroissante (le plus profond en premier)
+    // pour que nearest-match fonctionne : web-app/tsconfig.json avant ./tsconfig.json
+    configs.sort((a, b) => b.configDir.length - a.configDir.length);
+    return configs;
+}
+
+/** Resout un import avec alias en cherchant le tsconfig le plus proche du fichier importeur
+ *  Monorepo-safe : chaque sous-projet peut avoir ses propres aliases
+ */
+function resolveAliasImportMulti(
+    importSource: string,
+    importerPath: string,
+    configs: PathAliasConfig[],
+    filePathToId: Map<string, string>,
+): string | null {
+    const importerDir = path.resolve(path.dirname(importerPath));
+
+    // Trouver le tsconfig le plus proche (deepest-first grace au tri)
+    for (const config of configs) {
+        if (!importerDir.startsWith(config.configDir)) continue;
+
+        // Essayer chaque alias de ce config
+        for (const [prefix, targetDir] of config.aliases) {
+            if (!importSource.startsWith(prefix)) continue;
+            const rest = importSource.slice(prefix.length);
+            const base = path.join(targetDir, rest);
+
+            const candidates = [
+                base + '.ts',
+                base + '.tsx',
+                base + '.js',
+                base + '.jsx',
+                base + '/index.ts',
+                base + '/index.tsx',
+                base + '/index.js',
+                base,
+            ];
+
+            for (const candidate of candidates) {
+                const normalized = path.resolve(candidate);
+                const id = filePathToId.get(normalized);
+                if (id) return id;
+            }
+        }
+    }
+    return null;
+}
+
+// ────────────────────────────────────────────────────────────────────────
+// Framework Entry Point Detection (Next.js, Nuxt, etc.)
+// ────────────────────────────────────────────────────────────────────────
+
+/** Framework entry point patterns — fonctions automatiquement invoquees par le framework */
+const FRAMEWORK_ENTRY_PATTERNS: Array<{
+    filePattern: RegExp;
+    functionNames: string[];
+}> = [
+    // Next.js middleware (src/middleware.ts or middleware.ts)
+    { filePattern: /[\\/]middleware\.(ts|js|tsx|jsx)$/, functionNames: ['middleware'] },
+    // Next.js API routes (app/**/route.ts — GET, POST, PUT, DELETE, PATCH exports)
+    { filePattern: /[\\/]route\.(ts|js|tsx|jsx)$/, functionNames: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'HEAD', 'OPTIONS'] },
+    // Next.js page components (app/**/page.tsx — default export)
+    { filePattern: /[\\/]page\.(ts|js|tsx|jsx)$/, functionNames: ['default', 'Page'] },
+    // Next.js layout components (app/**/layout.tsx)
+    { filePattern: /[\\/]layout\.(ts|js|tsx|jsx)$/, functionNames: ['default', 'Layout', 'RootLayout'] },
+    // Next.js loading/error/not-found
+    { filePattern: /[\\/](loading|error|not-found|global-error)\.(ts|js|tsx|jsx)$/, functionNames: ['default'] },
+    // next.config.js lifecycle hooks
+    { filePattern: /[\\/]next\.config\.(js|mjs|ts)$/, functionNames: ['rewrites', 'redirects', 'headers'] },
+    // Nuxt plugins/middleware
+    { filePattern: /[\\/]plugins[\\/]/, functionNames: ['default'] },
+    // Express/Fastify main app entry
+    { filePattern: /[\\/](app|server|index)\.(ts|js)$/, functionNames: ['default', 'app', 'server'] },
+];
+
+/** Cree des edges File → CALLS → Function pour les fonctions auto-invoquees par le framework
+ *  Empeche les entry points framework d'etre flag dead code
+ */
+function resolveFrameworkEntryEdges(
+    fileNode: { id: string; path: string },
+    functions: { id: string; name: string }[],
+): CallsEdge[] {
+    const edges: CallsEdge[] = [];
+
+    for (const pattern of FRAMEWORK_ENTRY_PATTERNS) {
+        if (!pattern.filePattern.test(fileNode.path)) continue;
+
+        for (const fn of functions) {
+            if (pattern.functionNames.includes(fn.name)) {
+                edges.push({
+                    id: `${fileNode.id}->framework->${fn.id}`,
+                    type: 'CALLS' as const,
+                    sourceId: fileNode.id,
+                    targetId: fn.id,
+                    confidence: 0.95,
+                    line: 0,
+                });
+            }
+        }
+    }
+
+    return edges;
 }

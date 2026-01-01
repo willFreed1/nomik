@@ -33,14 +33,36 @@ function isFunctionLike(node: Parser.SyntaxNode): boolean {
         'generator_function_declaration',
     ].includes(node.type)) return false;
 
-    // Exclure les arrow functions triviales dans les proprietes d'objets (callbacks config)
-    // Ex: { nodeRepulsion: (_node) => 12000 } — pas une fonction independante
+    // Exclude trivial arrow functions in object properties (config callbacks)
+    // Example: { nodeRepulsion: (_node) => 12000 } — not an independent function symbol
     if (node.type === 'arrow_function' && node.parent?.type === 'pair') {
         const body = node.childForFieldName('body');
         if (body && body.type !== 'statement_block') return false;
     }
 
+    // Exclude nested local handlers inside returned/inline objects
+    // (example: return { mouseover() {} }) to avoid dead-code false positives.
+    // Keep object methods only when the object literal is module-scope.
+    if (node.type === 'method_definition' && node.parent?.type === 'object') {
+        if (!isModuleScopeObjectLiteral(node.parent)) return false;
+    }
+    if ((node.type === 'arrow_function' || node.type === 'function') && node.parent?.type === 'pair') {
+        if (!isModuleScopeObjectLiteral(node.parent.parent)) return false;
+    }
+
     return true;
+}
+
+function isModuleScopeObjectLiteral(node: Parser.SyntaxNode | null | undefined): boolean {
+    if (!node || node.type !== 'object') return false;
+    const declarator = node.parent;
+    if (!declarator || declarator.type !== 'variable_declarator') return false;
+    const declaration = declarator.parent;
+    if (!declaration) return false;
+    if (declaration.type !== 'lexical_declaration' && declaration.type !== 'variable_declaration') return false;
+    const container = declaration.parent;
+    if (!container) return false;
+    return container.type === 'program' || container.type === 'export_statement';
 }
 
 function buildFunctionNode(node: Parser.SyntaxNode, filePath: string): FunctionNode | null {

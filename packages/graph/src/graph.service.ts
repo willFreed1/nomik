@@ -2,7 +2,7 @@ import { type GraphConfig, getLogger } from '@nomik/core';
 import type { GraphNode, GraphEdge, ProjectNode } from '@nomik/core';
 import { createNeo4jDriver } from './drivers/neo4j.driver.js';
 import type { GraphDriver } from './drivers/driver.interface.js';
-import { upsertNodes, createEdges, clearFileData, upsertProject, deleteProjectData, listProjects, getProject } from './queries/write.js';
+import { upsertNodes, createEdges, clearFileData, purgeStaleFiles, upsertProject, deleteProjectData, listProjects, getProject } from './queries/write.js';
 import { impactAnalysis, findDeadCode, findGodObjects, graphStats, findDependencyChain, findDetailedPath, recentChanges } from './queries/read.js';
 import { initializeSchema } from './schema/init.js';
 import { QueryCache } from './cache.js';
@@ -79,6 +79,11 @@ export function createGraphService(config: GraphConfig): GraphService {
         },
 
         async ingestBatch(results, projectId: string) {
+            // Phase 0 : Purger les fichiers obsoletes (exclus, supprimes, renommes)
+            const currentPaths = results.map(r => r.file.path);
+            await purgeStaleFiles(driver, currentPaths, projectId);
+            logger.debug({ projectId }, 'purged stale files from previous scans');
+
             // Phase 1 : Supprimer les anciennes donnees de TOUS les fichiers d'abord
             for (const r of results) {
                 await clearFileData(driver, r.file.path, projectId);

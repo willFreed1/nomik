@@ -17,7 +17,13 @@ export const scanCommand = new Command('scan')
             target: {
                 root: targetPath,
                 include: ['**/*.ts', '**/*.tsx', '**/*.js', '**/*.jsx', '**/*.md', '**/*.py', '**/*.rs'],
-                exclude: ['**/node_modules/**', '**/dist/**', '**/*.test.*', '**/*.d.ts', '**/__pycache__/**', '**/target/**', '**/.venv/**', '**/venv/**'],
+                exclude: [
+                    '**/node_modules/**', '**/dist/**', '**/build/**', '**/out/**',
+                    '**/.next/**', '**/.nuxt/**', '**/.svelte-kit/**', '**/coverage/**',
+                    '**/public/**', '**/*.test.*', '**/*.spec.*', '**/*.d.ts',
+                    '**/__pycache__/**', '**/target/**', '**/.venv/**', '**/venv/**',
+                    '**/*.min.js', '**/*.min.css', '**/*.bundle.js',
+                ],
             },
         });
 

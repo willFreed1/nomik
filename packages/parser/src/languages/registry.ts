@@ -1,10 +1,10 @@
 import path from 'node:path';
 
-export type SupportedLanguage = 'typescript' | 'javascript' | 'markdown' | 'python' | 'rust';
+export type SupportedLanguage = 'typescript' | 'tsx' | 'javascript' | 'markdown' | 'python' | 'rust';
 
 const extensionMap: Record<string, SupportedLanguage> = {
     '.ts': 'typescript',
-    '.tsx': 'typescript',
+    '.tsx': 'tsx',
     '.js': 'javascript',
     '.jsx': 'javascript',
     '.mjs': 'javascript',

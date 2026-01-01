@@ -56,6 +56,30 @@ export async function clearFileData(driver: GraphDriver, filePath: string, proje
     );
 }
 
+/** Purge les noeuds obsoletes d'un projet : fichiers qui ne sont plus dans le scan courant
+ *  Typiquement : fichiers exclus (public/, .min.js), fichiers supprimes, fichiers renommes
+ */
+export async function purgeStaleFiles(
+    driver: GraphDriver,
+    currentFilePaths: string[],
+    projectId: string,
+): Promise<void> {
+    // D'abord supprimer les noeuds CONTENUS par les fichiers obsoletes
+    await driver.runWrite(
+        `MATCH (f:File {projectId: $projectId})-[:CONTAINS]->(n)
+         WHERE NOT f.path IN $currentPaths
+         DETACH DELETE n`,
+        { currentPaths: currentFilePaths, projectId },
+    );
+    // Puis les File nodes eux-memes
+    await driver.runWrite(
+        `MATCH (f:File {projectId: $projectId})
+         WHERE NOT f.path IN $currentPaths
+         DETACH DELETE f`,
+        { currentPaths: currentFilePaths, projectId },
+    );
+}
+
 /** Cree ou met a jour un noeud Project */
 export async function upsertProject(driver: GraphDriver, project: ProjectNode): Promise<void> {
     await driver.runWrite(

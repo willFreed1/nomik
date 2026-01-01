@@ -9,10 +9,13 @@ export interface CallInfo {
     isConstructor: boolean;
 }
 
-/** Extrait les appels de fonctions depuis l'AST — inclut obj.method() et references config */
+/** Extract function calls from the AST — includes obj.method() and config references */
 export function extractCalls(tree: Parser.Tree, _filePath: string): CallInfo[] {
     const results: CallInfo[] = [];
     const seen = new Set<string>();
+    // Callback aliases stored in arrays:
+    // const middleware = [fnA, fnB] then app.use(middleware)
+    const arrayCallbackRefs = new Map<string, string[]>();
 
     function push(call: CallInfo): void {
         const key = `${call.callerName}->${call.calleeName}`;
@@ -25,27 +28,58 @@ export function extractCalls(tree: Parser.Tree, _filePath: string): CallInfo[] {
     function visit(node: Parser.SyntaxNode, currentFunction: string | null): void {
         let funcName = currentFunction;
 
-        if (isFunctionLike(node)) {
+        if (isFunctionLike(node) && isTrackedFunctionScope(node)) {
             const name = resolveFuncName(node);
             if (name) funcName = name;
         }
 
-        // Appels de fonctions : fn() et obj.method()
+        // Track callback aliases declared as arrays
+        // Example: const sanitizeInputs = [sanitizeQueryParams, sanitizeBodyParams]
+        if (node.type === 'variable_declarator') {
+            const nameNode = node.childForFieldName('name');
+            const valueNode = node.childForFieldName('value');
+            if (nameNode?.type === 'identifier' && valueNode?.type === 'array') {
+                const refs: string[] = [];
+                for (const item of valueNode.namedChildren) {
+                    if (item.type === 'identifier' && !NOISE.has(item.text)) {
+                        refs.push(item.text);
+                        continue;
+                    }
+                    if (item.type === 'member_expression') {
+                        const property = item.childForFieldName('property');
+                        const obj = item.childForFieldName('object');
+                        const objName = obj?.type === 'identifier' ? obj.text : null;
+                        if (
+                            property &&
+                            !NOISE.has(property.text) &&
+                            (!objName || (!NOISE.has(objName) && !OBJ_NOISE.has(objName)))
+                        ) {
+                            refs.push(property.text);
+                        }
+                    }
+                }
+                if (refs.length > 0) {
+                    arrayCallbackRefs.set(nameNode.text, refs);
+                }
+            }
+        }
+
+        // Function calls: fn() and obj.method()
         if (node.type === 'call_expression') {
             const caller = funcName ?? '__file__';
             const call = buildCallInfo(node, caller, false);
             if (call) push(call);
         }
 
-        // Constructeurs : new Class()
+        // Constructor calls: new Class()
         if (node.type === 'new_expression') {
             const caller = funcName ?? '__file__';
             const call = buildCallInfo(node, caller, true);
             if (call) push(call);
         }
 
-        // References de fonctions dans les proprietes d'objets
-        // { someFunction } (shorthand) ou { key: someFunction } (identifiant comme valeur)
+        // Function references in object properties:
+        // { someFunction } (shorthand) or { key: someFunction } (identifier as value)
         if (node.type === 'shorthand_property_identifier') {
             const name = node.text;
             if (name && !NOISE.has(name)) {
@@ -76,7 +110,8 @@ export function extractCalls(tree: Parser.Tree, _filePath: string): CallInfo[] {
             }
         }
 
-        // References de fonctions passees en argument : fn(callback), arr.map(handler)
+        // Function references passed as arguments: fn(callback), arr.map(handler)
+        // Includes member_expression: router.get('/path', controller.method)
         if (node.type === 'arguments') {
             for (const arg of node.namedChildren) {
                 if (arg.type === 'identifier' && !NOISE.has(arg.text)) {
@@ -89,6 +124,40 @@ export function extractCalls(tree: Parser.Tree, _filePath: string): CallInfo[] {
                         isMethodCall: false,
                         isConstructor: false,
                     });
+                    // Resolve array aliases: app.use(sanitizeInputs) => sanitizeQueryParams/sanitizeBodyParams
+                    const aliasedCallbacks = arrayCallbackRefs.get(arg.text);
+                    if (aliasedCallbacks) {
+                        for (const cbName of aliasedCallbacks) {
+                            push({
+                                callerName: caller,
+                                calleeName: cbName,
+                                line: arg.startPosition.row + 1,
+                                column: arg.startPosition.column,
+                                isMethodCall: false,
+                                isConstructor: false,
+                            });
+                        }
+                    }
+                }
+                // member_expression as callback: controller.method, service.handler
+                // e.g. router.get('/path', attributeController.getAllSets)
+                if (arg.type === 'member_expression') {
+                    const property = arg.childForFieldName('property');
+                    const obj = arg.childForFieldName('object');
+                    if (property && !NOISE.has(property.text)) {
+                        const objName = obj?.type === 'identifier' ? obj.text : null;
+                        if (!objName || (!NOISE.has(objName) && !OBJ_NOISE.has(objName))) {
+                            const caller = funcName ?? '__file__';
+                            push({
+                                callerName: caller,
+                                calleeName: property.text,
+                                line: arg.startPosition.row + 1,
+                                column: arg.startPosition.column,
+                                isMethodCall: true,
+                                isConstructor: false,
+                            });
+                        }
+                    }
                 }
             }
         }
@@ -102,7 +171,7 @@ export function extractCalls(tree: Parser.Tree, _filePath: string): CallInfo[] {
     return results;
 }
 
-/** Noms ignores : builtins, stdlib, constructeurs standard */
+/** Ignored names: builtins, stdlib, common constructors */
 const NOISE = new Set([
     'require', 'import', 'console', 'JSON', 'Object', 'Array', 'Map', 'Set',
     'Promise', 'setTimeout', 'setInterval', 'clearTimeout', 'clearInterval',
@@ -112,7 +181,7 @@ const NOISE = new Set([
     'isNaN', 'isFinite', 'eval', 'fetch', 'alert', 'confirm', 'prompt',
 ]);
 
-/** Objets stdlib node/browser — filtrage pour obj.method() */
+/** Node/browser stdlib objects — filter noisy obj.method() calls */
 const OBJ_NOISE = new Set([
     'console', 'JSON', 'Object', 'Array', 'Map', 'Set', 'Promise', 'Math',
     'Date', 'RegExp', 'Error', 'Buffer', 'Proxy', 'Reflect',
@@ -130,6 +199,32 @@ function isFunctionLike(node: Parser.SyntaxNode): boolean {
         'function',
         'generator_function_declaration',
     ].includes(node.type);
+}
+
+function isTrackedFunctionScope(node: Parser.SyntaxNode): boolean {
+    // Keep function-scope tracking aligned with the function extractor
+    // to avoid callerName values that cannot be resolved to real symbols.
+    if (node.type === 'method_definition' && node.parent?.type === 'object') {
+        if (!isModuleScopeObjectLiteral(node.parent)) return false;
+    }
+    if ((node.type === 'arrow_function' || node.type === 'function') && node.parent?.type === 'pair') {
+        const body = node.childForFieldName('body');
+        if (node.type === 'arrow_function' && body && body.type !== 'statement_block') return false;
+        if (!isModuleScopeObjectLiteral(node.parent.parent)) return false;
+    }
+    return true;
+}
+
+function isModuleScopeObjectLiteral(node: Parser.SyntaxNode | null | undefined): boolean {
+    if (!node || node.type !== 'object') return false;
+    const declarator = node.parent;
+    if (!declarator || declarator.type !== 'variable_declarator') return false;
+    const declaration = declarator.parent;
+    if (!declaration) return false;
+    if (declaration.type !== 'lexical_declaration' && declaration.type !== 'variable_declaration') return false;
+    const container = declaration.parent;
+    if (!container) return false;
+    return container.type === 'program' || container.type === 'export_statement';
 }
 
 function resolveFuncName(node: Parser.SyntaxNode): string | null {
@@ -163,7 +258,7 @@ function buildCallInfo(node: Parser.SyntaxNode, callerName: string, isNew: boole
         if (!property) return null;
         calleeName = property.text;
         isMethodCall = true;
-        // Filtrer les appels stdlib : console.log, path.resolve, fs.readFileSync, etc.
+        // Filter stdlib calls: console.log, path.resolve, fs.readFileSync, etc.
         if (obj) {
             const objName = obj.type === 'identifier' ? obj.text : null;
             if (objName && (NOISE.has(objName) || OBJ_NOISE.has(objName))) return null;

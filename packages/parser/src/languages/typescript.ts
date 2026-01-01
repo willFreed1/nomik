@@ -8,10 +8,19 @@ export interface LanguageGrammar {
 
 const typescriptGrammar: LanguageGrammar = {
     language: 'typescript',
-    extensions: ['.ts', '.tsx'],
+    extensions: ['.ts'],
     async load() {
         const { default: TypeScript } = await import('tree-sitter-typescript');
         return TypeScript.typescript;
+    },
+};
+
+const tsxGrammar: LanguageGrammar = {
+    language: 'tsx',
+    extensions: ['.tsx'],
+    async load() {
+        const { default: TypeScript } = await import('tree-sitter-typescript');
+        return TypeScript.tsx;
     },
 };
 
@@ -45,6 +54,7 @@ const rustGrammar: LanguageGrammar = {
 /** Grammaires tree-sitter par langage (markdown n'utilise pas tree-sitter) */
 export const grammars: Partial<Record<SupportedLanguage, LanguageGrammar>> = {
     typescript: typescriptGrammar,
+    tsx: tsxGrammar,
     javascript: javascriptGrammar,
     python: pythonGrammar,
     rust: rustGrammar,
