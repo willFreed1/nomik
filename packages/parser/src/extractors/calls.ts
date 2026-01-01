@@ -9,13 +9,15 @@ export interface CallInfo {
     isConstructor: boolean;
 }
 
+export type ArrayCallbackAliases = Map<string, string[]>;
+
 /** Extract function calls from the AST — includes obj.method() and config references */
 export function extractCalls(tree: Parser.Tree, _filePath: string): CallInfo[] {
     const results: CallInfo[] = [];
     const seen = new Set<string>();
     // Callback aliases stored in arrays:
     // const middleware = [fnA, fnB] then app.use(middleware)
-    const arrayCallbackRefs = new Map<string, string[]>();
+    const arrayCallbackRefs = extractArrayCallbackAliases(tree);
 
     function push(call: CallInfo): void {
         const key = `${call.callerName}->${call.calleeName}`;
@@ -31,37 +33,6 @@ export function extractCalls(tree: Parser.Tree, _filePath: string): CallInfo[] {
         if (isFunctionLike(node) && isTrackedFunctionScope(node)) {
             const name = resolveFuncName(node);
             if (name) funcName = name;
-        }
-
-        // Track callback aliases declared as arrays
-        // Example: const sanitizeInputs = [sanitizeQueryParams, sanitizeBodyParams]
-        if (node.type === 'variable_declarator') {
-            const nameNode = node.childForFieldName('name');
-            const valueNode = node.childForFieldName('value');
-            if (nameNode?.type === 'identifier' && valueNode?.type === 'array') {
-                const refs: string[] = [];
-                for (const item of valueNode.namedChildren) {
-                    if (item.type === 'identifier' && !NOISE.has(item.text)) {
-                        refs.push(item.text);
-                        continue;
-                    }
-                    if (item.type === 'member_expression') {
-                        const property = item.childForFieldName('property');
-                        const obj = item.childForFieldName('object');
-                        const objName = obj?.type === 'identifier' ? obj.text : null;
-                        if (
-                            property &&
-                            !NOISE.has(property.text) &&
-                            (!objName || (!NOISE.has(objName) && !OBJ_NOISE.has(objName)))
-                        ) {
-                            refs.push(property.text);
-                        }
-                    }
-                }
-                if (refs.length > 0) {
-                    arrayCallbackRefs.set(nameNode.text, refs);
-                }
-            }
         }
 
         // Function calls: fn() and obj.method()
@@ -169,6 +140,48 @@ export function extractCalls(tree: Parser.Tree, _filePath: string): CallInfo[] {
 
     visit(tree.rootNode, null);
     return results;
+}
+
+/** Extract callback aliases declared as arrays.
+ * Example: const sanitizeInputs = [sanitizeQueryParams, sanitizeBodyParams]
+ */
+export function extractArrayCallbackAliases(tree: Parser.Tree): ArrayCallbackAliases {
+    const aliases: ArrayCallbackAliases = new Map();
+
+    function visit(node: Parser.SyntaxNode): void {
+        if (node.type === 'variable_declarator') {
+            const nameNode = node.childForFieldName('name');
+            const valueNode = node.childForFieldName('value');
+            if (nameNode?.type === 'identifier' && valueNode?.type === 'array') {
+                const refs: string[] = [];
+                for (const item of valueNode.namedChildren) {
+                    if (item.type === 'identifier' && !NOISE.has(item.text)) {
+                        refs.push(item.text);
+                        continue;
+                    }
+                    if (item.type === 'member_expression') {
+                        const property = item.childForFieldName('property');
+                        const obj = item.childForFieldName('object');
+                        const objName = obj?.type === 'identifier' ? obj.text : null;
+                        if (
+                            property &&
+                            !NOISE.has(property.text) &&
+                            (!objName || (!NOISE.has(objName) && !OBJ_NOISE.has(objName)))
+                        ) {
+                            refs.push(property.text);
+                        }
+                    }
+                }
+                if (refs.length > 0) aliases.set(nameNode.text, refs);
+            }
+        }
+        for (const child of node.namedChildren) {
+            visit(child);
+        }
+    }
+
+    visit(tree.rootNode);
+    return aliases;
 }
 
 /** Ignored names: builtins, stdlib, common constructors */

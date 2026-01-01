@@ -167,15 +167,15 @@ export async function handleCallTool(graph: GraphService, name: string, args: an
                  WHERE (n.name = $target OR n.path CONTAINS $target) ${projectFilter}
                  WITH n LIMIT 1
                  OPTIONAL MATCH (n)-[:CONTAINS]->(child)
-                 WITH n, collect(DISTINCT {name: COALESCE(child.name, child.path), type: labels(child)[0]}) as children
-                 OPTIONAL MATCH (n)-[:CALLS]->(callee)
-                 WITH n, children, collect(DISTINCT {name: callee.name, file: callee.filePath}) as callees
-                 OPTIONAL MATCH (caller)-[:CALLS]->(n)
-                 WITH n, children, callees, collect(DISTINCT {name: caller.name, file: caller.filePath}) as callers
-                 OPTIONAL MATCH (n)-[:IMPORTS]->(imp)
-                 WITH n, children, callees, callers, collect(DISTINCT {name: COALESCE(imp.name, imp.path)}) as imports
+                 WITH n, [x IN collect(DISTINCT CASE WHEN child IS NULL THEN NULL ELSE {name: COALESCE(child.name, child.path), type: labels(child)[0]} END) WHERE x IS NOT NULL] as children
+                 OPTIONAL MATCH (n)-[:CALLS|HANDLES]->(callee)
+                 WITH n, children, [x IN collect(DISTINCT CASE WHEN callee IS NULL THEN NULL ELSE {name: COALESCE(callee.name, callee.path), file: COALESCE(callee.filePath, callee.path)} END) WHERE x IS NOT NULL] as callees
+                 OPTIONAL MATCH (caller)-[:CALLS|HANDLES]->(n)
+                 WITH n, children, callees, [x IN collect(DISTINCT CASE WHEN caller IS NULL THEN NULL ELSE {name: COALESCE(caller.name, caller.path), file: COALESCE(caller.filePath, caller.path)} END) WHERE x IS NOT NULL] as callers
+                 OPTIONAL MATCH (n)-[:DEPENDS_ON|IMPORTS]->(imp)
+                 WITH n, children, callees, callers, [x IN collect(DISTINCT CASE WHEN imp IS NULL THEN NULL ELSE {name: COALESCE(imp.name, imp.path)} END) WHERE x IS NOT NULL] as imports
                  OPTIONAL MATCH (n)-[:EXTENDS]->(parent)
-                 WITH n, children, callees, callers, imports, collect(DISTINCT {name: parent.name}) as extends_
+                 WITH n, children, callees, callers, imports, [x IN collect(DISTINCT CASE WHEN parent IS NULL THEN NULL ELSE {name: parent.name} END) WHERE x IS NOT NULL] as extends_
                  RETURN n, children, callees, callers, imports, extends_`,
                 { target, projectId }
             );

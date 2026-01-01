@@ -1,15 +1,16 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import Parser from 'tree-sitter';
-import { type ClassNode, type FunctionNode, type GraphNode, type GraphEdge, type CallsEdge, type ExtendsEdge, type ImplementsEdge, type HandlesEdge, ParseError, getLogger } from '@nomik/core';
+import { type ClassNode, type FunctionNode, type VariableNode, type GraphNode, type GraphEdge, type CallsEdge, type ExtendsEdge, type ImplementsEdge, type HandlesEdge, ParseError, getLogger } from '@nomik/core';
 import type { FileNode, RouteNode } from '@nomik/core';
 import { detectLanguage, grammars } from './languages/index';
 import { extractFunctions } from './extractors/functions';
 import { extractClasses } from './extractors/classes';
+import { extractVariables } from './extractors/variables';
 import { extractImports, importsToEdges } from './extractors/imports';
 import { extractRoutes } from './extractors/routes';
 import { extractExports } from './extractors/exports';
-import { extractCalls } from './extractors/calls';
+import { extractCalls, extractArrayCallbackAliases } from './extractors/calls';
 import { parseMarkdown } from './extractors/markdown';
 import { extractPythonFunctions, extractPythonClasses, extractPythonImports, extractPythonCalls } from './extractors/python';
 import { extractRustFunctions, extractRustClasses, extractRustImports, extractRustCalls } from './extractors/rust';
@@ -25,6 +26,7 @@ export interface ParseResult {
     imports: ImportInfo[];
     exports: ExportInfo[];
     calls: CallInfo[];
+    arrayAliases: Record<string, string[]>;
 }
 
 export interface ParserEngine {
@@ -62,7 +64,7 @@ export function createParserEngine(): ParserEngine {
         if (language === 'markdown') {
             const md = parseMarkdown(absolutePath, content);
             logger.debug({ filePath: absolutePath, nodes: md.nodes.length, edges: md.edges.length }, 'parsed markdown');
-            return { file: md.file, nodes: md.nodes, edges: md.edges, imports: [], exports: [], calls: [] };
+            return { file: md.file, nodes: md.nodes, edges: md.edges, imports: [], exports: [], calls: [], arrayAliases: {} };
         }
 
         const hash = createFileHash(content);
@@ -81,36 +83,43 @@ export function createParserEngine(): ParserEngine {
         };
 
         // Dispatch vers les extracteurs specifiques au langage
-        let functions: FunctionNode[], classes: ClassNode[], imports: ImportInfo[], exports: ExportInfo[], calls: CallInfo[], routes: GraphNode[];
+        let functions: FunctionNode[], classes: ClassNode[], variables: VariableNode[], imports: ImportInfo[], exports: ExportInfo[], calls: CallInfo[], routes: GraphNode[];
+        let arrayAliases: Record<string, string[]> = {};
 
         if (language === 'python') {
             functions = extractPythonFunctions(tree, absolutePath);
             classes = extractPythonClasses(tree, absolutePath);
+            variables = [];
             imports = extractPythonImports(tree, absolutePath);
             calls = extractPythonCalls(tree, absolutePath);
             routes = [];
             exports = [];
+            arrayAliases = {};
         } else if (language === 'rust') {
             functions = extractRustFunctions(tree, absolutePath);
             classes = extractRustClasses(tree, absolutePath);
+            variables = [];
             imports = extractRustImports(tree, absolutePath);
             calls = extractRustCalls(tree, absolutePath);
             routes = [];
             exports = [];
+            arrayAliases = {};
         } else {
             // typescript, tsx, javascript — memes extracteurs (tsx utilise le grammar TSX de tree-sitter)
             functions = extractFunctions(tree, absolutePath);
             classes = extractClasses(tree, absolutePath);
+            variables = extractVariables(tree, absolutePath);
             imports = extractImports(tree, absolutePath);
             routes = extractRoutes(tree, absolutePath);
             exports = extractExports(tree, absolutePath);
             calls = extractCalls(tree, absolutePath);
+            arrayAliases = Object.fromEntries(extractArrayCallbackAliases(tree));
         }
 
-        const nodes: GraphNode[] = [fileNode, ...functions, ...classes, ...routes];
+        const nodes: GraphNode[] = [fileNode, ...functions, ...classes, ...variables, ...routes];
 
         // Edges CONTAINS : File → Function/Class/Route
-        const containsEdges: GraphEdge[] = [...functions, ...classes, ...routes].map((n) => ({
+        const containsEdges: GraphEdge[] = [...functions, ...classes, ...variables, ...routes].map((n) => ({
             id: `${fileNode.id}->contains->${n.id}`,
             type: 'CONTAINS' as const,
             sourceId: fileNode.id,
@@ -128,10 +137,18 @@ export function createParserEngine(): ParserEngine {
         for (const fn of functions) {
             localFuncMap.set(fn.name, fn.id);
         }
+        const localVarMap = new Map<string, string>();
+        for (const v of variables) {
+            localVarMap.set(v.name, v.id);
+        }
         const localCallEdges = resolveCallEdges(calls, localFuncMap);
 
         // Edges CALLS depuis le contexte fichier (appels dans callbacks anonymes, top-level)
         const fileCallEdges = resolveFileCallEdges(calls, localFuncMap, fileNode.id);
+
+        // Edges DEPENDS_ON pour references variable-array -> fonctions
+        // Ex: sanitizeInputs -> sanitizeBodyParams
+        const variableRefEdges = resolveVariableArrayReferenceEdges(arrayAliases, localVarMap, localFuncMap);
 
         // Edges EXTENDS : Class → Class parent
         const extendsEdges = resolveExtendsEdges(classes, localFuncMap, absolutePath);
@@ -150,6 +167,7 @@ export function createParserEngine(): ParserEngine {
             ...importEdges,
             ...localCallEdges,
             ...fileCallEdges,
+            ...variableRefEdges,
             ...extendsEdges,
             ...implementsEdges,
             ...handlesEdges,
@@ -158,7 +176,7 @@ export function createParserEngine(): ParserEngine {
 
         logger.debug({ filePath: absolutePath, nodes: nodes.length, edges: edges.length }, 'parsed file');
 
-        return { file: fileNode, nodes, edges, imports, exports, calls };
+        return { file: fileNode, nodes, edges, imports, exports, calls, arrayAliases };
     }
 
     async function parseFiles(filePaths: string[]): Promise<ParseResult[]> {
@@ -198,8 +216,10 @@ export function createParserEngine(): ParserEngine {
         const allAliasConfigs = findAllPathAliases(filePaths);
 
         // Resolution DEPENDS_ON : File → File via imports relatifs ET aliases
+        const resolvedImportsByFile = new Map<string, Array<{ imp: ImportInfo; resolvedPath: string }>>();
         let dependsOnCount = 0;
         for (const r of results) {
+            const resolvedImports: Array<{ imp: ImportInfo; resolvedPath: string }> = [];
             for (const imp of r.imports) {
                 let resolved: string | null = null;
 
@@ -210,6 +230,10 @@ export function createParserEngine(): ParserEngine {
                 }
 
                 if (resolved) {
+                    const resolvedPath = idToFilePath(resolved, filePathToId);
+                    if (resolvedPath) {
+                        resolvedImports.push({ imp, resolvedPath });
+                    }
                     const edgeId = `${r.file.id}->depends_on->${resolved}`;
                     const exists = r.edges.some(e => e.id === edgeId);
                     if (!exists) {
@@ -225,6 +249,7 @@ export function createParserEngine(): ParserEngine {
                     }
                 }
             }
+            resolvedImportsByFile.set(r.file.path, resolvedImports);
         }
 
         let crossFileCallCount = 0;
@@ -246,6 +271,26 @@ export function createParserEngine(): ParserEngine {
             // CALLS cross-fichier depuis le contexte fichier (__file__ → fonctions dans autres fichiers)
             const crossFileEdges = resolveFileCrossFileCallEdges(r.calls, localIds, globalFuncMultiMap, r.file.id);
             for (const edge of crossFileEdges) {
+                if (!existingEdgeIds.has(edge.id)) {
+                    r.edges.push(edge);
+                    existingEdgeIds.add(edge.id);
+                    crossFileCallCount++;
+                }
+            }
+
+            // CALLS cross-fichier via alias tableaux importes:
+            // import { sanitizeInputs } from './sanitizeMiddleware'; app.use(sanitizeInputs)
+            const localFuncMap = new Map<string, string>();
+            for (const n of r.nodes) {
+                if (n.type === 'function') localFuncMap.set(n.name, n.id);
+            }
+            const crossArrayAliasEdges = resolveImportedArrayAliasCallEdges(
+                r,
+                results,
+                localFuncMap,
+                resolvedImportsByFile,
+            );
+            for (const edge of crossArrayAliasEdges) {
                 if (!existingEdgeIds.has(edge.id)) {
                     r.edges.push(edge);
                     existingEdgeIds.add(edge.id);
@@ -358,6 +403,41 @@ function resolveFileCallEdges(calls: CallInfo[], funcMap: Map<string, string>, f
     return edges;
 }
 
+/** Variable array aliases to function references (intra-file).
+ * Creates DEPENDS_ON(kind='call') edges for value-flow references:
+ *   export const sanitizeInputs = [sanitizeQueryParams, sanitizeBodyParams]
+ */
+function resolveVariableArrayReferenceEdges(
+    arrayAliases: Record<string, string[]>,
+    varMap: Map<string, string>,
+    funcMap: Map<string, string>,
+): GraphEdge[] {
+    const edges: GraphEdge[] = [];
+    const seen = new Set<string>();
+
+    for (const [alias, members] of Object.entries(arrayAliases)) {
+        const varId = varMap.get(alias);
+        if (!varId) continue;
+        for (const member of members) {
+            const fnId = funcMap.get(member);
+            if (!fnId) continue;
+            const key = `${varId}->${fnId}`;
+            if (seen.has(key)) continue;
+            seen.add(key);
+            edges.push({
+                id: `${varId}->depends_on->${fnId}`,
+                type: 'DEPENDS_ON' as const,
+                sourceId: varId,
+                targetId: fnId,
+                confidence: 0.9,
+                kind: 'call' as const,
+            });
+        }
+    }
+
+    return edges;
+}
+
 /** Resolution cross-fichier avec multi-map (gere les noms de fonctions dupliques) */
 function resolveCrossFileCallEdges(
     calls: CallInfo[],
@@ -430,6 +510,84 @@ function resolveFileCrossFileCallEdges(
             });
         }
     }
+    return edges;
+}
+
+function idToFilePath(fileId: string, filePathToId: Map<string, string>): string | null {
+    for (const [fp, id] of filePathToId.entries()) {
+        if (id === fileId) return fp;
+    }
+    return null;
+}
+
+/** Resolve calls through imported array aliases.
+ * Example:
+ *   // sanitizeMiddleware.ts
+ *   export const sanitizeInputs = [sanitizeQueryParams, sanitizeBodyParams]
+ *   // index.ts
+ *   app.use(sanitizeInputs)
+ * This creates CALLS edges from the actual caller to both underlying functions.
+ */
+function resolveImportedArrayAliasCallEdges(
+    current: ParseResult,
+    allResults: ParseResult[],
+    localFuncMap: Map<string, string>,
+    resolvedImportsByFile: Map<string, Array<{ imp: ImportInfo; resolvedPath: string }>>,
+): CallsEdge[] {
+    const edges: CallsEdge[] = [];
+    const seen = new Set<string>();
+    const resultByPath = new Map(allResults.map(r => [r.file.path, r] as const));
+    const resolvedImports = resolvedImportsByFile.get(current.file.path) ?? [];
+
+    // Build local lookup: imported symbol name -> exporting file parse result
+    const importedAliasTargets = new Map<string, ParseResult[]>();
+    for (const entry of resolvedImports) {
+        const targetResult = resultByPath.get(entry.resolvedPath);
+        if (!targetResult) continue;
+        for (const specifier of entry.imp.specifiers) {
+            if (!specifier) continue;
+            const arr = importedAliasTargets.get(specifier) ?? [];
+            arr.push(targetResult);
+            importedAliasTargets.set(specifier, arr);
+        }
+    }
+
+    for (const call of current.calls) {
+        const targetFiles = importedAliasTargets.get(call.calleeName);
+        if (!targetFiles || targetFiles.length === 0) continue;
+
+        const sourceId =
+            call.callerName === '__file__'
+                ? current.file.id
+                : localFuncMap.get(call.callerName);
+        if (!sourceId) continue;
+
+        for (const targetFile of targetFiles) {
+            const aliasMembers = targetFile.arrayAliases[call.calleeName] ?? [];
+            if (aliasMembers.length === 0) continue;
+
+            for (const memberName of aliasMembers) {
+                const targetFunctions = targetFile.nodes.filter(
+                    n => n.type === 'function' && n.name === memberName,
+                );
+                for (const fn of targetFunctions) {
+                    const key = `${sourceId}->${fn.id}`;
+                    if (seen.has(key)) continue;
+                    seen.add(key);
+                    edges.push({
+                        id: `${sourceId}->calls->${fn.id}`,
+                        type: 'CALLS' as const,
+                        sourceId,
+                        targetId: fn.id,
+                        confidence: 0.85,
+                        line: call.line,
+                        column: call.column,
+                    });
+                }
+            }
+        }
+    }
+
     return edges;
 }
 
