@@ -294,7 +294,7 @@ export function createParserEngine(): ParserEngine {
                 if (!existingEdgeIds.has(edge.id)) {
                     r.edges.push(edge);
                     existingEdgeIds.add(edge.id);
-                    crossFileCallCount++;
+                    if (edge.type === 'CALLS') crossFileCallCount++;
                 }
             }
 
@@ -533,8 +533,8 @@ function resolveImportedArrayAliasCallEdges(
     allResults: ParseResult[],
     localFuncMap: Map<string, string>,
     resolvedImportsByFile: Map<string, Array<{ imp: ImportInfo; resolvedPath: string }>>,
-): CallsEdge[] {
-    const edges: CallsEdge[] = [];
+): GraphEdge[] {
+    const edges: GraphEdge[] = [];
     const seen = new Set<string>();
     const resultByPath = new Map(allResults.map(r => [r.file.path, r] as const));
     const resolvedImports = resolvedImportsByFile.get(current.file.path) ?? [];
@@ -565,6 +565,25 @@ function resolveImportedArrayAliasCallEdges(
         for (const targetFile of targetFiles) {
             const aliasMembers = targetFile.arrayAliases[call.calleeName] ?? [];
             if (aliasMembers.length === 0) continue;
+            const aliasVarNode = targetFile.nodes.find(
+                n => n.type === 'variable' && n.name === call.calleeName,
+            );
+
+            // Keep a direct usage edge to the imported alias variable when available.
+            if (aliasVarNode) {
+                const varKey = `${sourceId}->${aliasVarNode.id}`;
+                if (!seen.has(varKey)) {
+                    seen.add(varKey);
+                    edges.push({
+                        id: `${sourceId}->depends_on->${aliasVarNode.id}`,
+                        type: 'DEPENDS_ON' as const,
+                        sourceId,
+                        targetId: aliasVarNode.id,
+                        confidence: 0.9,
+                        kind: 'call' as const,
+                    });
+                }
+            }
 
             for (const memberName of aliasMembers) {
                 const targetFunctions = targetFile.nodes.filter(

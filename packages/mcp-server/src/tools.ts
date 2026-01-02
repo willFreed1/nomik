@@ -161,38 +161,114 @@ export async function handleCallTool(graph: GraphService, name: string, args: an
         case 'nm_context': {
             const target = String(args.name);
             const projectFilter = projectId ? 'AND n.projectId = $projectId' : '';
-
-            const results = await graph.executeQuery<any>(
+            const preferFile = /\.[a-zA-Z0-9]+$/.test(target);
+            const nodeResults = await graph.executeQuery<any>(
                 `MATCH (n)
-                 WHERE (n.name = $target OR n.path CONTAINS $target) ${projectFilter}
-                 WITH n LIMIT 1
-                 OPTIONAL MATCH (n)-[:CONTAINS]->(child)
-                 WITH n, [x IN collect(DISTINCT CASE WHEN child IS NULL THEN NULL ELSE {name: COALESCE(child.name, child.path), type: labels(child)[0]} END) WHERE x IS NOT NULL] as children
-                 OPTIONAL MATCH (n)-[:CALLS|HANDLES]->(callee)
-                 WITH n, children, [x IN collect(DISTINCT CASE WHEN callee IS NULL THEN NULL ELSE {name: COALESCE(callee.name, callee.path), file: COALESCE(callee.filePath, callee.path)} END) WHERE x IS NOT NULL] as callees
-                 OPTIONAL MATCH (caller)-[:CALLS|HANDLES]->(n)
-                 WITH n, children, callees, [x IN collect(DISTINCT CASE WHEN caller IS NULL THEN NULL ELSE {name: COALESCE(caller.name, caller.path), file: COALESCE(caller.filePath, caller.path)} END) WHERE x IS NOT NULL] as callers
-                 OPTIONAL MATCH (n)-[:DEPENDS_ON|IMPORTS]->(imp)
-                 WITH n, children, callees, callers, [x IN collect(DISTINCT CASE WHEN imp IS NULL THEN NULL ELSE {name: COALESCE(imp.name, imp.path)} END) WHERE x IS NOT NULL] as imports
-                 OPTIONAL MATCH (n)-[:EXTENDS]->(parent)
-                 WITH n, children, callees, callers, imports, [x IN collect(DISTINCT CASE WHEN parent IS NULL THEN NULL ELSE {name: parent.name} END) WHERE x IS NOT NULL] as extends_
-                 RETURN n, children, callees, callers, imports, extends_`,
-                { target, projectId }
+                 WHERE (n.name = $target OR n.path = $target OR n.path CONTAINS $target) ${projectFilter}
+                 WITH n,
+                      CASE
+                        WHEN n.path = $target THEN 3
+                        WHEN n.name = $target THEN 2
+                        WHEN n.path CONTAINS $target THEN 1
+                        ELSE 0
+                      END as rank
+                 RETURN n
+                 ORDER BY rank DESC,
+                          CASE WHEN $preferFile AND 'File' IN labels(n) THEN 1 ELSE 0 END DESC,
+                          size(COALESCE(n.path, n.name, '')) ASC
+                 LIMIT 1`,
+                { target, projectId, preferFile }
             );
 
-            if (results.length === 0) {
+            if (nodeResults.length === 0) {
                 return [{ type: 'text', text: JSON.stringify({ error: 'Node not found', query: target }) }];
             }
 
-            const r = results[0];
-            const nodeProps = r.n?.properties ?? r.n ?? {};
+            const nodeRecord = nodeResults[0];
+            const node = nodeRecord.n;
+            const nodeProps = node?.properties ?? node ?? {};
+            const nodeLabels: string[] = node?.labels ?? [];
+            const nodeId = nodeProps.id as string | undefined;
+            if (!nodeId) {
+                return [{ type: 'text', text: JSON.stringify({ error: 'Node has no id', query: target }) }];
+            }
+
+            const toItems = <T>(rows: any[]): T[] =>
+                rows
+                    .map(r => r.item)
+                    .filter((v): v is T => v !== null && v !== undefined);
+
+            const containsRows = await graph.executeQuery<any>(
+                `MATCH (n {id: $id})-[:CONTAINS]->(child)
+                 RETURN DISTINCT {name: COALESCE(child.name, child.path), type: labels(child)[0]} as item
+                 ORDER BY item.name`,
+                { id: nodeId }
+            );
+
+            let callsRows: any[] = [];
+            let calledByRows: any[] = [];
+            let importsRows: any[] = [];
+            let extendsRows: any[] = [];
+
+            if (nodeLabels.includes('File')) {
+                callsRows = await graph.executeQuery<any>(
+                    `MATCH (f:File {id: $id})-[:CONTAINS]->(inner)-[:CALLS|HANDLES]->(callee)
+                     RETURN DISTINCT {name: COALESCE(callee.name, callee.path), file: COALESCE(callee.filePath, callee.path)} as item
+                     ORDER BY item.name`,
+                    { id: nodeId }
+                );
+                calledByRows = await graph.executeQuery<any>(
+                    `MATCH (f:File {id: $id})-[:CONTAINS]->(inner)<-[:CALLS|HANDLES]-(caller)
+                     RETURN DISTINCT {name: COALESCE(caller.name, caller.path), file: COALESCE(caller.filePath, caller.path)} as item
+                     ORDER BY item.name`,
+                    { id: nodeId }
+                );
+                importsRows = await graph.executeQuery<any>(
+                    `MATCH (f:File {id: $id})-[:DEPENDS_ON|IMPORTS]->(imp)
+                     RETURN DISTINCT {name: COALESCE(imp.name, imp.path)} as item
+                     ORDER BY item.name`,
+                    { id: nodeId }
+                );
+                extendsRows = await graph.executeQuery<any>(
+                    `MATCH (f:File {id: $id})-[:CONTAINS]->(:Class)-[:EXTENDS]->(parent)
+                     RETURN DISTINCT {name: parent.name} as item
+                     ORDER BY item.name`,
+                    { id: nodeId }
+                );
+            } else {
+                callsRows = await graph.executeQuery<any>(
+                    `MATCH (n {id: $id})-[:CALLS|HANDLES]->(callee)
+                     RETURN DISTINCT {name: COALESCE(callee.name, callee.path), file: COALESCE(callee.filePath, callee.path)} as item
+                     ORDER BY item.name`,
+                    { id: nodeId }
+                );
+                calledByRows = await graph.executeQuery<any>(
+                    `MATCH (caller)-[:CALLS|HANDLES]->(n {id: $id})
+                     RETURN DISTINCT {name: COALESCE(caller.name, caller.path), file: COALESCE(caller.filePath, caller.path)} as item
+                     ORDER BY item.name`,
+                    { id: nodeId }
+                );
+                importsRows = await graph.executeQuery<any>(
+                    `MATCH (n {id: $id})-[:DEPENDS_ON|IMPORTS]->(imp)
+                     RETURN DISTINCT {name: COALESCE(imp.name, imp.path)} as item
+                     ORDER BY item.name`,
+                    { id: nodeId }
+                );
+                extendsRows = await graph.executeQuery<any>(
+                    `MATCH (n {id: $id})-[:EXTENDS]->(parent)
+                     RETURN DISTINCT {name: parent.name} as item
+                     ORDER BY item.name`,
+                    { id: nodeId }
+                );
+            }
+
             const context = {
-                node: { ...nodeProps, _labels: r.n?.labels ?? [] },
-                contains: r.children,
-                calls: r.callees,
-                calledBy: r.callers,
-                imports: r.imports,
-                extends: r.extends_,
+                node: { ...nodeProps, _labels: nodeLabels },
+                contains: toItems(containsRows),
+                calls: toItems(callsRows),
+                calledBy: toItems(calledByRows),
+                imports: toItems(importsRows),
+                extends: toItems(extendsRows),
             };
             return [{ type: 'text', text: JSON.stringify(context, null, 2) }];
         }

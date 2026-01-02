@@ -53,6 +53,13 @@ app.use(sanitizeInputs);
             );
             expect(crossFileCall).toBeDefined();
 
+            const aliasUsageEdge = indexResult!.edges.find(
+                e => e.type === 'DEPENDS_ON' &&
+                    e.sourceId === indexResult!.file.id &&
+                    e.targetId === sanitizeInputsVar!.id,
+            );
+            expect(aliasUsageEdge).toBeDefined();
+
             const variableRefEdge = middlewareResult!.edges.find(
                 e => e.type === 'DEPENDS_ON' &&
                     e.sourceId === sanitizeInputsVar!.id &&

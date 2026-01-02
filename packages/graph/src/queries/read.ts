@@ -29,7 +29,7 @@ export async function impactAnalysis(
     WHERE (target.name = $name OR target.id = $name) ${projectFilter}
     WITH target LIMIT 1
     CALL apoc.path.expandConfig(target, {
-      relationshipFilter: "<CALLS|<HANDLES|<TRIGGERS|<DEPENDS_ON|<LISTENS_TO",
+      relationshipFilter: "<CALLS|<HANDLES|<TRIGGERS|<DEPENDS_ON|<LISTENS_TO|DEPENDS_ON",
       maxLevel: $maxDepth,
       uniqueness: "NODE_GLOBAL"
     }) YIELD path
