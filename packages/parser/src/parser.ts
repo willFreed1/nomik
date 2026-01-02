@@ -198,6 +198,7 @@ export function createParserEngine(): ParserEngine {
         const globalFuncMultiMap = new Map<string, string[]>();
         const globalClassMap = new Map<string, string>();
         const filePathToId = new Map<string, string>();
+        const nodeIdToFileId = new Map<string, string>();
         for (const r of results) {
             filePathToId.set(r.file.path, r.file.id);
             for (const n of r.nodes) {
@@ -208,6 +209,7 @@ export function createParserEngine(): ParserEngine {
                     globalFuncMultiMap.set(n.name, arr);
                 }
                 if (n.type === 'class') globalClassMap.set(n.name, n.id);
+                if (n.type !== 'file') nodeIdToFileId.set(n.id, r.file.id);
             }
         }
 
@@ -256,9 +258,20 @@ export function createParserEngine(): ParserEngine {
         let crossFileExtendsCount = 0;
         for (const r of results) {
             const localIds = new Set(r.nodes.map((n) => n.id));
+            const importedReceiverFileIds = buildImportedReceiverFileIds(
+                r.file.path,
+                resolvedImportsByFile,
+                filePathToId,
+            );
 
             // CALLS cross-fichier (fonctions nommees → fonctions dans autres fichiers)
-            const crossCallEdges = resolveCrossFileCallEdges(r.calls, localIds, globalFuncMultiMap);
+            const crossCallEdges = resolveCrossFileCallEdges(
+                r.calls,
+                localIds,
+                globalFuncMultiMap,
+                importedReceiverFileIds,
+                nodeIdToFileId,
+            );
             const existingEdgeIds = new Set(r.edges.map((e) => e.id));
             for (const edge of crossCallEdges) {
                 if (!existingEdgeIds.has(edge.id)) {
@@ -269,7 +282,14 @@ export function createParserEngine(): ParserEngine {
             }
 
             // CALLS cross-fichier depuis le contexte fichier (__file__ → fonctions dans autres fichiers)
-            const crossFileEdges = resolveFileCrossFileCallEdges(r.calls, localIds, globalFuncMultiMap, r.file.id);
+            const crossFileEdges = resolveFileCrossFileCallEdges(
+                r.calls,
+                localIds,
+                globalFuncMultiMap,
+                r.file.id,
+                importedReceiverFileIds,
+                nodeIdToFileId,
+            );
             for (const edge of crossFileEdges) {
                 if (!existingEdgeIds.has(edge.id)) {
                     r.edges.push(edge);
@@ -443,6 +463,8 @@ function resolveCrossFileCallEdges(
     calls: CallInfo[],
     localIds: Set<string>,
     multiMap: Map<string, string[]>,
+    importedReceiverFileIds: Map<string, Set<string>>,
+    nodeIdToFileId: Map<string, string>,
 ): CallsEdge[] {
     const edges: CallsEdge[] = [];
     const seen = new Set<string>();
@@ -455,7 +477,13 @@ function resolveCrossFileCallEdges(
         // Seul le caller dans CE fichier est pertinent
         const localCallerIds = callerIds.filter((id) => localIds.has(id));
         // Seuls les callees dans AUTRES fichiers sont pertinents
-        const remoteCalleeIds = calleeIds.filter((id) => !localIds.has(id));
+        let remoteCalleeIds = calleeIds.filter((id) => !localIds.has(id));
+        remoteCalleeIds = filterMethodCandidatesByReceiverImport(
+            remoteCalleeIds,
+            call,
+            importedReceiverFileIds,
+            nodeIdToFileId,
+        );
 
         for (const callerId of localCallerIds) {
             for (const calleeId of remoteCalleeIds) {
@@ -485,13 +513,21 @@ function resolveFileCrossFileCallEdges(
     localIds: Set<string>,
     multiMap: Map<string, string[]>,
     fileId: string,
+    importedReceiverFileIds: Map<string, Set<string>>,
+    nodeIdToFileId: Map<string, string>,
 ): CallsEdge[] {
     const edges: CallsEdge[] = [];
     const seen = new Set<string>();
 
     for (const call of calls) {
         if (call.callerName !== '__file__') continue;
-        const calleeIds = multiMap.get(call.calleeName) ?? [];
+        let calleeIds = multiMap.get(call.calleeName) ?? [];
+        calleeIds = filterMethodCandidatesByReceiverImport(
+            calleeIds,
+            call,
+            importedReceiverFileIds,
+            nodeIdToFileId,
+        );
 
         for (const calleeId of calleeIds) {
             if (localIds.has(calleeId)) continue;
@@ -513,11 +549,63 @@ function resolveFileCrossFileCallEdges(
     return edges;
 }
 
+function filterMethodCandidatesByReceiverImport(
+    calleeIds: string[],
+    call: CallInfo,
+    importedReceiverFileIds: Map<string, Set<string>>,
+    nodeIdToFileId: Map<string, string>,
+): string[] {
+    if (!call.isMethodCall || !call.receiverName) return calleeIds;
+    const importedTargetFileIds = importedReceiverFileIds.get(call.receiverName);
+    if (!importedTargetFileIds || importedTargetFileIds.size === 0) return calleeIds;
+    return calleeIds.filter((calleeId) => {
+        const ownerFileId = nodeIdToFileId.get(calleeId);
+        return ownerFileId ? importedTargetFileIds.has(ownerFileId) : false;
+    });
+}
+
 function idToFilePath(fileId: string, filePathToId: Map<string, string>): string | null {
     for (const [fp, id] of filePathToId.entries()) {
         if (id === fileId) return fp;
     }
     return null;
+}
+
+function buildImportedReceiverFileIds(
+    importerPath: string,
+    resolvedImportsByFile: Map<string, Array<{ imp: ImportInfo; resolvedPath: string }>>,
+    filePathToId: Map<string, string>,
+): Map<string, Set<string>> {
+    const map = new Map<string, Set<string>>();
+    const resolvedImports = resolvedImportsByFile.get(importerPath) ?? [];
+
+    for (const { imp, resolvedPath } of resolvedImports) {
+        const targetFileId = filePathToId.get(resolvedPath);
+        if (!targetFileId) continue;
+        for (const rawSpecifier of imp.specifiers) {
+            const specifier = normalizeImportSpecifier(rawSpecifier);
+            if (!specifier) continue;
+            const set = map.get(specifier) ?? new Set<string>();
+            set.add(targetFileId);
+            map.set(specifier, set);
+        }
+    }
+    return map;
+}
+
+function normalizeImportSpecifier(specifier: string): string {
+    const trimmed = specifier.trim();
+    if (!trimmed) return '';
+    if (trimmed.startsWith('* as ')) {
+        return trimmed.slice(5).trim();
+    }
+    const asMatch = /\bas\b/.test(trimmed)
+        ? trimmed.split(/\bas\b/).map(s => s.trim()).filter(Boolean)
+        : null;
+    if (asMatch && asMatch.length >= 2) {
+        return asMatch[asMatch.length - 1] ?? '';
+    }
+    return trimmed;
 }
 
 /** Resolve calls through imported array aliases.
@@ -545,10 +633,11 @@ function resolveImportedArrayAliasCallEdges(
         const targetResult = resultByPath.get(entry.resolvedPath);
         if (!targetResult) continue;
         for (const specifier of entry.imp.specifiers) {
-            if (!specifier) continue;
-            const arr = importedAliasTargets.get(specifier) ?? [];
+            const normalized = normalizeImportSpecifier(specifier);
+            if (!normalized) continue;
+            const arr = importedAliasTargets.get(normalized) ?? [];
             arr.push(targetResult);
-            importedAliasTargets.set(specifier, arr);
+            importedAliasTargets.set(normalized, arr);
         }
     }
 
@@ -801,39 +890,70 @@ interface PathAliasConfig {
 }
 
 /** Parse un fichier tsconfig.json/jsconfig.json et extrait les path aliases */
-function parseTsConfigFile(configPath: string): PathAliasConfig | null {
+function parseTsConfigFile(configPath: string, visited: Set<string> = new Set()): PathAliasConfig | null {
+    const absoluteConfigPath = path.resolve(configPath);
+    if (visited.has(absoluteConfigPath)) return null;
+    visited.add(absoluteConfigPath);
+
+    const config = readJsoncFile(absoluteConfigPath);
+    if (!config) return null;
+
+    const aliases = new Map<string, string>();
+
+    // Merge aliases from extended config first, then override with local config.
+    const extendsValue = typeof config.extends === 'string' ? config.extends : null;
+    const extendedPath = extendsValue ? resolveExtendsConfigPath(absoluteConfigPath, extendsValue) : null;
+    if (extendedPath && fs.existsSync(extendedPath)) {
+        const extended = parseTsConfigFile(extendedPath, visited);
+        if (extended) {
+            for (const [prefix, targetDir] of extended.aliases.entries()) {
+                aliases.set(prefix, targetDir);
+            }
+        }
+    }
+
+    const compilerOptions = config.compilerOptions ?? {};
+    const baseUrl = compilerOptions.baseUrl ?? '.';
+    const paths: Record<string, string[]> = compilerOptions.paths ?? {};
+    const configDir = path.dirname(absoluteConfigPath);
+    const baseDir = path.resolve(configDir, baseUrl);
+
+    for (const [pattern, targets] of Object.entries(paths)) {
+        if (!Array.isArray(targets) || targets.length === 0) continue;
+        // "@/*" -> prefix "@/", target "./src/*" -> "<baseDir>/src/"
+        const prefix = pattern.replace(/\*$/, '');
+        const target = (targets[0] as string).replace(/\*$/, '');
+        aliases.set(prefix, path.resolve(baseDir, target));
+    }
+
+    if (aliases.size === 0) return null;
+
+    getLogger().debug({ configPath: absoluteConfigPath, aliases: Object.fromEntries(aliases) }, 'path aliases detected');
+    return { configDir: path.resolve(configDir), baseDir, aliases };
+}
+
+function readJsoncFile(filePath: string): any | null {
     try {
-        const content = fs.readFileSync(configPath, 'utf-8');
-        // tsconfig supporte JSONC (commentaires) — on les retire
+        const content = fs.readFileSync(filePath, 'utf-8');
         const cleaned = content
             .replace(/\/\/.*$/gm, '')
             .replace(/\/\*[\s\S]*?\*\//g, '')
-            .replace(/,\s*([\]}])/g, '$1'); // trailing commas
-        const config = JSON.parse(cleaned);
-
-        const compilerOptions = config.compilerOptions ?? {};
-        const baseUrl = compilerOptions.baseUrl ?? '.';
-        const paths: Record<string, string[]> = compilerOptions.paths ?? {};
-
-        const configDir = path.dirname(configPath);
-        const baseDir = path.resolve(configDir, baseUrl);
-        const aliases = new Map<string, string>();
-
-        for (const [pattern, targets] of Object.entries(paths)) {
-            if (!Array.isArray(targets) || targets.length === 0) continue;
-            // "@/*" → prefix "@/", target "./src/*" → "<baseDir>/src/"
-            const prefix = pattern.replace(/\*$/, '');
-            const target = (targets[0] as string).replace(/\*$/, '');
-            aliases.set(prefix, path.resolve(baseDir, target));
-        }
-
-        if (aliases.size === 0) return null;
-
-        getLogger().debug({ configPath, aliases: Object.fromEntries(aliases) }, 'path aliases detected');
-        return { configDir: path.resolve(configDir), baseDir, aliases };
+            .replace(/,\s*([\]}])/g, '$1');
+        return JSON.parse(cleaned);
     } catch {
         return null;
     }
+}
+
+function resolveExtendsConfigPath(configPath: string, extendsValue: string): string | null {
+    // Handle relative/absolute extends paths. Package-based extends are ignored for now.
+    if (!extendsValue.startsWith('.') && !path.isAbsolute(extendsValue)) return null;
+    const configDir = path.dirname(configPath);
+    let candidate = path.isAbsolute(extendsValue)
+        ? extendsValue
+        : path.resolve(configDir, extendsValue);
+    if (!path.extname(candidate)) candidate += '.json';
+    return candidate;
 }
 
 /** Decouvre TOUS les tsconfig.json/jsconfig.json dans l'arborescence des fichiers scannes

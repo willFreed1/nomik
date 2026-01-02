@@ -70,5 +70,129 @@ app.use(sanitizeInputs);
             fs.rmSync(tmpDir, { recursive: true, force: true });
         }
     });
+
+    it('disambiguates obj.method() cross-file calls using imported receiver provenance', async () => {
+        const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'nomik-parser-'));
+        try {
+            const backendLoggerPath = path.join(tmpDir, 'backend', 'utils', 'logger.ts');
+            const webLoggerPath = path.join(tmpDir, 'web-app', 'utils', 'logger.ts');
+            const middlewarePath = path.join(tmpDir, 'backend', 'middlewares', 'sanitizeMiddleware.ts');
+
+            writeFile(backendLoggerPath, `
+export const logger = {
+  error(message: string) {
+    return message;
+  }
+};
+`);
+            writeFile(webLoggerPath, `
+export const logger = {
+  error(message: string) {
+    return message + 'web';
+  }
+};
+`);
+            writeFile(middlewarePath, `
+import { logger } from '../utils/logger';
+export function sanitizeBodyParams() {
+  logger.error('x');
+}
+`);
+
+            const engine = createParserEngine();
+            const results = await engine.parseFiles([backendLoggerPath, webLoggerPath, middlewarePath]);
+
+            const middlewareResult = results.find(r => r.file.path === path.resolve(middlewarePath));
+            const backendLoggerResult = results.find(r => r.file.path === path.resolve(backendLoggerPath));
+            const webLoggerResult = results.find(r => r.file.path === path.resolve(webLoggerPath));
+            expect(middlewareResult).toBeDefined();
+            expect(backendLoggerResult).toBeDefined();
+            expect(webLoggerResult).toBeDefined();
+
+            const sanitizeFn = middlewareResult!.nodes.find(
+                n => n.type === 'function' && n.name === 'sanitizeBodyParams',
+            );
+            const backendErrorFn = backendLoggerResult!.nodes.find(
+                n => n.type === 'function' && n.name === 'error',
+            );
+            const webErrorFn = webLoggerResult!.nodes.find(
+                n => n.type === 'function' && n.name === 'error',
+            );
+            expect(sanitizeFn).toBeDefined();
+            expect(backendErrorFn).toBeDefined();
+            expect(webErrorFn).toBeDefined();
+
+            const backendCall = middlewareResult!.edges.find(
+                e => e.type === 'CALLS' &&
+                    e.sourceId === sanitizeFn!.id &&
+                    e.targetId === backendErrorFn!.id,
+            );
+            expect(backendCall).toBeDefined();
+
+            const webCall = middlewareResult!.edges.find(
+                e => e.type === 'CALLS' &&
+                    e.sourceId === sanitizeFn!.id &&
+                    e.targetId === webErrorFn!.id,
+            );
+            expect(webCall).toBeUndefined();
+        } finally {
+            fs.rmSync(tmpDir, { recursive: true, force: true });
+        }
+    });
+
+    it('resolves @ aliases from extended tsconfig files', async () => {
+        const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'nomik-parser-'));
+        try {
+            const baseConfigPath = path.join(tmpDir, 'tsconfig.base.json');
+            const webConfigPath = path.join(tmpDir, 'web-app', 'tsconfig.json');
+            const mapUtilsPath = path.join(tmpDir, 'src', 'utils', 'mapUtils.ts');
+            const listingsMapPath = path.join(tmpDir, 'web-app', 'src', 'components', 'ListingsMap.tsx');
+
+            writeFile(baseConfigPath, `
+{
+  "compilerOptions": {
+    "baseUrl": ".",
+    "paths": {
+      "@/*": ["./src/*"]
+    }
+  }
+}
+`);
+            writeFile(webConfigPath, `
+{
+  "extends": "../tsconfig.base.json",
+  "compilerOptions": {
+    "jsx": "preserve"
+  }
+}
+`);
+            writeFile(mapUtilsPath, `
+export function getDepartmentCode() { return '75'; }
+`);
+            writeFile(listingsMapPath, `
+import { getDepartmentCode } from '@/utils/mapUtils';
+export function renderMap() {
+  return getDepartmentCode();
+}
+`);
+
+            const engine = createParserEngine();
+            const results = await engine.parseFiles([mapUtilsPath, listingsMapPath]);
+
+            const mapUtilsResult = results.find(r => r.file.path === path.resolve(mapUtilsPath));
+            const listingsMapResult = results.find(r => r.file.path === path.resolve(listingsMapPath));
+            expect(mapUtilsResult).toBeDefined();
+            expect(listingsMapResult).toBeDefined();
+
+            const dependsOnEdge = listingsMapResult!.edges.find(
+                e => e.type === 'DEPENDS_ON' &&
+                    e.sourceId === listingsMapResult!.file.id &&
+                    e.targetId === mapUtilsResult!.file.id,
+            );
+            expect(dependsOnEdge).toBeDefined();
+        } finally {
+            fs.rmSync(tmpDir, { recursive: true, force: true });
+        }
+    });
 });
 

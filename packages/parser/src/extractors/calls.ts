@@ -3,6 +3,7 @@ import type Parser from 'tree-sitter';
 export interface CallInfo {
     callerName: string;
     calleeName: string;
+    receiverName?: string;
     line: number;
     column: number;
     isMethodCall: boolean;
@@ -20,7 +21,7 @@ export function extractCalls(tree: Parser.Tree, _filePath: string): CallInfo[] {
     const arrayCallbackRefs = extractArrayCallbackAliases(tree);
 
     function push(call: CallInfo): void {
-        const key = `${call.callerName}->${call.calleeName}`;
+        const key = `${call.callerName}->${call.calleeName}->${call.receiverName ?? ''}`;
         if (!seen.has(key)) {
             seen.add(key);
             results.push(call);
@@ -122,6 +123,7 @@ export function extractCalls(tree: Parser.Tree, _filePath: string): CallInfo[] {
                             push({
                                 callerName: caller,
                                 calleeName: property.text,
+                                receiverName: objName ?? undefined,
                                 line: arg.startPosition.row + 1,
                                 column: arg.startPosition.column,
                                 isMethodCall: true,
@@ -262,6 +264,7 @@ function buildCallInfo(node: Parser.SyntaxNode, callerName: string, isNew: boole
 
     let calleeName: string;
     let isMethodCall = false;
+    let receiverName: string | undefined;
 
     if (fn.type === 'identifier') {
         calleeName = fn.text;
@@ -275,6 +278,7 @@ function buildCallInfo(node: Parser.SyntaxNode, callerName: string, isNew: boole
         if (obj) {
             const objName = obj.type === 'identifier' ? obj.text : null;
             if (objName && (NOISE.has(objName) || OBJ_NOISE.has(objName))) return null;
+            receiverName = objName ?? undefined;
         }
     } else {
         return null;
@@ -286,6 +290,7 @@ function buildCallInfo(node: Parser.SyntaxNode, callerName: string, isNew: boole
     return {
         callerName,
         calleeName,
+        receiverName,
         line: node.startPosition.row + 1,
         column: node.startPosition.column,
         isMethodCall,
