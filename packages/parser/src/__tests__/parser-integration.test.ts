@@ -140,6 +140,55 @@ export function sanitizeBodyParams() {
         }
     });
 
+    it('does not treat next(error) variable flow as a callback reference', async () => {
+        const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'nomik-parser-'));
+        try {
+            const remotePath = path.join(tmpDir, 'remote', 'errorUtil.ts');
+            const middlewarePath = path.join(tmpDir, 'backend', 'middlewares', 'sanitizeMiddleware.ts');
+
+            writeFile(remotePath, `
+export function error() {
+  return 'bad-edge-target';
+}
+`);
+            writeFile(middlewarePath, `
+export function sanitizeBodyParams(next: any) {
+  try {
+    throw new Error('x');
+  } catch (error) {
+    next(error);
+  }
+}
+`);
+
+            const engine = createParserEngine();
+            const results = await engine.parseFiles([remotePath, middlewarePath]);
+
+            const middlewareResult = results.find(r => r.file.path === path.resolve(middlewarePath));
+            const remoteResult = results.find(r => r.file.path === path.resolve(remotePath));
+            expect(middlewareResult).toBeDefined();
+            expect(remoteResult).toBeDefined();
+
+            const sanitizeFn = middlewareResult!.nodes.find(
+                n => n.type === 'function' && n.name === 'sanitizeBodyParams',
+            );
+            const remoteErrorFn = remoteResult!.nodes.find(
+                n => n.type === 'function' && n.name === 'error',
+            );
+            expect(sanitizeFn).toBeDefined();
+            expect(remoteErrorFn).toBeDefined();
+
+            const wrongEdge = middlewareResult!.edges.find(
+                e => e.type === 'CALLS' &&
+                    e.sourceId === sanitizeFn!.id &&
+                    e.targetId === remoteErrorFn!.id,
+            );
+            expect(wrongEdge).toBeUndefined();
+        } finally {
+            fs.rmSync(tmpDir, { recursive: true, force: true });
+        }
+    });
+
     it('resolves @ aliases from extended tsconfig files', async () => {
         const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'nomik-parser-'));
         try {

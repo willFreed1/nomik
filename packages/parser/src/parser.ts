@@ -1011,23 +1011,31 @@ function resolveAliasImportMulti(
         for (const [prefix, targetDir] of config.aliases) {
             if (!importSource.startsWith(prefix)) continue;
             const rest = importSource.slice(prefix.length);
-            const base = path.join(targetDir, rest);
+            const searchBases = [path.join(targetDir, rest)];
 
-            const candidates = [
-                base + '.ts',
-                base + '.tsx',
-                base + '.js',
-                base + '.jsx',
-                base + '/index.ts',
-                base + '/index.tsx',
-                base + '/index.js',
-                base,
-            ];
+            // Practical fallback for monorepo setups where @/* should resolve to <project>/src/*
+            // but inherited paths from extended tsconfig may point to a shared root.
+            if (prefix === '@/') {
+                searchBases.push(path.join(config.configDir, 'src', rest));
+            }
 
-            for (const candidate of candidates) {
-                const normalized = path.resolve(candidate);
-                const id = filePathToId.get(normalized);
-                if (id) return id;
+            for (const base of searchBases) {
+                const candidates = [
+                    base + '.ts',
+                    base + '.tsx',
+                    base + '.js',
+                    base + '.jsx',
+                    base + '/index.ts',
+                    base + '/index.tsx',
+                    base + '/index.js',
+                    base,
+                ];
+
+                for (const candidate of candidates) {
+                    const normalized = path.resolve(candidate);
+                    const id = filePathToId.get(normalized);
+                    if (id) return id;
+                }
             }
         }
     }

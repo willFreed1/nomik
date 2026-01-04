@@ -85,8 +85,9 @@ export function extractCalls(tree: Parser.Tree, _filePath: string): CallInfo[] {
         // Function references passed as arguments: fn(callback), arr.map(handler)
         // Includes member_expression: router.get('/path', controller.method)
         if (node.type === 'arguments') {
+            const callbackContext = isLikelyCallbackArgumentContext(node);
             for (const arg of node.namedChildren) {
-                if (arg.type === 'identifier' && !NOISE.has(arg.text)) {
+                if (callbackContext && arg.type === 'identifier' && !NOISE.has(arg.text)) {
                     const caller = funcName ?? '__file__';
                     push({
                         callerName: caller,
@@ -113,7 +114,7 @@ export function extractCalls(tree: Parser.Tree, _filePath: string): CallInfo[] {
                 }
                 // member_expression as callback: controller.method, service.handler
                 // e.g. router.get('/path', attributeController.getAllSets)
-                if (arg.type === 'member_expression') {
+                if (callbackContext && arg.type === 'member_expression') {
                     const property = arg.childForFieldName('property');
                     const obj = arg.childForFieldName('object');
                     if (property && !NOISE.has(property.text)) {
@@ -186,6 +187,22 @@ export function extractArrayCallbackAliases(tree: Parser.Tree): ArrayCallbackAli
     return aliases;
 }
 
+function isLikelyCallbackArgumentContext(argsNode: Parser.SyntaxNode): boolean {
+    const parentCall = argsNode.parent;
+    if (!parentCall || parentCall.type !== 'call_expression') return false;
+    const fn = parentCall.childForFieldName('function');
+    if (!fn) return false;
+
+    if (fn.type === 'identifier') {
+        return CALLBACK_ARG_CALLEES.has(fn.text);
+    }
+    if (fn.type === 'member_expression') {
+        const property = fn.childForFieldName('property');
+        return !!property && CALLBACK_ARG_CALLEES.has(property.text);
+    }
+    return false;
+}
+
 /** Ignored names: builtins, stdlib, common constructors */
 const NOISE = new Set([
     'require', 'import', 'console', 'JSON', 'Object', 'Array', 'Map', 'Set',
@@ -194,6 +211,16 @@ const NOISE = new Set([
     'Symbol', 'Error', 'RegExp', 'Date', 'Math', 'Proxy', 'Reflect',
     'encodeURIComponent', 'decodeURIComponent', 'encodeURI', 'decodeURI',
     'isNaN', 'isFinite', 'eval', 'fetch', 'alert', 'confirm', 'prompt',
+]);
+
+const CALLBACK_ARG_CALLEES = new Set([
+    // Express/router style callback containers
+    'use', 'all', 'get', 'post', 'put', 'patch', 'delete',
+    // Event and promise callback containers
+    'on', 'once', 'off', 'then', 'catch', 'finally', 'addEventListener',
+    // Common JS callback containers
+    'map', 'filter', 'reduce', 'forEach', 'find', 'some', 'every',
+    'setTimeout', 'setInterval',
 ]);
 
 /** Node/browser stdlib objects — filter noisy obj.method() calls */
