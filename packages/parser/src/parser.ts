@@ -471,6 +471,7 @@ function resolveCrossFileCallEdges(
 
     for (const call of calls) {
         if (call.callerName === '__file__') continue;
+        if (call.isLocalIdentifier) continue;
         const callerIds = multiMap.get(call.callerName) ?? [];
         const calleeIds = multiMap.get(call.calleeName) ?? [];
 
@@ -521,6 +522,7 @@ function resolveFileCrossFileCallEdges(
 
     for (const call of calls) {
         if (call.callerName !== '__file__') continue;
+        if (call.isLocalIdentifier) continue;
         let calleeIds = multiMap.get(call.calleeName) ?? [];
         calleeIds = filterMethodCandidatesByReceiverImport(
             calleeIds,
@@ -1039,7 +1041,41 @@ function resolveAliasImportMulti(
             }
         }
     }
+
+    // Last-resort heuristic for '@/...' imports in projects where tsconfig alias
+    // resolution is incomplete due workspace-specific config layering.
+    if (importSource.startsWith('@/')) {
+        const rest = importSource.slice(2);
+        const guessedBase = guessProjectSrcBase(importerPath, rest);
+        if (guessedBase) {
+            const candidates = [
+                guessedBase + '.ts',
+                guessedBase + '.tsx',
+                guessedBase + '.js',
+                guessedBase + '.jsx',
+                guessedBase + '/index.ts',
+                guessedBase + '/index.tsx',
+                guessedBase + '/index.js',
+                guessedBase,
+            ];
+            for (const candidate of candidates) {
+                const normalized = path.resolve(candidate);
+                const id = filePathToId.get(normalized);
+                if (id) return id;
+            }
+        }
+    }
     return null;
+}
+
+function guessProjectSrcBase(importerPath: string, rest: string): string | null {
+    const normalized = path.resolve(importerPath);
+    const segments = normalized.split(path.sep);
+    const srcIdx = segments.lastIndexOf('src');
+    if (srcIdx <= 0) return null;
+    const projectRoot = segments.slice(0, srcIdx).join(path.sep);
+    if (!projectRoot) return null;
+    return path.join(projectRoot, 'src', rest);
 }
 
 // ────────────────────────────────────────────────────────────────────────

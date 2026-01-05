@@ -76,17 +76,29 @@ export async function findDetailedPath(
     projectId?: string,
 ): Promise<DetailedPath[]> {
     const projectFilter = projectId ? 'AND a.projectId = $projectId AND b.projectId = $projectId' : '';
+    const nodeFilter = projectId ? 'AND node.projectId = $projectId' : '';
     const results = await driver.runQuery<{ names: string[]; types: string[]; files: string[]; rels: string[] }>(
         `
     MATCH (a), (b)
     WHERE (a.name = $from OR a.path CONTAINS $from) AND (b.name = $to OR b.path CONTAINS $to)
     ${projectFilter}
     WITH a, b LIMIT 1
-    MATCH path = shortestPath((a)-[*..10]-(b))
+    CALL apoc.path.expandConfig(a, {
+      relationshipFilter: "CALLS>|HANDLES>|DEPENDS_ON>|CONTAINS>|<CONTAINS",
+      maxLevel: 10,
+      bfs: true,
+      uniqueness: "NODE_PATH",
+      terminatorNodes: [b]
+    }) YIELD path
+    WITH path
+    WHERE last(nodes(path)) = b
+      ${nodeFilter}
     RETURN [n IN nodes(path) | COALESCE(n.name, n.path)] as names,
            [n IN nodes(path) | labels(n)[0]] as types,
            [n IN nodes(path) | COALESCE(n.filePath, n.path, '')] as files,
            [r IN relationships(path) | type(r)] as rels
+    ORDER BY length(path) ASC
+    LIMIT 1
     `,
         { from: fromName, to: toName, projectId },
     );
@@ -108,13 +120,25 @@ export async function findDependencyChain(
     projectId?: string,
 ): Promise<string[][]> {
     const projectFilter = projectId ? 'AND a.projectId = $projectId AND b.projectId = $projectId' : '';
+    const nodeFilter = projectId ? 'AND node.projectId = $projectId' : '';
     const results = await driver.runQuery<{ path: string[] }>(
         `
     MATCH (a {name: $from}), (b {name: $to})
     WHERE true ${projectFilter}
     WITH a, b LIMIT 1
-    MATCH path = shortestPath((a)-[*..10]-(b))
-    RETURN [n IN nodes(path) | n.name] as path
+    CALL apoc.path.expandConfig(a, {
+      relationshipFilter: "CALLS>|HANDLES>|DEPENDS_ON>|CONTAINS>|<CONTAINS",
+      maxLevel: 10,
+      bfs: true,
+      uniqueness: "NODE_PATH",
+      terminatorNodes: [b]
+    }) YIELD path
+    WITH path
+    WHERE last(nodes(path)) = b
+      ${nodeFilter}
+    RETURN [n IN nodes(path) | COALESCE(n.name, n.path)] as path
+    ORDER BY length(path) ASC
+    LIMIT 1
     `,
         { from: fromName, to: toName, projectId },
     );

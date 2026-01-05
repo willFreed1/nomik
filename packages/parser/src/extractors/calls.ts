@@ -4,6 +4,7 @@ export interface CallInfo {
     callerName: string;
     calleeName: string;
     receiverName?: string;
+    isLocalIdentifier?: boolean;
     line: number;
     column: number;
     isMethodCall: boolean;
@@ -28,19 +29,30 @@ export function extractCalls(tree: Parser.Tree, _filePath: string): CallInfo[] {
         }
     }
 
-    function visit(node: Parser.SyntaxNode, currentFunction: string | null): void {
+    function visit(
+        node: Parser.SyntaxNode,
+        currentFunction: string | null,
+        currentParamNames: Set<string>,
+    ): void {
         let funcName = currentFunction;
+        let paramNames = currentParamNames;
 
         if (isFunctionLike(node) && isTrackedFunctionScope(node)) {
             const name = resolveFuncName(node);
             if (name) funcName = name;
+            paramNames = extractFunctionParamNames(node);
         }
 
         // Function calls: fn() and obj.method()
         if (node.type === 'call_expression') {
             const caller = funcName ?? '__file__';
             const call = buildCallInfo(node, caller, false);
-            if (call) push(call);
+            if (call) {
+                if (!call.isMethodCall && paramNames.has(call.calleeName)) {
+                    call.isLocalIdentifier = true;
+                }
+                push(call);
+            }
         }
 
         // Constructor calls: new Class()
@@ -137,11 +149,11 @@ export function extractCalls(tree: Parser.Tree, _filePath: string): CallInfo[] {
         }
 
         for (const child of node.namedChildren) {
-            visit(child, funcName);
+            visit(child, funcName, paramNames);
         }
     }
 
-    visit(tree.rootNode, null);
+    visit(tree.rootNode, null, new Set());
     return results;
 }
 
@@ -283,6 +295,38 @@ function resolveFuncName(node: Parser.SyntaxNode): string | null {
         }
     }
     return null;
+}
+
+function extractFunctionParamNames(node: Parser.SyntaxNode): Set<string> {
+    const names = new Set<string>();
+    const paramsNode = node.childForFieldName('parameters');
+    if (!paramsNode) return names;
+
+    const addFromParam = (paramNode: Parser.SyntaxNode): void => {
+        if (paramNode.type === 'identifier') {
+            names.add(paramNode.text);
+            return;
+        }
+        const pattern = paramNode.childForFieldName('pattern');
+        if (pattern?.type === 'identifier') {
+            names.add(pattern.text);
+            return;
+        }
+        const left = paramNode.childForFieldName('left');
+        if (left?.type === 'identifier') {
+            names.add(left.text);
+            return;
+        }
+        const argument = paramNode.childForFieldName('argument');
+        if (argument?.type === 'identifier') {
+            names.add(argument.text);
+        }
+    };
+
+    for (const child of paramsNode.namedChildren) {
+        addFromParam(child);
+    }
+    return names;
 }
 
 function buildCallInfo(node: Parser.SyntaxNode, callerName: string, isNew: boolean): CallInfo | null {

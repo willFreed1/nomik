@@ -144,11 +144,17 @@ export function sanitizeBodyParams() {
         const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'nomik-parser-'));
         try {
             const remotePath = path.join(tmpDir, 'remote', 'errorUtil.ts');
+            const remoteNextPath = path.join(tmpDir, 'remote', 'nextUtil.ts');
             const middlewarePath = path.join(tmpDir, 'backend', 'middlewares', 'sanitizeMiddleware.ts');
 
             writeFile(remotePath, `
 export function error() {
   return 'bad-edge-target';
+}
+`);
+            writeFile(remoteNextPath, `
+export function next() {
+  return 'bad-next-target';
 }
 `);
             writeFile(middlewarePath, `
@@ -162,12 +168,14 @@ export function sanitizeBodyParams(next: any) {
 `);
 
             const engine = createParserEngine();
-            const results = await engine.parseFiles([remotePath, middlewarePath]);
+            const results = await engine.parseFiles([remotePath, remoteNextPath, middlewarePath]);
 
             const middlewareResult = results.find(r => r.file.path === path.resolve(middlewarePath));
             const remoteResult = results.find(r => r.file.path === path.resolve(remotePath));
+            const remoteNextResult = results.find(r => r.file.path === path.resolve(remoteNextPath));
             expect(middlewareResult).toBeDefined();
             expect(remoteResult).toBeDefined();
+            expect(remoteNextResult).toBeDefined();
 
             const sanitizeFn = middlewareResult!.nodes.find(
                 n => n.type === 'function' && n.name === 'sanitizeBodyParams',
@@ -175,8 +183,12 @@ export function sanitizeBodyParams(next: any) {
             const remoteErrorFn = remoteResult!.nodes.find(
                 n => n.type === 'function' && n.name === 'error',
             );
+            const remoteNextFn = remoteNextResult!.nodes.find(
+                n => n.type === 'function' && n.name === 'next',
+            );
             expect(sanitizeFn).toBeDefined();
             expect(remoteErrorFn).toBeDefined();
+            expect(remoteNextFn).toBeDefined();
 
             const wrongEdge = middlewareResult!.edges.find(
                 e => e.type === 'CALLS' &&
@@ -184,6 +196,13 @@ export function sanitizeBodyParams(next: any) {
                     e.targetId === remoteErrorFn!.id,
             );
             expect(wrongEdge).toBeUndefined();
+
+            const wrongNextEdge = middlewareResult!.edges.find(
+                e => e.type === 'CALLS' &&
+                    e.sourceId === sanitizeFn!.id &&
+                    e.targetId === remoteNextFn!.id,
+            );
+            expect(wrongNextEdge).toBeUndefined();
         } finally {
             fs.rmSync(tmpDir, { recursive: true, force: true });
         }
