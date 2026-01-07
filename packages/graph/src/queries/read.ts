@@ -75,32 +75,73 @@ export async function findDetailedPath(
     toName: string,
     projectId?: string,
 ): Promise<DetailedPath[]> {
-    const projectFilter = projectId ? 'AND a.projectId = $projectId AND b.projectId = $projectId' : '';
-    const nodeFilter = projectId ? 'AND node.projectId = $projectId' : '';
+    const projectFilterA = projectId ? 'AND a.projectId = $projectId' : '';
+    const projectFilterB = projectId ? 'AND b.projectId = $projectId' : '';
+    const pathProjectFilter = projectId
+        ? 'AND all(n IN nodes(path) WHERE n.projectId = $projectId)'
+        : '';
+    const fromLooksLikePath = /[\\/]|[.][a-zA-Z0-9]+$/.test(fromName);
+    const toLooksLikePath = /[\\/]|[.][a-zA-Z0-9]+$/.test(toName);
+    const relFilter = fromLooksLikePath
+        ? 'CONTAINS>|CALLS>|HANDLES>|DEPENDS_ON>|IMPORTS>|<CONTAINS'
+        : 'CALLS>|HANDLES>|DEPENDS_ON>|IMPORTS>|<CONTAINS';
     const results = await driver.runQuery<{ names: string[]; types: string[]; files: string[]; rels: string[] }>(
         `
-    MATCH (a), (b)
-    WHERE (a.name = $from OR a.path CONTAINS $from) AND (b.name = $to OR b.path CONTAINS $to)
-    ${projectFilter}
-    WITH a, b LIMIT 1
+    MATCH (a)
+    WHERE (a.name = $from OR a.path = $from OR a.path CONTAINS $from) ${projectFilterA}
+    WITH a,
+         CASE
+           WHEN a.path = $from THEN 4
+           WHEN a.name = $from THEN 3
+           WHEN a.path CONTAINS $from THEN 2
+           ELSE 0
+         END AS rankA,
+         CASE
+           WHEN $fromLooksLikePath AND a:File THEN 3
+           WHEN a:Function THEN 2
+           WHEN a:Class THEN 1
+           WHEN a:Variable THEN 0
+           ELSE -1
+         END AS typeRankA
+    ORDER BY rankA DESC, typeRankA DESC, size(COALESCE(a.filePath, a.path, a.name, '')) ASC
+    LIMIT 1
+    MATCH (b)
+    WHERE (b.name = $to OR b.path = $to OR b.path CONTAINS $to) ${projectFilterB}
+    WITH a, b,
+         CASE
+           WHEN b.path = $to THEN 4
+           WHEN b.name = $to THEN 3
+           WHEN b.path CONTAINS $to THEN 2
+           ELSE 0
+         END AS rankB,
+         CASE
+           WHEN $toLooksLikePath AND b:File THEN 3
+           WHEN b:Function THEN 2
+           WHEN b:Class THEN 1
+           WHEN b:Variable THEN 0
+           ELSE -1
+         END AS typeRankB
+    ORDER BY rankB DESC, typeRankB DESC, size(COALESCE(b.filePath, b.path, b.name, '')) ASC
+    LIMIT 1
     CALL apoc.path.expandConfig(a, {
-      relationshipFilter: "CALLS>|HANDLES>|DEPENDS_ON>|CONTAINS>|<CONTAINS",
+      relationshipFilter: $relFilter,
       maxLevel: 10,
       bfs: true,
       uniqueness: "NODE_PATH",
       terminatorNodes: [b]
     }) YIELD path
-    WITH path
+    WITH path, b
     WHERE last(nodes(path)) = b
-      ${nodeFilter}
+      ${pathProjectFilter}
+    WITH path, length(path) as pathLen
     RETURN [n IN nodes(path) | COALESCE(n.name, n.path)] as names,
            [n IN nodes(path) | labels(n)[0]] as types,
            [n IN nodes(path) | COALESCE(n.filePath, n.path, '')] as files,
            [r IN relationships(path) | type(r)] as rels
-    ORDER BY length(path) ASC
+    ORDER BY pathLen ASC
     LIMIT 1
     `,
-        { from: fromName, to: toName, projectId },
+        { from: fromName, to: toName, projectId, fromLooksLikePath, toLooksLikePath, relFilter },
     );
     return results.map((r) => ({
         steps: r.names.map((name, i) => ({
@@ -119,30 +160,72 @@ export async function findDependencyChain(
     toName: string,
     projectId?: string,
 ): Promise<string[][]> {
-    const projectFilter = projectId ? 'AND a.projectId = $projectId AND b.projectId = $projectId' : '';
-    const nodeFilter = projectId ? 'AND node.projectId = $projectId' : '';
-    const results = await driver.runQuery<{ path: string[] }>(
+    const projectFilterA = projectId ? 'AND a.projectId = $projectId' : '';
+    const projectFilterB = projectId ? 'AND b.projectId = $projectId' : '';
+    const pathProjectFilter = projectId
+        ? 'AND all(n IN nodes(path) WHERE n.projectId = $projectId)'
+        : '';
+    const fromLooksLikePath = /[\\/]|[.][a-zA-Z0-9]+$/.test(fromName);
+    const toLooksLikePath = /[\\/]|[.][a-zA-Z0-9]+$/.test(toName);
+    const relFilter = fromLooksLikePath
+        ? 'CONTAINS>|CALLS>|HANDLES>|DEPENDS_ON>|IMPORTS>|<CONTAINS'
+        : 'CALLS>|HANDLES>|DEPENDS_ON>|IMPORTS>|<CONTAINS';
+    const results = await driver.runQuery<{ chain: string[] }>(
         `
-    MATCH (a {name: $from}), (b {name: $to})
-    WHERE true ${projectFilter}
-    WITH a, b LIMIT 1
+    MATCH (a)
+    WHERE (a.name = $from OR a.path = $from OR a.path CONTAINS $from) ${projectFilterA}
+    WITH a,
+         CASE
+           WHEN a.path = $from THEN 4
+           WHEN a.name = $from THEN 3
+           WHEN a.path CONTAINS $from THEN 2
+           ELSE 0
+         END AS rankA,
+         CASE
+           WHEN $fromLooksLikePath AND a:File THEN 3
+           WHEN a:Function THEN 2
+           WHEN a:Class THEN 1
+           WHEN a:Variable THEN 0
+           ELSE -1
+         END AS typeRankA
+    ORDER BY rankA DESC, typeRankA DESC, size(COALESCE(a.filePath, a.path, a.name, '')) ASC
+    LIMIT 1
+    MATCH (b)
+    WHERE (b.name = $to OR b.path = $to OR b.path CONTAINS $to) ${projectFilterB}
+    WITH a, b,
+         CASE
+           WHEN b.path = $to THEN 4
+           WHEN b.name = $to THEN 3
+           WHEN b.path CONTAINS $to THEN 2
+           ELSE 0
+         END AS rankB,
+         CASE
+           WHEN $toLooksLikePath AND b:File THEN 3
+           WHEN b:Function THEN 2
+           WHEN b:Class THEN 1
+           WHEN b:Variable THEN 0
+           ELSE -1
+         END AS typeRankB
+    ORDER BY rankB DESC, typeRankB DESC, size(COALESCE(b.filePath, b.path, b.name, '')) ASC
+    LIMIT 1
     CALL apoc.path.expandConfig(a, {
-      relationshipFilter: "CALLS>|HANDLES>|DEPENDS_ON>|CONTAINS>|<CONTAINS",
+      relationshipFilter: $relFilter,
       maxLevel: 10,
       bfs: true,
       uniqueness: "NODE_PATH",
       terminatorNodes: [b]
     }) YIELD path
-    WITH path
+    WITH path, b
     WHERE last(nodes(path)) = b
-      ${nodeFilter}
-    RETURN [n IN nodes(path) | COALESCE(n.name, n.path)] as path
-    ORDER BY length(path) ASC
+      ${pathProjectFilter}
+    WITH path, length(path) as pathLen
+    RETURN [n IN nodes(path) | COALESCE(n.name, n.path)] as chain
+    ORDER BY pathLen ASC
     LIMIT 1
     `,
-        { from: fromName, to: toName, projectId },
+        { from: fromName, to: toName, projectId, fromLooksLikePath, toLooksLikePath, relFilter },
     );
-    return results.map((r) => r.path);
+    return results.map((r) => r.chain);
 }
 
 /** Detection de dead code — fonctions sans aucun appel entrant

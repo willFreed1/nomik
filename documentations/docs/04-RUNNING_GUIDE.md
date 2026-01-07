@@ -52,7 +52,7 @@ Open [http://localhost:3000](http://localhost:3000).
 
 ## Step 5: Connect AI Agents (MCP)
 
-To let AI assistants (like Cursor or Claude) use your knowledge graph:
+To let AI assistants (like Cursor, Windsurf, or Claude) use your knowledge graph:
 
 ### Development Mode
 ```bash
@@ -65,15 +65,16 @@ pnpm dev
 pnpm nomik serve
 ```
 
-### Automatic Cursor Configuration
+### Automatic Cursor/Windsurf Configuration
 
 The recommended method is to use the dedicated command:
 
 ```bash
 pnpm nomik setup-cursor
+pnpm nomik setup-windsurf
 ```
 
-This automatically creates `.cursor/mcp.json` with the correct path to the MCP server and Neo4j variables.
+This automatically creates `.cursor/mcp.json` (Cursor) or `~/.codeium/windsurf/mcp_config.json` (Windsurf) with the correct path to the MCP server and Neo4j variables.
 
 ### Manual Configuration (Claude Desktop)
 

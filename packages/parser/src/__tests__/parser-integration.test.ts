@@ -208,6 +208,40 @@ export function sanitizeBodyParams(next: any) {
         }
     });
 
+    it('links const-arrow declaration variable to its function symbol', async () => {
+        const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'nomik-parser-'));
+        try {
+            const filePath = path.join(tmpDir, 'service.ts');
+            writeFile(filePath, `
+export const sanitizeBodyParams = () => {
+  return true;
+};
+`);
+
+            const engine = createParserEngine();
+            const [result] = await engine.parseFiles([filePath]);
+            expect(result).toBeDefined();
+
+            const varNode = result!.nodes.find(
+                n => n.type === 'variable' && n.name === 'sanitizeBodyParams',
+            );
+            const fnNode = result!.nodes.find(
+                n => n.type === 'function' && n.name === 'sanitizeBodyParams',
+            );
+            expect(varNode).toBeDefined();
+            expect(fnNode).toBeDefined();
+
+            const declAliasEdge = result!.edges.find(
+                e => e.type === 'DEPENDS_ON' &&
+                    e.sourceId === varNode!.id &&
+                    e.targetId === fnNode!.id,
+            );
+            expect(declAliasEdge).toBeDefined();
+        } finally {
+            fs.rmSync(tmpDir, { recursive: true, force: true });
+        }
+    });
+
     it('resolves @ aliases from extended tsconfig files', async () => {
         const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'nomik-parser-'));
         try {
@@ -258,6 +292,18 @@ export function renderMap() {
                     e.targetId === mapUtilsResult!.file.id,
             );
             expect(dependsOnEdge).toBeDefined();
+
+            const moduleNode = listingsMapResult!.nodes.find(
+                n => n.type === 'module' && n.name === '@/utils/mapUtils',
+            );
+            expect(moduleNode).toBeDefined();
+
+            const importsEdge = listingsMapResult!.edges.find(
+                e => e.type === 'IMPORTS' &&
+                    e.sourceId === listingsMapResult!.file.id &&
+                    e.targetId === moduleNode!.id,
+            );
+            expect(importsEdge).toBeDefined();
         } finally {
             fs.rmSync(tmpDir, { recursive: true, force: true });
         }

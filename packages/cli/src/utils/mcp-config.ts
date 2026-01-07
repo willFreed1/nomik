@@ -1,0 +1,144 @@
+import fs from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
+
+export type MpcClient = 'cursor' | 'windsurf';
+
+export interface SetupMcpClientOptions {
+    client: MpcClient;
+    global?: boolean;
+    graphUri: string;
+    graphUser: string;
+    graphPass: string;
+    projectId?: string;
+    configPath?: string;
+}
+
+export interface SetupMcpClientResult {
+    configPath: string;
+    configDir: string;
+    mcpPath: string;
+}
+
+/** Detecte le chemin du MCP server (installe globalement ou local) */
+export function findMcpServerPath(): string {
+    // Prefer paths relative to the running CLI bundle.
+    const cliDir = path.dirname(fileURLToPath(import.meta.url));
+    const entryDir = process.argv[1] ? path.dirname(path.resolve(process.argv[1])) : cliDir;
+    const candidates = [
+        // Bundled alongside CLI dist by tsup (`dist/mcp-server.js`).
+        path.resolve(entryDir, 'mcp-server.js'),
+        path.resolve(cliDir, 'mcp-server.js'),
+        // Monorepo dev layout from GENOME root.
+        path.resolve(cliDir, '..', '..', '..', 'packages', 'mcp-server', 'dist', 'index.js'),
+        path.resolve(process.cwd(), 'packages', 'mcp-server', 'dist', 'index.js'),
+    ];
+    for (const p of candidates) {
+        if (fs.existsSync(p)) return p;
+    }
+
+    // Fallback — resolve from node_modules when available.
+    try {
+        const resolved = import.meta.resolve?.('@nomik/mcp-server');
+        if (resolved) return new URL(resolved).pathname.replace(/^\/([A-Z]:)/, '$1');
+    } catch {
+        // ignore
+    }
+
+    return candidates[0] ?? path.resolve(process.cwd(), 'mcp-server.js');
+}
+
+export function setupMcpClientConfig(opts: SetupMcpClientOptions): SetupMcpClientResult {
+    const mcpPath = findMcpServerPath();
+
+    const envBlock: Record<string, string> = {
+        NOMIK_GRAPH_URI: opts.graphUri,
+        NOMIK_GRAPH_USER: opts.graphUser,
+        NOMIK_GRAPH_PASS: opts.graphPass,
+    };
+    if (opts.projectId) {
+        envBlock.NOMIK_PROJECT_ID = opts.projectId;
+    }
+
+    const config = {
+        mcpServers: {
+            nomik: {
+                command: 'node',
+                args: [mcpPath],
+                env: envBlock,
+            },
+        },
+    };
+
+    const configPath = resolveMcpConfigPath(opts.client, !!opts.global, opts.configPath);
+    const configDir = path.dirname(configPath);
+    if (!fs.existsSync(configDir)) {
+        fs.mkdirSync(configDir, { recursive: true });
+    }
+
+    // Merge avec config existante si elle existe
+    let existing: Record<string, any> = {};
+    if (fs.existsSync(configPath)) {
+        try {
+            existing = JSON.parse(fs.readFileSync(configPath, 'utf-8'));
+        } catch {
+            existing = {};
+        }
+    }
+
+    const merged = {
+        ...existing,
+        mcpServers: {
+            ...(existing.mcpServers ?? {}),
+            ...config.mcpServers,
+        },
+    };
+
+    fs.writeFileSync(configPath, JSON.stringify(merged, null, 2) + '\n', 'utf-8');
+    return { configPath, configDir, mcpPath };
+}
+
+function resolveMcpConfigPath(client: MpcClient, isGlobal: boolean, overridePath?: string): string {
+    if (overridePath) return path.resolve(overridePath);
+
+    if (client === 'windsurf') {
+        return resolveWindsurfConfigPath();
+    }
+
+    if (!isGlobal) {
+        const localDir = '.cursor';
+        return path.resolve(localDir, 'mcp.json');
+    }
+
+    const home = os.homedir();
+    const appName = client === 'cursor' ? 'Cursor' : 'Windsurf';
+    const platform = process.platform;
+    if (platform === 'win32') {
+        return path.join(home, 'AppData', 'Roaming', appName, 'User', 'globalStorage', 'mcp.json');
+    }
+    if (platform === 'darwin') {
+        return path.join(home, 'Library', 'Application Support', appName, 'User', 'globalStorage', 'mcp.json');
+    }
+    return path.join(home, '.config', appName, 'User', 'globalStorage', 'mcp.json');
+}
+
+function resolveWindsurfConfigPath(): string {
+    const home = os.homedir();
+    // Official Windsurf/Cascade path.
+    const official = path.join(home, '.codeium', 'windsurf', 'mcp_config.json');
+    if (fs.existsSync(official)) return official;
+
+    // Legacy fallback kept for compatibility with older local assumptions.
+    const platform = process.platform;
+    const legacy = platform === 'win32'
+        ? path.join(home, 'AppData', 'Roaming', 'Windsurf', 'User', 'globalStorage', 'mcp.json')
+        : platform === 'darwin'
+            ? path.join(home, 'Library', 'Application Support', 'Windsurf', 'User', 'globalStorage', 'mcp.json')
+            : path.join(home, '.config', 'Windsurf', 'User', 'globalStorage', 'mcp.json');
+    if (fs.existsSync(legacy)) return legacy;
+
+    // If nothing exists yet, create official path by default.
+    return official;
+}
+

@@ -133,6 +133,7 @@ export const initCommand = new Command('init')
         console.log('  \x1b[1mNext steps:\x1b[0m');
         console.log('    1. \x1b[33mnomik scan .\x1b[0m          Scan your codebase');
         console.log('    2. \x1b[33mnomik setup-cursor\x1b[0m    Configure Cursor AI');
+        console.log('       \x1b[33mnomik setup-windsurf\x1b[0m  Configure Windsurf AI');
         console.log('    3. \x1b[33mnomik watch .\x1b[0m         Keep graph updated live');
         console.log('');
     });

@@ -1,7 +1,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import Parser from 'tree-sitter';
-import { type ClassNode, type FunctionNode, type VariableNode, type GraphNode, type GraphEdge, type CallsEdge, type ExtendsEdge, type ImplementsEdge, type HandlesEdge, ParseError, getLogger } from '@nomik/core';
+import { type ClassNode, type FunctionNode, type VariableNode, type ModuleNode, type GraphNode, type GraphEdge, type CallsEdge, type ExtendsEdge, type ImplementsEdge, type HandlesEdge, ParseError, getLogger } from '@nomik/core';
 import type { FileNode, RouteNode } from '@nomik/core';
 import { detectLanguage, grammars } from './languages/index';
 import { extractFunctions } from './extractors/functions';
@@ -116,7 +116,8 @@ export function createParserEngine(): ParserEngine {
             arrayAliases = Object.fromEntries(extractArrayCallbackAliases(tree));
         }
 
-        const nodes: GraphNode[] = [fileNode, ...functions, ...classes, ...variables, ...routes];
+        const moduleNodes = buildModuleNodes(imports);
+        const nodes: GraphNode[] = [fileNode, ...functions, ...classes, ...variables, ...routes, ...moduleNodes];
 
         // Edges CONTAINS : File → Function/Class/Route
         const containsEdges: GraphEdge[] = [...functions, ...classes, ...variables, ...routes].map((n) => ({
@@ -149,6 +150,9 @@ export function createParserEngine(): ParserEngine {
         // Edges DEPENDS_ON pour references variable-array -> fonctions
         // Ex: sanitizeInputs -> sanitizeBodyParams
         const variableRefEdges = resolveVariableArrayReferenceEdges(arrayAliases, localVarMap, localFuncMap);
+        // Edges DEPENDS_ON pour declarations const/let qui wrap une fonction du meme nom
+        // Ex: export const sanitizeBodyParams = (...) => ...
+        const variableDeclEdges = resolveVariableDeclarationAliasEdges(localVarMap, localFuncMap);
 
         // Edges EXTENDS : Class → Class parent
         const extendsEdges = resolveExtendsEdges(classes, localFuncMap, absolutePath);
@@ -168,6 +172,7 @@ export function createParserEngine(): ParserEngine {
             ...localCallEdges,
             ...fileCallEdges,
             ...variableRefEdges,
+            ...variableDeclEdges,
             ...extendsEdges,
             ...implementsEdges,
             ...handlesEdges,
@@ -456,6 +461,51 @@ function resolveVariableArrayReferenceEdges(
     }
 
     return edges;
+}
+
+function resolveVariableDeclarationAliasEdges(
+    varMap: Map<string, string>,
+    funcMap: Map<string, string>,
+): GraphEdge[] {
+    const edges: GraphEdge[] = [];
+    for (const [name, varId] of varMap.entries()) {
+        const fnId = funcMap.get(name);
+        if (!fnId) continue;
+        edges.push({
+            id: `${varId}->depends_on->${fnId}`,
+            type: 'DEPENDS_ON' as const,
+            sourceId: varId,
+            targetId: fnId,
+            confidence: 1.0,
+            kind: 'call' as const,
+        });
+    }
+    return edges;
+}
+
+function buildModuleNodes(imports: ImportInfo[]): ModuleNode[] {
+    const nodes: ModuleNode[] = [];
+    const seen = new Set<string>();
+    for (const imp of imports) {
+        const source = imp.source.trim();
+        if (!source) continue;
+        const id = createNodeId('module', source, '');
+        if (seen.has(id)) continue;
+        seen.add(id);
+        const moduleType: ModuleNode['moduleType'] = source.startsWith('.')
+            ? 'file'
+            : source.startsWith('http://') || source.startsWith('https://')
+                ? 'external'
+                : 'package';
+        nodes.push({
+            id,
+            type: 'module',
+            name: source,
+            path: source,
+            moduleType,
+        });
+    }
+    return nodes;
 }
 
 /** Resolution cross-fichier avec multi-map (gere les noms de fonctions dupliques) */

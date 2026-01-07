@@ -8,6 +8,7 @@ import { serveCommand } from './commands/serve.js';
 import { queryCommand } from './commands/query.js';
 import { recentCommand } from './commands/recent.js';
 import { setupCursorCommand } from './commands/setup-cursor.js';
+import { setupWindsurfCommand } from './commands/setup-windsurf.js';
 import { projectCommand } from './commands/project.js';
 
 const program = new Command();
@@ -26,6 +27,7 @@ program.addCommand(serveCommand);
 program.addCommand(queryCommand);
 program.addCommand(recentCommand);
 program.addCommand(setupCursorCommand);
+program.addCommand(setupWindsurfCommand);
 program.addCommand(projectCommand);
 
 program.parse();

@@ -4,7 +4,7 @@
 
 ---
 
-## CLI — 10 commandes
+## CLI — 11 commandes
 
 ### `nomik init`
 
@@ -115,6 +115,19 @@ Configure automatiquement `.cursor/mcp.json` pour connecter Cursor AI a NOMIK. I
 ```bash
 nomik setup-cursor
 nomik setup-cursor --global   # Config globale (tous les projets)
+nomik setup-cursor --config-path ./custom-mcp.json
+```
+
+---
+
+### `nomik setup-windsurf`
+
+Configure automatiquement `~/.codeium/windsurf/mcp_config.json` pour connecter Windsurf AI a NOMIK. Injecte `NOMIK_PROJECT_ID` automatiquement.
+
+```bash
+nomik setup-windsurf
+nomik setup-windsurf --global   # Compatibilite (Windsurf utilise un config user-level)
+nomik setup-windsurf --config-path ./custom-mcp_config.json
 ```
 
 ---

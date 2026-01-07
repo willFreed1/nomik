@@ -1,4 +1,4 @@
-# NOMIK — MCP Integration (Cursor AI, Claude Desktop, Claude CLI)
+# NOMIK — MCP Integration (Cursor AI, Windsurf AI, Claude Desktop, Claude CLI)
 
 ## What Is MCP?
 
@@ -6,14 +6,14 @@ The **Model Context Protocol (MCP)** is an open standard by Anthropic that lets 
 
 NOMIK exposes an **MCP Server** that gives AI assistants direct access to the code knowledge graph.
 
-## How Cursor AI Uses NOMIK
+## How AI IDEs Use NOMIK
 
 ### Architecture
 
 ```
 ┌────────────────────┐     stdio/SSE      ┌──────────────────┐
 │                    │◀──────────────────▶│                  │
-│   Cursor IDE       │   MCP Protocol     │  NOMIK MCP      │
+│ Cursor/Windsurf IDE│   MCP Protocol     │  NOMIK MCP      │
 │   (MCP Client)     │                    │  Server           │
 │                    │                    │                  │
 │  "What breaks if   │                    │  ┌─────────┐     │
@@ -49,6 +49,31 @@ This automatically creates `.cursor/mcp.json` with the correct config. Otherwise
     }
   }
 }
+```
+
+### Setup in Windsurf
+
+Windsurf can be configured with a dedicated command:
+
+```bash
+nomik setup-windsurf
+```
+
+Default Windsurf target (official Cascade config file):
+
+- `~/.codeium/windsurf/mcp_config.json`
+
+You can also manage MCP servers from the Windsurf UI:
+
+- Cascade panel -> `MCPs` icon
+- `Windsurf Settings` -> `Cascade` -> `MCP Servers`
+
+If needed, manual edits can be made in `mcp_config.json`.
+
+You can override the target file explicitly:
+
+```bash
+nomik setup-windsurf --config-path "/custom/path/mcp_config.json"
 ```
 
 ### MCP Tools Exposed by NOMIK
@@ -138,8 +163,8 @@ When you ask Cursor: *"What happens if I modify the payment processing function?
 
 | Transport | Use Case | How |
 |---|---|---|
-| **stdio** | Cursor, Claude Desktop (local) | Process spawned by the client |
+| **stdio** | Cursor, Windsurf, Claude Desktop (local) | Process spawned by the client |
 | **SSE** | Remote access, web dashboards | HTTP server on configurable port |
 | **Streamable HTTP** | Production / multi-client | Stateless HTTP with streaming |
 
-For the MVP, **stdio** is all you need. It's the simplest and what Cursor expects.
+For the MVP, **stdio** is all you need. It's the simplest and what Cursor/Windsurf expect.
