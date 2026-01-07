@@ -50,6 +50,17 @@ function isFunctionLike(node: Parser.SyntaxNode): boolean {
         if (!isModuleScopeObjectLiteral(node.parent.parent)) return false;
     }
 
+    // Exclude function-valued local variables declared inside another function/block.
+    // Example:
+    //   socket.on = (...) => {
+    //     const wrapped = (...args) => { ... };
+    //     return originalOn(event, wrapped);
+    //   };
+    // These are implementation details and should not be indexed as top-level symbols.
+    if ((node.type === 'arrow_function' || node.type === 'function') && node.parent?.type === 'variable_declarator') {
+        if (!isModuleScopeVariableDeclarator(node.parent)) return false;
+    }
+
     return true;
 }
 
@@ -58,6 +69,16 @@ function isModuleScopeObjectLiteral(node: Parser.SyntaxNode | null | undefined):
     const declarator = node.parent;
     if (!declarator || declarator.type !== 'variable_declarator') return false;
     const declaration = declarator.parent;
+    if (!declaration) return false;
+    if (declaration.type !== 'lexical_declaration' && declaration.type !== 'variable_declaration') return false;
+    const container = declaration.parent;
+    if (!container) return false;
+    return container.type === 'program' || container.type === 'export_statement';
+}
+
+function isModuleScopeVariableDeclarator(node: Parser.SyntaxNode | null | undefined): boolean {
+    if (!node || node.type !== 'variable_declarator') return false;
+    const declaration = node.parent;
     if (!declaration) return false;
     if (declaration.type !== 'lexical_declaration' && declaration.type !== 'variable_declaration') return false;
     const container = declaration.parent;

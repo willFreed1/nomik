@@ -238,6 +238,7 @@ export async function findDeadCode(driver: GraphDriver, projectId?: string): Pro
     MATCH (f:Function)
     WHERE NOT (f)<-[:CALLS]-()
       AND NOT (f)<-[:HANDLES]-()
+      AND NOT (f)<-[:DEPENDS_ON {kind: 'import'}]-(:File)
       AND f.name <> 'constructor'
       ${projectFilter}
     WITH f

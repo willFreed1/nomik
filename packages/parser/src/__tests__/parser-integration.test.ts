@@ -242,6 +242,91 @@ export const sanitizeBodyParams = () => {
         }
     });
 
+    it('does not index local closure helper variables as top-level function symbols', async () => {
+        const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'nomik-parser-'));
+        try {
+            const filePath = path.join(tmpDir, 'socketMetrics.ts');
+            writeFile(filePath, `
+export function instrumentSocket(socket: any) {
+  const originalOn = socket.on.bind(socket);
+  socket.on = ((event: string, listener: (...args: any[]) => void) => {
+    const wrapped = (...args: any[]) => listener(...args);
+    return originalOn(event, wrapped);
+  }) as any;
+}
+`);
+
+            const engine = createParserEngine();
+            const [result] = await engine.parseFiles([filePath]);
+            expect(result).toBeDefined();
+
+            const wrappedFn = result!.nodes.find(
+                n => n.type === 'function' && n.name === 'wrapped',
+            );
+            expect(wrappedFn).toBeUndefined();
+
+            const instrumentFn = result!.nodes.find(
+                n => n.type === 'function' && n.name === 'instrumentSocket',
+            );
+            expect(instrumentFn).toBeDefined();
+        } finally {
+            fs.rmSync(tmpDir, { recursive: true, force: true });
+        }
+    });
+
+    it('resolves alias-imported function calls across files', async () => {
+        const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'nomik-parser-'));
+        try {
+            const servicePath = path.join(tmpDir, 'listingService.ts');
+            const pagePath = path.join(tmpDir, 'page.tsx');
+
+            writeFile(servicePath, `
+export function getFeaturedListings() {
+  return [];
+}
+`);
+            writeFile(pagePath, `
+import { getFeaturedListings as getFeatured } from './listingService';
+export function HomePage() {
+  return getFeatured();
+}
+`);
+
+            const engine = createParserEngine();
+            const results = await engine.parseFiles([servicePath, pagePath]);
+
+            const serviceResult = results.find(r => r.file.path === path.resolve(servicePath));
+            const pageResult = results.find(r => r.file.path === path.resolve(pagePath));
+            expect(serviceResult).toBeDefined();
+            expect(pageResult).toBeDefined();
+
+            const featuredFn = serviceResult!.nodes.find(
+                n => n.type === 'function' && n.name === 'getFeaturedListings',
+            );
+            const homeFn = pageResult!.nodes.find(
+                n => n.type === 'function' && n.name === 'HomePage',
+            );
+            expect(featuredFn).toBeDefined();
+            expect(homeFn).toBeDefined();
+
+            const crossCall = pageResult!.edges.find(
+                e => e.type === 'CALLS' &&
+                    e.sourceId === homeFn!.id &&
+                    e.targetId === featuredFn!.id,
+            );
+            expect(crossCall).toBeDefined();
+
+            const importSymbolRef = pageResult!.edges.find(
+                e => e.type === 'DEPENDS_ON' &&
+                    e.sourceId === pageResult!.file.id &&
+                    e.targetId === featuredFn!.id,
+            );
+            expect(importSymbolRef).toBeDefined();
+        } finally {
+            fs.rmSync(tmpDir, { recursive: true, force: true });
+        }
+    });
+
     it('resolves @ aliases from extended tsconfig files', async () => {
         const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'nomik-parser-'));
         try {

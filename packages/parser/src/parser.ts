@@ -261,6 +261,7 @@ export function createParserEngine(): ParserEngine {
 
         let crossFileCallCount = 0;
         let crossFileExtendsCount = 0;
+        const resultByPath = new Map(results.map((res) => [res.file.path, res] as const));
         for (const r of results) {
             const localIds = new Set(r.nodes.map((n) => n.id));
             const importedReceiverFileIds = buildImportedReceiverFileIds(
@@ -268,16 +269,34 @@ export function createParserEngine(): ParserEngine {
                 resolvedImportsByFile,
                 filePathToId,
             );
+            const importedAliasFunctionIds = buildImportedAliasFunctionIds(
+                r.file.path,
+                resolvedImportsByFile,
+                resultByPath,
+            );
 
             // CALLS cross-fichier (fonctions nommees → fonctions dans autres fichiers)
             const crossCallEdges = resolveCrossFileCallEdges(
                 r.calls,
                 localIds,
                 globalFuncMultiMap,
+                importedAliasFunctionIds,
                 importedReceiverFileIds,
                 nodeIdToFileId,
             );
             const existingEdgeIds = new Set(r.edges.map((e) => e.id));
+            const importSymbolRefEdges = resolveImportedSymbolReferenceEdges(
+                r.file.id,
+                r.file.path,
+                resolvedImportsByFile,
+                resultByPath,
+            );
+            for (const edge of importSymbolRefEdges) {
+                if (!existingEdgeIds.has(edge.id)) {
+                    r.edges.push(edge);
+                    existingEdgeIds.add(edge.id);
+                }
+            }
             for (const edge of crossCallEdges) {
                 if (!existingEdgeIds.has(edge.id)) {
                     r.edges.push(edge);
@@ -292,6 +311,7 @@ export function createParserEngine(): ParserEngine {
                 localIds,
                 globalFuncMultiMap,
                 r.file.id,
+                importedAliasFunctionIds,
                 importedReceiverFileIds,
                 nodeIdToFileId,
             );
@@ -513,6 +533,7 @@ function resolveCrossFileCallEdges(
     calls: CallInfo[],
     localIds: Set<string>,
     multiMap: Map<string, string[]>,
+    importedAliasFunctionIds: Map<string, string[]>,
     importedReceiverFileIds: Map<string, Set<string>>,
     nodeIdToFileId: Map<string, string>,
 ): CallsEdge[] {
@@ -523,7 +544,8 @@ function resolveCrossFileCallEdges(
         if (call.callerName === '__file__') continue;
         if (call.isLocalIdentifier) continue;
         const callerIds = multiMap.get(call.callerName) ?? [];
-        const calleeIds = multiMap.get(call.calleeName) ?? [];
+        const aliasTargets = importedAliasFunctionIds.get(call.calleeName) ?? [];
+        let calleeIds = aliasTargets.length > 0 ? aliasTargets : (multiMap.get(call.calleeName) ?? []);
 
         // Seul le caller dans CE fichier est pertinent
         const localCallerIds = callerIds.filter((id) => localIds.has(id));
@@ -564,6 +586,7 @@ function resolveFileCrossFileCallEdges(
     localIds: Set<string>,
     multiMap: Map<string, string[]>,
     fileId: string,
+    importedAliasFunctionIds: Map<string, string[]>,
     importedReceiverFileIds: Map<string, Set<string>>,
     nodeIdToFileId: Map<string, string>,
 ): CallsEdge[] {
@@ -573,7 +596,8 @@ function resolveFileCrossFileCallEdges(
     for (const call of calls) {
         if (call.callerName !== '__file__') continue;
         if (call.isLocalIdentifier) continue;
-        let calleeIds = multiMap.get(call.calleeName) ?? [];
+        const aliasTargets = importedAliasFunctionIds.get(call.calleeName) ?? [];
+        let calleeIds = aliasTargets.length > 0 ? aliasTargets : (multiMap.get(call.calleeName) ?? []);
         calleeIds = filterMethodCandidatesByReceiverImport(
             calleeIds,
             call,
@@ -632,6 +656,7 @@ function buildImportedReceiverFileIds(
     const resolvedImports = resolvedImportsByFile.get(importerPath) ?? [];
 
     for (const { imp, resolvedPath } of resolvedImports) {
+        if (imp.isTypeOnly) continue;
         const targetFileId = filePathToId.get(resolvedPath);
         if (!targetFileId) continue;
         for (const rawSpecifier of imp.specifiers) {
@@ -645,19 +670,100 @@ function buildImportedReceiverFileIds(
     return map;
 }
 
-function normalizeImportSpecifier(specifier: string): string {
+interface ParsedImportSpecifier {
+    importedName: string;
+    localName: string;
+    isNamespace: boolean;
+}
+
+function parseImportSpecifier(specifier: string): ParsedImportSpecifier | null {
     const trimmed = specifier.trim();
-    if (!trimmed) return '';
+    if (!trimmed) return null;
     if (trimmed.startsWith('* as ')) {
-        return trimmed.slice(5).trim();
+        const localName = trimmed.slice(5).trim();
+        return localName
+            ? { importedName: '*', localName, isNamespace: true }
+            : null;
     }
-    const asMatch = /\bas\b/.test(trimmed)
-        ? trimmed.split(/\bas\b/).map(s => s.trim()).filter(Boolean)
-        : null;
-    if (asMatch && asMatch.length >= 2) {
-        return asMatch[asMatch.length - 1] ?? '';
+    const asMatch = trimmed.match(/^([A-Za-z_$][\w$]*)\s+as\s+([A-Za-z_$][\w$]*)$/);
+    if (asMatch) {
+        const importedName = asMatch[1] ?? '';
+        const localName = asMatch[2] ?? '';
+        if (!importedName || !localName) return null;
+        return { importedName, localName, isNamespace: false };
     }
-    return trimmed;
+    return { importedName: trimmed, localName: trimmed, isNamespace: false };
+}
+
+function normalizeImportSpecifier(specifier: string): string {
+    const parsed = parseImportSpecifier(specifier);
+    return parsed?.localName ?? '';
+}
+
+function buildImportedAliasFunctionIds(
+    importerPath: string,
+    resolvedImportsByFile: Map<string, Array<{ imp: ImportInfo; resolvedPath: string }>>,
+    resultByPath: Map<string, ParseResult>,
+): Map<string, string[]> {
+    const map = new Map<string, string[]>();
+    const resolvedImports = resolvedImportsByFile.get(importerPath) ?? [];
+    for (const { imp, resolvedPath } of resolvedImports) {
+        if (imp.isTypeOnly) continue;
+        const targetResult = resultByPath.get(resolvedPath);
+        if (!targetResult) continue;
+        for (const rawSpecifier of imp.specifiers) {
+            const parsed = parseImportSpecifier(rawSpecifier);
+            if (!parsed || parsed.isNamespace) continue;
+            const targetFns = targetResult.nodes.filter(
+                (n) => n.type === 'function' && n.name === parsed.importedName,
+            );
+            if (targetFns.length === 0) continue;
+            const existing = map.get(parsed.localName) ?? [];
+            const merged = new Set(existing);
+            for (const fn of targetFns) merged.add(fn.id);
+            map.set(parsed.localName, [...merged]);
+        }
+    }
+    return map;
+}
+
+function resolveImportedSymbolReferenceEdges(
+    sourceFileId: string,
+    importerPath: string,
+    resolvedImportsByFile: Map<string, Array<{ imp: ImportInfo; resolvedPath: string }>>,
+    resultByPath: Map<string, ParseResult>,
+): GraphEdge[] {
+    const edges: GraphEdge[] = [];
+    const seen = new Set<string>();
+    const resolvedImports = resolvedImportsByFile.get(importerPath) ?? [];
+    for (const { imp, resolvedPath } of resolvedImports) {
+        if (imp.isTypeOnly) continue;
+        const targetResult = resultByPath.get(resolvedPath);
+        if (!targetResult) continue;
+        for (const rawSpecifier of imp.specifiers) {
+            const parsed = parseImportSpecifier(rawSpecifier);
+            if (!parsed || parsed.isNamespace) continue;
+            const targets = targetResult.nodes.filter(
+                (n) =>
+                    (n.type === 'function' || n.type === 'class' || n.type === 'variable')
+                    && n.name === parsed.importedName,
+            );
+            for (const target of targets) {
+                const key = `${sourceFileId}->${target.id}`;
+                if (seen.has(key)) continue;
+                seen.add(key);
+                edges.push({
+                    id: `${sourceFileId}->depends_on->${target.id}`,
+                    type: 'DEPENDS_ON' as const,
+                    sourceId: sourceFileId,
+                    targetId: target.id,
+                    confidence: 0.85,
+                    kind: 'import' as const,
+                });
+            }
+        }
+    }
+    return edges;
 }
 
 /** Resolve calls through imported array aliases.

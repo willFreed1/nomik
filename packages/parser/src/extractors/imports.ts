@@ -58,8 +58,9 @@ function buildImportInfo(node: Parser.SyntaxNode): ImportInfo | null {
                 if (spec.type === 'named_imports') {
                     for (const named of spec.namedChildren) {
                         if (named.type === 'import_specifier') {
-                            const name = named.childForFieldName('name')?.text ?? named.text;
-                            specifiers.push(name);
+                            // Preserve raw specifier text to keep alias info:
+                            //   import { foo as bar } => "foo as bar"
+                            specifiers.push(named.text);
                         }
                     }
                 }
