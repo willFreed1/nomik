@@ -244,6 +244,8 @@ export async function findDeadCode(driver: GraphDriver, projectId?: string): Pro
     WITH f
     WHERE NOT f.filePath ENDS WITH '.tsx'
       AND NOT f.filePath ENDS WITH '.jsx'
+      AND NOT f.filePath ENDS WITH '.md'
+      AND NOT f.filePath ENDS WITH '.mdx'
     OPTIONAL MATCH (parent:File)-[:CONTAINS]->(f)
     WITH f, parent
     WHERE parent IS NULL

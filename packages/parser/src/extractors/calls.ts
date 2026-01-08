@@ -98,26 +98,28 @@ export function extractCalls(tree: Parser.Tree, _filePath: string): CallInfo[] {
         // Includes member_expression: router.get('/path', controller.method)
         if (node.type === 'arguments') {
             const callbackContext = isLikelyCallbackArgumentContext(node);
+            const dynamicImportThenContext = isDynamicImportThenContext(node);
             for (const arg of node.namedChildren) {
-                if (callbackContext && arg.type === 'identifier' && !NOISE.has(arg.text)) {
+                const refArg = callbackContext ? unwrapReferenceExpression(arg) : arg;
+                if (callbackContext && refArg.type === 'identifier' && !NOISE.has(refArg.text)) {
                     const caller = funcName ?? '__file__';
                     push({
                         callerName: caller,
-                        calleeName: arg.text,
-                        line: arg.startPosition.row + 1,
-                        column: arg.startPosition.column,
+                        calleeName: refArg.text,
+                        line: refArg.startPosition.row + 1,
+                        column: refArg.startPosition.column,
                         isMethodCall: false,
                         isConstructor: false,
                     });
                     // Resolve array aliases: app.use(sanitizeInputs) => sanitizeQueryParams/sanitizeBodyParams
-                    const aliasedCallbacks = arrayCallbackRefs.get(arg.text);
+                    const aliasedCallbacks = arrayCallbackRefs.get(refArg.text);
                     if (aliasedCallbacks) {
                         for (const cbName of aliasedCallbacks) {
                             push({
                                 callerName: caller,
                                 calleeName: cbName,
-                                line: arg.startPosition.row + 1,
-                                column: arg.startPosition.column,
+                                line: refArg.startPosition.row + 1,
+                                column: refArg.startPosition.column,
                                 isMethodCall: false,
                                 isConstructor: false,
                             });
@@ -126,9 +128,9 @@ export function extractCalls(tree: Parser.Tree, _filePath: string): CallInfo[] {
                 }
                 // member_expression as callback: controller.method, service.handler
                 // e.g. router.get('/path', attributeController.getAllSets)
-                if (callbackContext && arg.type === 'member_expression') {
-                    const property = arg.childForFieldName('property');
-                    const obj = arg.childForFieldName('object');
+                if (callbackContext && refArg.type === 'member_expression') {
+                    const property = refArg.childForFieldName('property');
+                    const obj = refArg.childForFieldName('object');
                     if (property && !NOISE.has(property.text)) {
                         const objName = obj?.type === 'identifier' ? obj.text : null;
                         if (!objName || (!NOISE.has(objName) && !OBJ_NOISE.has(objName))) {
@@ -137,9 +139,31 @@ export function extractCalls(tree: Parser.Tree, _filePath: string): CallInfo[] {
                                 callerName: caller,
                                 calleeName: property.text,
                                 receiverName: objName ?? undefined,
-                                line: arg.startPosition.row + 1,
-                                column: arg.startPosition.column,
+                                line: refArg.startPosition.row + 1,
+                                column: refArg.startPosition.column,
                                 isMethodCall: true,
+                                isConstructor: false,
+                            });
+                        }
+                    }
+                }
+
+                // Dynamic import destructuring:
+                // import('./audio').then(({ playMessageSound }) => playMessageSound())
+                if (dynamicImportThenContext && (refArg.type === 'arrow_function' || refArg.type === 'function')) {
+                    const paramsNode = refArg.childForFieldName('parameters');
+                    const firstParam = paramsNode?.namedChildren?.[0];
+                    if (firstParam?.type === 'object_pattern') {
+                        const names = extractObjectPatternIdentifiers(firstParam);
+                        const caller = funcName ?? '__file__';
+                        for (const name of names) {
+                            if (!name || NOISE.has(name)) continue;
+                            push({
+                                callerName: caller,
+                                calleeName: name,
+                                line: firstParam.startPosition.row + 1,
+                                column: firstParam.startPosition.column,
+                                isMethodCall: false,
                                 isConstructor: false,
                             });
                         }
@@ -213,6 +237,66 @@ function isLikelyCallbackArgumentContext(argsNode: Parser.SyntaxNode): boolean {
         return !!property && CALLBACK_ARG_CALLEES.has(property.text);
     }
     return false;
+}
+
+function isDynamicImportThenContext(argsNode: Parser.SyntaxNode): boolean {
+    const parentCall = argsNode.parent;
+    if (!parentCall || parentCall.type !== 'call_expression') return false;
+    const fn = parentCall.childForFieldName('function');
+    if (!fn || fn.type !== 'member_expression') return false;
+    const property = fn.childForFieldName('property');
+    if (!property || property.text !== 'then') return false;
+    const object = fn.childForFieldName('object');
+    if (!object || object.type !== 'call_expression') return false;
+    const importFn = object.childForFieldName('function');
+    return !!importFn && importFn.text === 'import';
+}
+
+function extractObjectPatternIdentifiers(node: Parser.SyntaxNode): string[] {
+    const out: string[] = [];
+    const visit = (n: Parser.SyntaxNode): void => {
+        if (n.type === 'identifier' || n.type === 'shorthand_property_identifier' || n.type === 'shorthand_property_identifier_pattern') {
+            out.push(n.text);
+            return;
+        }
+        const value = n.childForFieldName('value');
+        if (value) {
+            visit(value);
+            return;
+        }
+        const pattern = n.childForFieldName('pattern');
+        if (pattern) {
+            visit(pattern);
+            return;
+        }
+        const left = n.childForFieldName('left');
+        if (left) {
+            visit(left);
+            return;
+        }
+        for (const child of n.namedChildren) visit(child);
+    };
+    visit(node);
+    return [...new Set(out)];
+}
+
+function unwrapReferenceExpression(node: Parser.SyntaxNode): Parser.SyntaxNode {
+    let current = node;
+    while (true) {
+        if (
+            current.type === 'as_expression'
+            || current.type === 'type_assertion'
+            || current.type === 'satisfies_expression'
+            || current.type === 'non_null_expression'
+            || current.type === 'parenthesized_expression'
+        ) {
+            const next = current.childForFieldName('expression') ?? current.namedChildren[0];
+            if (!next || next === current) return current;
+            current = next;
+            continue;
+        }
+        return current;
+    }
 }
 
 /** Ignored names: builtins, stdlib, common constructors */

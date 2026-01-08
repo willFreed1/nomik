@@ -327,6 +327,94 @@ export function HomePage() {
         }
     });
 
+    it('resolves typed route-handler member callbacks (controller.method as Type)', async () => {
+        const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'nomik-parser-'));
+        try {
+            const controllerPath = path.join(tmpDir, 'categoryController.ts');
+            const routesPath = path.join(tmpDir, 'categoryRoutes.ts');
+
+            writeFile(controllerPath, `
+export const categoryController = {
+  getCategoryBySlug(_req: any, _res: any) {
+    return true;
+  }
+};
+`);
+            writeFile(routesPath, `
+import { categoryController } from './categoryController';
+const router = { get: (..._args: any[]) => {} };
+router.get('/slug/:slug', categoryController.getCategoryBySlug as any);
+`);
+
+            const engine = createParserEngine();
+            const results = await engine.parseFiles([controllerPath, routesPath]);
+
+            const controllerResult = results.find(r => r.file.path === path.resolve(controllerPath));
+            const routesResult = results.find(r => r.file.path === path.resolve(routesPath));
+            expect(controllerResult).toBeDefined();
+            expect(routesResult).toBeDefined();
+
+            const targetFn = controllerResult!.nodes.find(
+                n => n.type === 'function' && n.name === 'getCategoryBySlug',
+            );
+            expect(targetFn).toBeDefined();
+
+            const incoming = routesResult!.edges.find(
+                e => e.type === 'CALLS' &&
+                    e.sourceId === routesResult!.file.id &&
+                    e.targetId === targetFn!.id,
+            );
+            expect(incoming).toBeDefined();
+        } finally {
+            fs.rmSync(tmpDir, { recursive: true, force: true });
+        }
+    });
+
+    it('resolves dynamic import then-destructured function usage', async () => {
+        const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'nomik-parser-'));
+        try {
+            const audioPath = path.join(tmpDir, 'audioUtils.ts');
+            const socketPath = path.join(tmpDir, 'SocketContext.tsx');
+
+            writeFile(audioPath, `
+export const playMessageSound = () => true;
+`);
+            writeFile(socketPath, `
+export function onMessage() {
+  import('./audioUtils').then(({ playMessageSound }) => {
+    playMessageSound();
+  });
+}
+`);
+
+            const engine = createParserEngine();
+            const results = await engine.parseFiles([audioPath, socketPath]);
+
+            const audioResult = results.find(r => r.file.path === path.resolve(audioPath));
+            const socketResult = results.find(r => r.file.path === path.resolve(socketPath));
+            expect(audioResult).toBeDefined();
+            expect(socketResult).toBeDefined();
+
+            const soundFn = audioResult!.nodes.find(
+                n => n.type === 'function' && n.name === 'playMessageSound',
+            );
+            const onMessageFn = socketResult!.nodes.find(
+                n => n.type === 'function' && n.name === 'onMessage',
+            );
+            expect(soundFn).toBeDefined();
+            expect(onMessageFn).toBeDefined();
+
+            const crossCall = socketResult!.edges.find(
+                e => e.type === 'CALLS' &&
+                    e.sourceId === onMessageFn!.id &&
+                    e.targetId === soundFn!.id,
+            );
+            expect(crossCall).toBeDefined();
+        } finally {
+            fs.rmSync(tmpDir, { recursive: true, force: true });
+        }
+    });
+
     it('resolves @ aliases from extended tsconfig files', async () => {
         const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'nomik-parser-'));
         try {

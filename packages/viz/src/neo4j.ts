@@ -165,10 +165,13 @@ export async function fetchHealthStats(projectId?: string): Promise<HealthStats>
         const deadCode = await session.run(`
             MATCH (f:Function ${pfShort})
             WHERE NOT (f)<-[:CALLS]-() AND NOT (f)<-[:HANDLES]-()
+              AND NOT (f)<-[:DEPENDS_ON {kind: 'import'}]-(:File)
               AND f.name <> 'constructor'
             WITH f
             WHERE NOT f.filePath ENDS WITH '.tsx'
               AND NOT f.filePath ENDS WITH '.jsx'
+              AND NOT f.filePath ENDS WITH '.md'
+              AND NOT f.filePath ENDS WITH '.mdx'
             OPTIONAL MATCH (parent:File)-[:CONTAINS]->(f)
             WITH f, parent
             WHERE parent IS NULL
