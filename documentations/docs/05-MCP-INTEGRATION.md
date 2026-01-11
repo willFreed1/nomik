@@ -76,6 +76,18 @@ You can override the target file explicitly:
 nomik setup-windsurf --config-path "/custom/path/mcp_config.json"
 ```
 
+#### Windsurf refresh / recovery
+
+If NOMIK disappears after disabling it in Windsurf:
+
+1. Re-run `nomik setup-windsurf` (or with `--config-path`).
+2. Fully restart Windsurf (quit all windows, relaunch).
+3. Check `~/.codeium/windsurf/mcp_config.json` still contains `mcpServers.nomik`.
+4. In team/enterprise mode, verify admin whitelist allows the `nomik` server id.
+
+> In Windsurf/Cursor stdio mode, you do **not** need `nomik serve` for MCP discovery.  
+> The IDE launches the configured MCP command on demand. `nomik serve` is mainly for local viz and manual debugging.
+
 ### MCP Tools Exposed by NOMIK
 
 | Tool Name | Description | Example Prompt |

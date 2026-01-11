@@ -66,11 +66,15 @@ nomik watch ./src --debounce 1000
 
 ### `nomik serve`
 
-Demarre le serveur MCP et le dashboard de visualisation.
+Demarre le dashboard de visualisation (et garde un mode de debug MCP local).
 
 ```bash
 nomik serve
+nomik serve --no-viz
 ```
+
+> **Note MCP IDE**: pour Cursor/Windsurf en mode stdio, `nomik serve` n'est pas requis.  
+> Apres `setup-cursor` ou `setup-windsurf`, l'IDE lance le serveur MCP automatiquement.
 
 ---
 
