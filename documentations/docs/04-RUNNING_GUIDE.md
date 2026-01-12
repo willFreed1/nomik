@@ -54,20 +54,9 @@ Open [http://localhost:3000](http://localhost:3000).
 
 To let AI assistants (like Cursor, Windsurf, or Claude) use your knowledge graph:
 
-### Development Mode
-```bash
-cd packages/mcp-server
-pnpm dev
-```
+### Automatic Cursor/Windsurf Configuration (Recommended)
 
-### Or via CLI
-```bash
-pnpm nomik serve
-```
-
-### Automatic Cursor/Windsurf Configuration
-
-The recommended method is to use the dedicated command:
+The simplest method is to use the dedicated command:
 
 ```bash
 pnpm nomik setup-cursor
@@ -75,6 +64,27 @@ pnpm nomik setup-windsurf
 ```
 
 This automatically creates `.cursor/mcp.json` (Cursor) or `~/.codeium/windsurf/mcp_config.json` (Windsurf) with the correct path to the MCP server and Neo4j variables.
+
+> **Note**: For Cursor/Windsurf in stdio mode, you do **not** need `nomik serve`. After `setup-cursor` or `setup-windsurf`, the IDE launches the MCP server automatically on demand. `nomik serve` is mainly for the visualization dashboard and manual debugging.
+
+### Development Mode (Optional)
+
+If you want to test the MCP server manually:
+
+```bash
+cd packages/mcp-server
+pnpm dev
+```
+
+### Or via CLI (Visualization Dashboard)
+
+To launch the visualization dashboard (includes MCP server for debugging):
+
+```bash
+pnpm nomik serve
+# Or without visualization:
+pnpm nomik serve --no-viz
+```
 
 ### Manual Configuration (Claude Desktop)
 

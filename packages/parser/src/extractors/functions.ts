@@ -178,6 +178,14 @@ function isNodeExported(node: Parser.SyntaxNode): boolean {
     if (parent?.type === 'lexical_declaration' && parent.parent?.type === 'export_statement') {
         return true;
     }
+    // export const X = () => {} / export const X = function() {}
+    // AST: export_statement > lexical_declaration > variable_declarator > arrow_function/function
+    if (parent?.type === 'variable_declarator') {
+        const decl = parent.parent;
+        if (decl?.type === 'lexical_declaration' || decl?.type === 'variable_declaration') {
+            if (decl.parent?.type === 'export_statement') return true;
+        }
+    }
     return false;
 }
 

@@ -21,6 +21,7 @@
     "dependencies": {
         "@nomik/core": "workspace:*",
         "glob": "^11.0.0",
+        "jsonc-parser": "^3.3.1",
         "tree-sitter": "^0.22.4",
         "tree-sitter-javascript": "^0.23.1",
         "tree-sitter-python": "0.21.0",

@@ -1,6 +1,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import Parser from 'tree-sitter';
+import { parse as parseJsonc } from 'jsonc-parser';
 import { type ClassNode, type FunctionNode, type VariableNode, type ModuleNode, type GraphNode, type GraphEdge, type CallsEdge, type ExtendsEdge, type ImplementsEdge, type HandlesEdge, ParseError, getLogger } from '@nomik/core';
 import type { FileNode, RouteNode } from '@nomik/core';
 import { detectLanguage, grammars } from './languages/index';
@@ -221,6 +222,12 @@ export function createParserEngine(): ParserEngine {
         // Resolution des aliases de chemin (tsconfig.json paths: { "@/*": ["./src/*"] })
         // Supporte les monorepos avec plusieurs tsconfig (web-app/, backend/, etc.)
         const allAliasConfigs = findAllPathAliases(filePaths);
+        if (allAliasConfigs.length > 0) {
+            logger.info(
+                { count: allAliasConfigs.length, aliases: allAliasConfigs.map(c => ({ dir: c.configDir, prefixes: [...c.aliases.keys()] })) },
+                'tsconfig path aliases detected',
+            );
+        }
 
         // Resolution DEPENDS_ON : File → File via imports relatifs ET aliases
         const resolvedImportsByFile = new Map<string, Array<{ imp: ImportInfo; resolvedPath: string }>>();
@@ -375,6 +382,20 @@ export function createParserEngine(): ParserEngine {
             }
         }
 
+        // Count unresolved non-relative imports for diagnostic purposes
+        let unresolvedAliasImports = 0;
+        for (const r of results) {
+            for (const imp of r.imports) {
+                if (!imp.source.startsWith('.') && !imp.isTypeOnly) {
+                    const resolved = resolvedImportsByFile.get(r.file.path);
+                    const wasResolved = resolved?.some(ri => ri.imp === imp) ?? false;
+                    if (!wasResolved && (imp.source.startsWith('@/') || imp.source.startsWith('~/'))) {
+                        unresolvedAliasImports++;
+                    }
+                }
+            }
+        }
+
         logger.info(
             {
                 total: filePaths.length,
@@ -383,6 +404,8 @@ export function createParserEngine(): ParserEngine {
                 dependsOn: dependsOnCount,
                 crossFileCalls: crossFileCallCount,
                 crossFileExtends: crossFileExtendsCount,
+                aliasConfigs: allAliasConfigs.length,
+                unresolvedAliasImports,
             },
             'parse batch complete',
         );
@@ -1093,11 +1116,7 @@ function parseTsConfigFile(configPath: string, visited: Set<string> = new Set())
 function readJsoncFile(filePath: string): any | null {
     try {
         const content = fs.readFileSync(filePath, 'utf-8');
-        const cleaned = content
-            .replace(/\/\/.*$/gm, '')
-            .replace(/\/\*[\s\S]*?\*\//g, '')
-            .replace(/,\s*([\]}])/g, '$1');
-        return JSON.parse(cleaned);
+        return parseJsonc(content);
     } catch {
         return null;
     }

@@ -481,5 +481,218 @@ export function renderMap() {
             fs.rmSync(tmpDir, { recursive: true, force: true });
         }
     });
+
+    it('resolves @/ alias imports with direct tsconfig paths (Next.js project)', async () => {
+        const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'nomik-parser-'));
+        try {
+            // Mimic: web-app/tsconfig.json with "@/*": ["./src/*"]
+            const tsconfigPath = path.join(tmpDir, 'web-app', 'tsconfig.json');
+            const servicePath = path.join(tmpDir, 'web-app', 'src', 'services', 'userService.ts');
+            const pagePath = path.join(tmpDir, 'web-app', 'src', 'app', 'users', 'page.tsx');
+
+            // Use realistic JSONC content with glob patterns that trigger the
+            // block comment regex bug: /* in "src/*" looks like a comment opener,
+            // */ in "**/*.ts" looks like a closer, destroying the paths block.
+            writeFile(tsconfigPath, `{
+  "compilerOptions": {
+    "target": "ES2017",
+    "lib": ["dom", "dom.iterable", "esnext"],
+    "module": "esnext",
+    "moduleResolution": "bundler",
+    "baseUrl": ".",
+    "paths": {
+      "src/*": ["./src/*"],
+      "@/*": ["./src/*"]
+    }
+  },
+  "include": ["next-env.d.ts", "**/*.ts", "**/*.tsx"],
+  "exclude": ["node_modules"]
+}`);
+
+            writeFile(servicePath, `
+export function getUserProfile(id: string) {
+  return { id };
+}
+`);
+            writeFile(pagePath, `
+import { getUserProfile } from '@/services/userService';
+export default function UserProfilePage() {
+  const profile = getUserProfile('123');
+  return profile;
+}
+`);
+
+            const engine = createParserEngine();
+            const results = await engine.parseFiles([servicePath, pagePath]);
+
+            const serviceResult = results.find(r => r.file.path === path.resolve(servicePath));
+            const pageResult = results.find(r => r.file.path === path.resolve(pagePath));
+            expect(serviceResult).toBeDefined();
+            expect(pageResult).toBeDefined();
+
+            const getUserProfileFn = serviceResult!.nodes.find(
+                n => n.type === 'function' && n.name === 'getUserProfile',
+            );
+            expect(getUserProfileFn).toBeDefined();
+
+            // DEPENDS_ON file-to-file edge must exist
+            const dependsOnFile = pageResult!.edges.find(
+                e => e.type === 'DEPENDS_ON' &&
+                    e.sourceId === pageResult!.file.id &&
+                    e.targetId === serviceResult!.file.id,
+            );
+            expect(dependsOnFile).toBeDefined();
+
+            // DEPENDS_ON file-to-function (import symbol ref) edge must exist
+            const dependsOnFn = pageResult!.edges.find(
+                e => e.type === 'DEPENDS_ON' &&
+                    e.sourceId === pageResult!.file.id &&
+                    e.targetId === getUserProfileFn!.id,
+            );
+            expect(dependsOnFn).toBeDefined();
+
+            // CALLS edge from UserProfilePage → getUserProfile must exist
+            const userPageFn = pageResult!.nodes.find(
+                n => n.type === 'function' && n.name === 'UserProfilePage',
+            );
+            expect(userPageFn).toBeDefined();
+
+            const callEdge = pageResult!.edges.find(
+                e => e.type === 'CALLS' &&
+                    e.sourceId === userPageFn!.id &&
+                    e.targetId === getUserProfileFn!.id,
+            );
+            expect(callEdge).toBeDefined();
+        } finally {
+            fs.rmSync(tmpDir, { recursive: true, force: true });
+        }
+    });
+
+    it('detects isExported for export const arrow functions', async () => {
+        const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'nomik-parser-'));
+        try {
+            const filePath = path.join(tmpDir, 'utils.ts');
+            writeFile(filePath, `
+export const playMessageSound = () => {
+  const audio = new Audio('/msg.mp3');
+  audio.play();
+};
+export function formatDistance(meters: number): string {
+  return meters + 'm';
+}
+export const throttle = (fn: Function, delay: number) => {
+  let timer: any;
+  return (...args: any[]) => {
+    clearTimeout(timer);
+    timer = setTimeout(() => fn(...args), delay);
+  };
+};
+`);
+
+            const engine = createParserEngine();
+            const results = await engine.parseFiles([filePath]);
+            const result = results[0]!;
+
+            const playFn = result.nodes.find(n => n.type === 'function' && n.name === 'playMessageSound');
+            const formatFn = result.nodes.find(n => n.type === 'function' && n.name === 'formatDistance');
+            const throttleFn = result.nodes.find(n => n.type === 'function' && n.name === 'throttle');
+
+            expect(playFn).toBeDefined();
+            expect(formatFn).toBeDefined();
+            expect(throttleFn).toBeDefined();
+
+            expect((playFn as any).isExported).toBe(true);
+            expect((formatFn as any).isExported).toBe(true);
+            expect((throttleFn as any).isExported).toBe(true);
+        } finally {
+            fs.rmSync(tmpDir, { recursive: true, force: true });
+        }
+    });
+
+    it('traces intra-file function calls (helper called within same module)', async () => {
+        const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'nomik-parser-'));
+        try {
+            const filePath = path.join(tmpDir, 'usePageTracking.ts');
+            writeFile(filePath, `
+function getSessionId(): string {
+  return 'sess_123';
+}
+export function usePageTracking() {
+  const sid = getSessionId();
+  return sid;
+}
+`);
+
+            const engine = createParserEngine();
+            const results = await engine.parseFiles([filePath]);
+            const result = results[0]!;
+
+            const getSessionFn = result.nodes.find(n => n.type === 'function' && n.name === 'getSessionId');
+            const useTrackingFn = result.nodes.find(n => n.type === 'function' && n.name === 'usePageTracking');
+            expect(getSessionFn).toBeDefined();
+            expect(useTrackingFn).toBeDefined();
+
+            const callEdge = result.edges.find(
+                e => e.type === 'CALLS' &&
+                    e.sourceId === useTrackingFn!.id &&
+                    e.targetId === getSessionFn!.id,
+            );
+            expect(callEdge).toBeDefined();
+        } finally {
+            fs.rmSync(tmpDir, { recursive: true, force: true });
+        }
+    });
+
+    it('resolves dynamic import().then() destructured function as cross-file CALLS', async () => {
+        const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'nomik-parser-'));
+        try {
+            const audioPath = path.join(tmpDir, 'audioUtils.ts');
+            const consumerPath = path.join(tmpDir, 'SocketContext.tsx');
+
+            writeFile(audioPath, `
+export const playMessageSound = () => {
+  const audio = new Audio('/msg.mp3');
+  audio.play();
+};
+`);
+            writeFile(consumerPath, `
+export function handleNewMessage(msg: any) {
+  import('./audioUtils').then(({ playMessageSound }) => playMessageSound());
+}
+`);
+
+            const engine = createParserEngine();
+            const results = await engine.parseFiles([audioPath, consumerPath]);
+
+            const audioResult = results.find(r => r.file.path === path.resolve(audioPath));
+            const consumerResult = results.find(r => r.file.path === path.resolve(consumerPath));
+            expect(audioResult).toBeDefined();
+            expect(consumerResult).toBeDefined();
+
+            const playFn = audioResult!.nodes.find(n => n.type === 'function' && n.name === 'playMessageSound');
+            expect(playFn).toBeDefined();
+
+            // The dynamic import should create a DEPENDS_ON file edge
+            const dependsOn = consumerResult!.edges.find(
+                e => e.type === 'DEPENDS_ON' &&
+                    e.sourceId === consumerResult!.file.id &&
+                    e.targetId === audioResult!.file.id,
+            );
+            expect(dependsOn).toBeDefined();
+
+            // The then-destructured call should create a CALLS edge
+            const handleFn = consumerResult!.nodes.find(n => n.type === 'function' && n.name === 'handleNewMessage');
+            expect(handleFn).toBeDefined();
+
+            const callEdge = consumerResult!.edges.find(
+                e => e.type === 'CALLS' &&
+                    e.sourceId === handleFn!.id &&
+                    e.targetId === playFn!.id,
+            );
+            expect(callEdge).toBeDefined();
+        } finally {
+            fs.rmSync(tmpDir, { recursive: true, force: true });
+        }
+    });
 });
 
