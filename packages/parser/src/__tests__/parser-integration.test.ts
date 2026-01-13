@@ -717,6 +717,48 @@ export default function EditListingPage() {
         }
     });
 
+    it('does not create cross-file CALLS for name collisions (local shadows remote)', async () => {
+        const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'nomik-parser-'));
+        try {
+            // format.ts exports formatNumber
+            const formatPath = path.join(tmpDir, 'format.ts');
+            writeFile(formatPath, `
+export function formatNumber(n: number): string {
+  return n.toLocaleString();
+}
+`);
+            // consumer.ts does NOT import formatNumber from format.ts
+            // but defines its own local formatNumber and calls it
+            const consumerPath = path.join(tmpDir, 'consumer.ts');
+            writeFile(consumerPath, `
+import { something } from './format';
+const formatNumber = (n: number) => String(n);
+export function render() {
+  return formatNumber(42);
+}
+`);
+
+            const engine = createParserEngine();
+            const results = await engine.parseFiles([formatPath, consumerPath]);
+
+            const formatResult = results.find(r => r.file.path === path.resolve(formatPath));
+            const consumerResult = results.find(r => r.file.path === path.resolve(consumerPath));
+            expect(formatResult).toBeDefined();
+            expect(consumerResult).toBeDefined();
+
+            const remoteFn = formatResult!.nodes.find(n => n.type === 'function' && n.name === 'formatNumber');
+            expect(remoteFn).toBeDefined();
+
+            // No CALLS edge should point to format.ts::formatNumber — the call targets the local shadow
+            const badEdge = consumerResult!.edges.find(
+                e => e.type === 'CALLS' && e.targetId === remoteFn!.id,
+            );
+            expect(badEdge).toBeUndefined();
+        } finally {
+            fs.rmSync(tmpDir, { recursive: true, force: true });
+        }
+    });
+
     it('resolves dynamic import().then() destructured function as cross-file CALLS', async () => {
         const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'nomik-parser-'));
         try {

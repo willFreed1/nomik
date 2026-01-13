@@ -282,6 +282,13 @@ export function createParserEngine(): ParserEngine {
                 resultByPath,
             );
 
+            // Build set of all file IDs this file imports from (static + dynamic)
+            const importedFileIds = new Set<string>();
+            for (const { resolvedPath } of resolvedImportsByFile.get(r.file.path) ?? []) {
+                const fid = filePathToId.get(resolvedPath);
+                if (fid) importedFileIds.add(fid);
+            }
+
             // CALLS cross-fichier (fonctions nommees → fonctions dans autres fichiers)
             const crossCallEdges = resolveCrossFileCallEdges(
                 r.calls,
@@ -290,6 +297,7 @@ export function createParserEngine(): ParserEngine {
                 importedAliasFunctionIds,
                 importedReceiverFileIds,
                 nodeIdToFileId,
+                importedFileIds,
             );
             const existingEdgeIds = new Set(r.edges.map((e) => e.id));
             const importSymbolRefEdges = resolveImportedSymbolReferenceEdges(
@@ -322,6 +330,7 @@ export function createParserEngine(): ParserEngine {
                 importedAliasFunctionIds,
                 importedReceiverFileIds,
                 nodeIdToFileId,
+                importedFileIds,
             );
             for (const edge of crossFileEdges) {
                 if (!existingEdgeIds.has(edge.id)) {
@@ -560,6 +569,7 @@ function resolveCrossFileCallEdges(
     importedAliasFunctionIds: Map<string, string[]>,
     importedReceiverFileIds: Map<string, Set<string>>,
     nodeIdToFileId: Map<string, string>,
+    importedFileIds: Set<string>,
 ): CallsEdge[] {
     const edges: CallsEdge[] = [];
     const seen = new Set<string>();
@@ -569,7 +579,21 @@ function resolveCrossFileCallEdges(
         if (call.isLocalIdentifier) continue;
         const callerIds = multiMap.get(call.callerName) ?? [];
         const aliasTargets = importedAliasFunctionIds.get(call.calleeName) ?? [];
-        let calleeIds = aliasTargets.length > 0 ? aliasTargets : (multiMap.get(call.calleeName) ?? []);
+        // When no alias targets exist, fall back to global multiMap but:
+        // 1) If a local function with the same name exists, skip — call targets local definition
+        // 2) Otherwise constrain to functions in files actually imported by this file
+        // This prevents name collisions (e.g. local formatNumber vs format.ts::formatNumber,
+        // or date-fns::formatDistance vs format.ts::formatDistance).
+        let calleeIds: string[];
+        if (aliasTargets.length > 0) {
+            calleeIds = aliasTargets;
+        } else {
+            const globalIds = multiMap.get(call.calleeName) ?? [];
+            const hasLocalShadow = globalIds.some(id => localIds.has(id));
+            calleeIds = hasLocalShadow
+                ? []
+                : globalIds.filter(id => importedFileIds.has(nodeIdToFileId.get(id) ?? ''));
+        }
 
         // Seul le caller dans CE fichier est pertinent
         const localCallerIds = callerIds.filter((id) => localIds.has(id));
@@ -613,6 +637,7 @@ function resolveFileCrossFileCallEdges(
     importedAliasFunctionIds: Map<string, string[]>,
     importedReceiverFileIds: Map<string, Set<string>>,
     nodeIdToFileId: Map<string, string>,
+    importedFileIds: Set<string>,
 ): CallsEdge[] {
     const edges: CallsEdge[] = [];
     const seen = new Set<string>();
@@ -621,7 +646,16 @@ function resolveFileCrossFileCallEdges(
         if (call.callerName !== '__file__') continue;
         if (call.isLocalIdentifier) continue;
         const aliasTargets = importedAliasFunctionIds.get(call.calleeName) ?? [];
-        let calleeIds = aliasTargets.length > 0 ? aliasTargets : (multiMap.get(call.calleeName) ?? []);
+        let calleeIds: string[];
+        if (aliasTargets.length > 0) {
+            calleeIds = aliasTargets;
+        } else {
+            const globalIds = multiMap.get(call.calleeName) ?? [];
+            const hasLocalShadow = globalIds.some(id => localIds.has(id));
+            calleeIds = hasLocalShadow
+                ? []
+                : globalIds.filter(id => importedFileIds.has(nodeIdToFileId.get(id) ?? ''));
+        }
         calleeIds = filterMethodCandidatesByReceiverImport(
             calleeIds,
             call,
