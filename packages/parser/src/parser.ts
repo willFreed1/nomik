@@ -297,6 +297,7 @@ export function createParserEngine(): ParserEngine {
                 r.file.path,
                 resolvedImportsByFile,
                 resultByPath,
+                r.calls,
             );
             for (const edge of importSymbolRefEdges) {
                 if (!existingEdgeIds.has(edge.id)) {
@@ -755,6 +756,7 @@ function resolveImportedSymbolReferenceEdges(
     importerPath: string,
     resolvedImportsByFile: Map<string, Array<{ imp: ImportInfo; resolvedPath: string }>>,
     resultByPath: Map<string, ParseResult>,
+    calls: CallInfo[],
 ): GraphEdge[] {
     const edges: GraphEdge[] = [];
     const seen = new Set<string>();
@@ -765,12 +767,32 @@ function resolveImportedSymbolReferenceEdges(
         if (!targetResult) continue;
         for (const rawSpecifier of imp.specifiers) {
             const parsed = parseImportSpecifier(rawSpecifier);
-            if (!parsed || parsed.isNamespace) continue;
-            const targets = targetResult.nodes.filter(
-                (n) =>
-                    (n.type === 'function' || n.type === 'class' || n.type === 'variable')
-                    && n.name === parsed.importedName,
-            );
+            if (!parsed) continue;
+
+            let targets: GraphNode[];
+            if (parsed.isNamespace || imp.isDefault) {
+                // Namespace import (import * as X) or default import (import X from 'mod'):
+                // only create DEPENDS_ON for exports actually accessed via X.method()
+                // in the consuming file — avoids blanket edges that hide dead code.
+                const accessedNames = new Set<string>();
+                for (const call of calls) {
+                    if (call.receiverName === parsed.localName && call.isMethodCall) {
+                        accessedNames.add(call.calleeName);
+                    }
+                }
+                targets = targetResult.nodes.filter(
+                    (n) =>
+                        (n.type === 'function' || n.type === 'class' || n.type === 'variable')
+                        && accessedNames.has(n.name),
+                );
+            } else {
+                targets = targetResult.nodes.filter(
+                    (n) =>
+                        (n.type === 'function' || n.type === 'class' || n.type === 'variable')
+                        && n.name === parsed.importedName,
+                );
+            }
+
             for (const target of targets) {
                 const key = `${sourceFileId}->${target.id}`;
                 if (seen.has(key)) continue;
@@ -780,7 +802,7 @@ function resolveImportedSymbolReferenceEdges(
                     type: 'DEPENDS_ON' as const,
                     sourceId: sourceFileId,
                     targetId: target.id,
-                    confidence: 0.85,
+                    confidence: parsed.isNamespace || imp.isDefault ? 0.7 : 0.85,
                     kind: 'import' as const,
                 });
             }

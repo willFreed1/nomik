@@ -76,7 +76,7 @@ function isModuleScopeObjectLiteral(node: Parser.SyntaxNode | null | undefined):
     return container.type === 'program' || container.type === 'export_statement';
 }
 
-function isModuleScopeVariableDeclarator(node: Parser.SyntaxNode | null | undefined): boolean {
+export function isModuleScopeVariableDeclarator(node: Parser.SyntaxNode | null | undefined): boolean {
     if (!node || node.type !== 'variable_declarator') return false;
     const declaration = node.parent;
     if (!declaration) return false;

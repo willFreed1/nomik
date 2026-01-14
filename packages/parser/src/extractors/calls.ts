@@ -1,4 +1,5 @@
 import type Parser from 'tree-sitter';
+import { isModuleScopeVariableDeclarator } from './functions.js';
 
 export interface CallInfo {
     callerName: string;
@@ -349,6 +350,13 @@ function isTrackedFunctionScope(node: Parser.SyntaxNode): boolean {
         const body = node.childForFieldName('body');
         if (node.type === 'arrow_function' && body && body.type !== 'statement_block') return false;
         if (!isModuleScopeObjectLiteral(node.parent.parent)) return false;
+    }
+    // Aligned with isFunctionLike: nested const/let arrow functions declared
+    // inside another function body must NOT create a new caller scope.
+    // Otherwise callerName becomes e.g. 'trackPageView' which doesn't exist
+    // in funcMap, silently dropping the CALLS edge.
+    if ((node.type === 'arrow_function' || node.type === 'function') && node.parent?.type === 'variable_declarator') {
+        if (!isModuleScopeVariableDeclarator(node.parent)) return false;
     }
     return true;
 }

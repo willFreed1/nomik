@@ -613,14 +613,25 @@ export const throttle = (fn: Function, delay: number) => {
         const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'nomik-parser-'));
         try {
             const filePath = path.join(tmpDir, 'usePageTracking.ts');
+            // Exact real-world pattern: getSessionId (private const arrow at module scope)
+            // called inside trackPageView (nested const arrow inside useEffect callback)
+            // within usePageTracking (module-scope export const arrow).
+            // The nested arrow must NOT create a new caller scope — calls inside it
+            // should be attributed to the enclosing module-scope function.
             writeFile(filePath, `
-function getSessionId(): string {
+import { useEffect } from 'react';
+const getSessionId = (): string => {
   return 'sess_123';
-}
-export function usePageTracking() {
-  const sid = getSessionId();
-  return sid;
-}
+};
+export const usePageTracking = () => {
+  useEffect(() => {
+    const trackPageView = async () => {
+      const sessionId = getSessionId();
+      console.log(sessionId);
+    };
+    trackPageView();
+  }, []);
+};
 `);
 
             const engine = createParserEngine();
@@ -638,6 +649,69 @@ export function usePageTracking() {
                     e.targetId === getSessionFn!.id,
             );
             expect(callEdge).toBeDefined();
+        } finally {
+            fs.rmSync(tmpDir, { recursive: true, force: true });
+        }
+    });
+
+    it('resolves namespace import method calls (import * as X then X.method())', async () => {
+        const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'nomik-parser-'));
+        try {
+            const servicePath = path.join(tmpDir, 'listingService.ts');
+            const pagePath = path.join(tmpDir, 'editPage.tsx');
+
+            writeFile(servicePath, `
+export function updateListing(id: string, data: any) {
+  return fetch('/api/listings/' + id, { method: 'PUT', body: JSON.stringify(data) });
+}
+export function deleteListing(id: string) {
+  return fetch('/api/listings/' + id, { method: 'DELETE' });
+}
+`);
+            writeFile(pagePath, `
+import * as listingService from './listingService';
+export default function EditListingPage() {
+  listingService.updateListing('123', { title: 'test' });
+  return null;
+}
+`);
+
+            const engine = createParserEngine();
+            const results = await engine.parseFiles([servicePath, pagePath]);
+
+            const serviceResult = results.find(r => r.file.path === path.resolve(servicePath));
+            const pageResult = results.find(r => r.file.path === path.resolve(pagePath));
+            expect(serviceResult).toBeDefined();
+            expect(pageResult).toBeDefined();
+
+            const updateFn = serviceResult!.nodes.find(n => n.type === 'function' && n.name === 'updateListing');
+            expect(updateFn).toBeDefined();
+
+            const pageFn = pageResult!.nodes.find(n => n.type === 'function' && n.name === 'EditListingPage');
+            expect(pageFn).toBeDefined();
+
+            // CALLS edge from EditListingPage → updateListing via namespace import
+            const callEdge = pageResult!.edges.find(
+                e => e.type === 'CALLS' &&
+                    e.sourceId === pageFn!.id &&
+                    e.targetId === updateFn!.id,
+            );
+            expect(callEdge).toBeDefined();
+
+            // Granularity check: DEPENDS_ON should exist for updateListing (accessed)
+            // but NOT for deleteListing (not accessed via listingService.deleteListing)
+            const deleteFn = serviceResult!.nodes.find(n => n.type === 'function' && n.name === 'deleteListing');
+            expect(deleteFn).toBeDefined();
+
+            const dependsOnUpdate = pageResult!.edges.find(
+                e => e.type === 'DEPENDS_ON' && e.targetId === updateFn!.id,
+            );
+            expect(dependsOnUpdate).toBeDefined();
+
+            const dependsOnDelete = pageResult!.edges.find(
+                e => e.type === 'DEPENDS_ON' && e.targetId === deleteFn!.id,
+            );
+            expect(dependsOnDelete).toBeUndefined(); // Must NOT exist — prevents false negatives
         } finally {
             fs.rmSync(tmpDir, { recursive: true, force: true });
         }
