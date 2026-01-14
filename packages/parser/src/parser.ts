@@ -1,9 +1,8 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import Parser from 'tree-sitter';
-import { parse as parseJsonc } from 'jsonc-parser';
-import { type ClassNode, type FunctionNode, type VariableNode, type ModuleNode, type GraphNode, type GraphEdge, type CallsEdge, type ExtendsEdge, type ImplementsEdge, type HandlesEdge, ParseError, getLogger } from '@nomik/core';
-import type { FileNode, RouteNode } from '@nomik/core';
+import { type ClassNode, type FunctionNode, type VariableNode, type ModuleNode, type GraphNode, type GraphEdge, ParseError, getLogger } from '@nomik/core';
+import type { FileNode } from '@nomik/core';
 import { detectLanguage, grammars } from './languages/index';
 import { extractFunctions } from './extractors/functions';
 import { extractClasses } from './extractors/classes';
@@ -13,12 +12,36 @@ import { extractRoutes } from './extractors/routes';
 import { extractExports } from './extractors/exports';
 import { extractCalls, extractArrayCallbackAliases } from './extractors/calls';
 import { parseMarkdown } from './extractors/markdown';
+import { extractAPICalls, buildAPINodesAndEdges, buildHttpClientIdentifiers } from './extractors/api-calls';
+import { extractDBOperations, buildDBNodesAndEdges, buildDBClientIdentifiers } from './extractors/db-operations';
 import { extractPythonFunctions, extractPythonClasses, extractPythonImports, extractPythonCalls } from './extractors/python';
 import { extractRustFunctions, extractRustClasses, extractRustImports, extractRustCalls } from './extractors/rust';
 import { createNodeId, createFileHash } from './utils';
 import type { ImportInfo } from './extractors/imports';
 import type { ExportInfo } from './extractors/exports';
 import type { CallInfo } from './extractors/calls';
+import {
+    resolveCallEdges,
+    resolveFileCallEdges,
+    resolveVariableArrayReferenceEdges,
+    resolveVariableDeclarationAliasEdges,
+    resolveCrossFileCallEdges,
+    resolveFileCrossFileCallEdges,
+    buildImportedAliasFunctionIds,
+    buildImportedReceiverFileIds,
+    resolveImportedSymbolReferenceEdges,
+    resolveImportedArrayAliasCallEdges,
+    resolveExtendsEdges,
+    resolveImplementsEdges,
+    resolveRouteHandlesEdges,
+    resolveCrossFileHandlesEdges,
+    resolveFrameworkEntryEdges,
+} from './resolvers/index';
+import {
+    findAllPathAliases,
+    resolveImportPath,
+    resolveAliasImportMulti,
+} from './config/index';
 
 export interface ParseResult {
     file: FileNode;
@@ -118,7 +141,6 @@ export function createParserEngine(): ParserEngine {
         }
 
         const moduleNodes = buildModuleNodes(imports);
-        const nodes: GraphNode[] = [fileNode, ...functions, ...classes, ...variables, ...routes, ...moduleNodes];
 
         // Edges CONTAINS : File → Function/Class/Route
         const containsEdges: GraphEdge[] = [...functions, ...classes, ...variables, ...routes].map((n) => ({
@@ -139,6 +161,31 @@ export function createParserEngine(): ParserEngine {
         for (const fn of functions) {
             localFuncMap.set(fn.name, fn.id);
         }
+
+        // API & DB tracking (TS/JS only — Python/Rust extractors can be added later)
+        let apiNodes: GraphNode[] = [];
+        let apiEdges: GraphEdge[] = [];
+        let dbNodes: GraphNode[] = [];
+        let dbEdges: GraphEdge[] = [];
+        if (language !== 'python' && language !== 'rust') {
+            const httpClientIds = buildHttpClientIdentifiers(imports);
+            const dbClientIds = buildDBClientIdentifiers(imports);
+            const apiCalls = extractAPICalls(tree, absolutePath, httpClientIds);
+            const dbOps = extractDBOperations(tree, absolutePath, dbClientIds);
+            if (apiCalls.length > 0) {
+                const api = buildAPINodesAndEdges(apiCalls, localFuncMap, fileNode.id, absolutePath);
+                apiNodes = api.nodes;
+                apiEdges = api.edges;
+            }
+            if (dbOps.length > 0) {
+                const db = buildDBNodesAndEdges(dbOps, localFuncMap, fileNode.id, absolutePath);
+                dbNodes = db.nodes;
+                dbEdges = db.edges;
+            }
+        }
+
+        const nodes: GraphNode[] = [fileNode, ...functions, ...classes, ...variables, ...routes, ...moduleNodes, ...apiNodes, ...dbNodes];
+
         const localVarMap = new Map<string, string>();
         for (const v of variables) {
             localVarMap.set(v.name, v.id);
@@ -178,6 +225,8 @@ export function createParserEngine(): ParserEngine {
             ...implementsEdges,
             ...handlesEdges,
             ...frameworkEdges,
+            ...apiEdges,
+            ...dbEdges,
         ];
 
         logger.debug({ filePath: absolutePath, nodes: nodes.length, edges: edges.length }, 'parsed file');
@@ -425,116 +474,7 @@ export function createParserEngine(): ParserEngine {
     return { parseFile, parseFiles };
 }
 
-/** Resolution des appels intra-fichier en edges CALLS (caller et callee dans le meme fichier) */
-function resolveCallEdges(calls: CallInfo[], funcMap: Map<string, string>): CallsEdge[] {
-    const edges: CallsEdge[] = [];
-    const seen = new Set<string>();
-
-    for (const call of calls) {
-        if (call.callerName === '__file__') continue;
-        const callerId = funcMap.get(call.callerName);
-        const calleeId = funcMap.get(call.calleeName);
-        if (!callerId || !calleeId) continue;
-        if (callerId === calleeId) continue;
-
-        const key = `${callerId}->${calleeId}`;
-        if (seen.has(key)) continue;
-        seen.add(key);
-
-        edges.push({
-            id: `${callerId}->calls->${calleeId}`,
-            type: 'CALLS' as const,
-            sourceId: callerId,
-            targetId: calleeId,
-            confidence: 1.0,
-            line: call.line,
-            column: call.column,
-        });
-    }
-    return edges;
-}
-
-/** Edges CALLS depuis le contexte fichier (appels dans callbacks anonymes ou top-level) */
-function resolveFileCallEdges(calls: CallInfo[], funcMap: Map<string, string>, fileId: string): CallsEdge[] {
-    const edges: CallsEdge[] = [];
-    const seen = new Set<string>();
-
-    for (const call of calls) {
-        if (call.callerName !== '__file__') continue;
-        const calleeId = funcMap.get(call.calleeName);
-        if (!calleeId) continue;
-
-        const key = `${fileId}->${calleeId}`;
-        if (seen.has(key)) continue;
-        seen.add(key);
-
-        edges.push({
-            id: `${fileId}->calls->${calleeId}`,
-            type: 'CALLS' as const,
-            sourceId: fileId,
-            targetId: calleeId,
-            confidence: 0.9,
-            line: call.line,
-            column: call.column,
-        });
-    }
-    return edges;
-}
-
-/** Variable array aliases to function references (intra-file).
- * Creates DEPENDS_ON(kind='call') edges for value-flow references:
- *   export const sanitizeInputs = [sanitizeQueryParams, sanitizeBodyParams]
- */
-function resolveVariableArrayReferenceEdges(
-    arrayAliases: Record<string, string[]>,
-    varMap: Map<string, string>,
-    funcMap: Map<string, string>,
-): GraphEdge[] {
-    const edges: GraphEdge[] = [];
-    const seen = new Set<string>();
-
-    for (const [alias, members] of Object.entries(arrayAliases)) {
-        const varId = varMap.get(alias);
-        if (!varId) continue;
-        for (const member of members) {
-            const fnId = funcMap.get(member);
-            if (!fnId) continue;
-            const key = `${varId}->${fnId}`;
-            if (seen.has(key)) continue;
-            seen.add(key);
-            edges.push({
-                id: `${varId}->depends_on->${fnId}`,
-                type: 'DEPENDS_ON' as const,
-                sourceId: varId,
-                targetId: fnId,
-                confidence: 0.9,
-                kind: 'call' as const,
-            });
-        }
-    }
-
-    return edges;
-}
-
-function resolveVariableDeclarationAliasEdges(
-    varMap: Map<string, string>,
-    funcMap: Map<string, string>,
-): GraphEdge[] {
-    const edges: GraphEdge[] = [];
-    for (const [name, varId] of varMap.entries()) {
-        const fnId = funcMap.get(name);
-        if (!fnId) continue;
-        edges.push({
-            id: `${varId}->depends_on->${fnId}`,
-            type: 'DEPENDS_ON' as const,
-            sourceId: varId,
-            targetId: fnId,
-            confidence: 1.0,
-            kind: 'call' as const,
-        });
-    }
-    return edges;
-}
+// ── Local helpers (not extracted to modules) ──────────────────────────
 
 function buildModuleNodes(imports: ImportInfo[]): ModuleNode[] {
     const nodes: ModuleNode[] = [];
@@ -561,806 +501,9 @@ function buildModuleNodes(imports: ImportInfo[]): ModuleNode[] {
     return nodes;
 }
 
-/** Resolution cross-fichier avec multi-map (gere les noms de fonctions dupliques) */
-function resolveCrossFileCallEdges(
-    calls: CallInfo[],
-    localIds: Set<string>,
-    multiMap: Map<string, string[]>,
-    importedAliasFunctionIds: Map<string, string[]>,
-    importedReceiverFileIds: Map<string, Set<string>>,
-    nodeIdToFileId: Map<string, string>,
-    importedFileIds: Set<string>,
-): CallsEdge[] {
-    const edges: CallsEdge[] = [];
-    const seen = new Set<string>();
-
-    for (const call of calls) {
-        if (call.callerName === '__file__') continue;
-        if (call.isLocalIdentifier) continue;
-        const callerIds = multiMap.get(call.callerName) ?? [];
-        const aliasTargets = importedAliasFunctionIds.get(call.calleeName) ?? [];
-        // When no alias targets exist, fall back to global multiMap but:
-        // 1) If a local function with the same name exists, skip — call targets local definition
-        // 2) Otherwise constrain to functions in files actually imported by this file
-        // This prevents name collisions (e.g. local formatNumber vs format.ts::formatNumber,
-        // or date-fns::formatDistance vs format.ts::formatDistance).
-        let calleeIds: string[];
-        if (aliasTargets.length > 0) {
-            calleeIds = aliasTargets;
-        } else {
-            const globalIds = multiMap.get(call.calleeName) ?? [];
-            const hasLocalShadow = globalIds.some(id => localIds.has(id));
-            calleeIds = hasLocalShadow
-                ? []
-                : globalIds.filter(id => importedFileIds.has(nodeIdToFileId.get(id) ?? ''));
-        }
-
-        // Seul le caller dans CE fichier est pertinent
-        const localCallerIds = callerIds.filter((id) => localIds.has(id));
-        // Seuls les callees dans AUTRES fichiers sont pertinents
-        let remoteCalleeIds = calleeIds.filter((id) => !localIds.has(id));
-        remoteCalleeIds = filterMethodCandidatesByReceiverImport(
-            remoteCalleeIds,
-            call,
-            importedReceiverFileIds,
-            nodeIdToFileId,
-        );
-
-        for (const callerId of localCallerIds) {
-            for (const calleeId of remoteCalleeIds) {
-                if (callerId === calleeId) continue;
-                const key = `${callerId}->${calleeId}`;
-                if (seen.has(key)) continue;
-                seen.add(key);
-
-                edges.push({
-                    id: `${callerId}->calls->${calleeId}`,
-                    type: 'CALLS' as const,
-                    sourceId: callerId,
-                    targetId: calleeId,
-                    confidence: 0.85,
-                    line: call.line,
-                    column: call.column,
-                });
-            }
-        }
-    }
-    return edges;
-}
-
-/** Resolution cross-fichier des appels __file__ (File → fonctions dans autres fichiers) */
-function resolveFileCrossFileCallEdges(
-    calls: CallInfo[],
-    localIds: Set<string>,
-    multiMap: Map<string, string[]>,
-    fileId: string,
-    importedAliasFunctionIds: Map<string, string[]>,
-    importedReceiverFileIds: Map<string, Set<string>>,
-    nodeIdToFileId: Map<string, string>,
-    importedFileIds: Set<string>,
-): CallsEdge[] {
-    const edges: CallsEdge[] = [];
-    const seen = new Set<string>();
-
-    for (const call of calls) {
-        if (call.callerName !== '__file__') continue;
-        if (call.isLocalIdentifier) continue;
-        const aliasTargets = importedAliasFunctionIds.get(call.calleeName) ?? [];
-        let calleeIds: string[];
-        if (aliasTargets.length > 0) {
-            calleeIds = aliasTargets;
-        } else {
-            const globalIds = multiMap.get(call.calleeName) ?? [];
-            const hasLocalShadow = globalIds.some(id => localIds.has(id));
-            calleeIds = hasLocalShadow
-                ? []
-                : globalIds.filter(id => importedFileIds.has(nodeIdToFileId.get(id) ?? ''));
-        }
-        calleeIds = filterMethodCandidatesByReceiverImport(
-            calleeIds,
-            call,
-            importedReceiverFileIds,
-            nodeIdToFileId,
-        );
-
-        for (const calleeId of calleeIds) {
-            if (localIds.has(calleeId)) continue;
-            const key = `${fileId}->${calleeId}`;
-            if (seen.has(key)) continue;
-            seen.add(key);
-
-            edges.push({
-                id: `${fileId}->calls->${calleeId}`,
-                type: 'CALLS' as const,
-                sourceId: fileId,
-                targetId: calleeId,
-                confidence: 0.8,
-                line: call.line,
-                column: call.column,
-            });
-        }
-    }
-    return edges;
-}
-
-function filterMethodCandidatesByReceiverImport(
-    calleeIds: string[],
-    call: CallInfo,
-    importedReceiverFileIds: Map<string, Set<string>>,
-    nodeIdToFileId: Map<string, string>,
-): string[] {
-    if (!call.isMethodCall || !call.receiverName) return calleeIds;
-    const importedTargetFileIds = importedReceiverFileIds.get(call.receiverName);
-    if (!importedTargetFileIds || importedTargetFileIds.size === 0) return calleeIds;
-    return calleeIds.filter((calleeId) => {
-        const ownerFileId = nodeIdToFileId.get(calleeId);
-        return ownerFileId ? importedTargetFileIds.has(ownerFileId) : false;
-    });
-}
-
 function idToFilePath(fileId: string, filePathToId: Map<string, string>): string | null {
     for (const [fp, id] of filePathToId.entries()) {
         if (id === fileId) return fp;
     }
     return null;
-}
-
-function buildImportedReceiverFileIds(
-    importerPath: string,
-    resolvedImportsByFile: Map<string, Array<{ imp: ImportInfo; resolvedPath: string }>>,
-    filePathToId: Map<string, string>,
-): Map<string, Set<string>> {
-    const map = new Map<string, Set<string>>();
-    const resolvedImports = resolvedImportsByFile.get(importerPath) ?? [];
-
-    for (const { imp, resolvedPath } of resolvedImports) {
-        if (imp.isTypeOnly) continue;
-        const targetFileId = filePathToId.get(resolvedPath);
-        if (!targetFileId) continue;
-        for (const rawSpecifier of imp.specifiers) {
-            const specifier = normalizeImportSpecifier(rawSpecifier);
-            if (!specifier) continue;
-            const set = map.get(specifier) ?? new Set<string>();
-            set.add(targetFileId);
-            map.set(specifier, set);
-        }
-    }
-    return map;
-}
-
-interface ParsedImportSpecifier {
-    importedName: string;
-    localName: string;
-    isNamespace: boolean;
-}
-
-function parseImportSpecifier(specifier: string): ParsedImportSpecifier | null {
-    const trimmed = specifier.trim();
-    if (!trimmed) return null;
-    if (trimmed.startsWith('* as ')) {
-        const localName = trimmed.slice(5).trim();
-        return localName
-            ? { importedName: '*', localName, isNamespace: true }
-            : null;
-    }
-    const asMatch = trimmed.match(/^([A-Za-z_$][\w$]*)\s+as\s+([A-Za-z_$][\w$]*)$/);
-    if (asMatch) {
-        const importedName = asMatch[1] ?? '';
-        const localName = asMatch[2] ?? '';
-        if (!importedName || !localName) return null;
-        return { importedName, localName, isNamespace: false };
-    }
-    return { importedName: trimmed, localName: trimmed, isNamespace: false };
-}
-
-function normalizeImportSpecifier(specifier: string): string {
-    const parsed = parseImportSpecifier(specifier);
-    return parsed?.localName ?? '';
-}
-
-function buildImportedAliasFunctionIds(
-    importerPath: string,
-    resolvedImportsByFile: Map<string, Array<{ imp: ImportInfo; resolvedPath: string }>>,
-    resultByPath: Map<string, ParseResult>,
-): Map<string, string[]> {
-    const map = new Map<string, string[]>();
-    const resolvedImports = resolvedImportsByFile.get(importerPath) ?? [];
-    for (const { imp, resolvedPath } of resolvedImports) {
-        if (imp.isTypeOnly) continue;
-        const targetResult = resultByPath.get(resolvedPath);
-        if (!targetResult) continue;
-        for (const rawSpecifier of imp.specifiers) {
-            const parsed = parseImportSpecifier(rawSpecifier);
-            if (!parsed || parsed.isNamespace) continue;
-            const targetFns = targetResult.nodes.filter(
-                (n) => n.type === 'function' && n.name === parsed.importedName,
-            );
-            if (targetFns.length === 0) continue;
-            const existing = map.get(parsed.localName) ?? [];
-            const merged = new Set(existing);
-            for (const fn of targetFns) merged.add(fn.id);
-            map.set(parsed.localName, [...merged]);
-        }
-    }
-    return map;
-}
-
-function resolveImportedSymbolReferenceEdges(
-    sourceFileId: string,
-    importerPath: string,
-    resolvedImportsByFile: Map<string, Array<{ imp: ImportInfo; resolvedPath: string }>>,
-    resultByPath: Map<string, ParseResult>,
-    calls: CallInfo[],
-): GraphEdge[] {
-    const edges: GraphEdge[] = [];
-    const seen = new Set<string>();
-    const resolvedImports = resolvedImportsByFile.get(importerPath) ?? [];
-    for (const { imp, resolvedPath } of resolvedImports) {
-        if (imp.isTypeOnly) continue;
-        const targetResult = resultByPath.get(resolvedPath);
-        if (!targetResult) continue;
-        for (const rawSpecifier of imp.specifiers) {
-            const parsed = parseImportSpecifier(rawSpecifier);
-            if (!parsed) continue;
-
-            let targets: GraphNode[];
-            if (parsed.isNamespace || imp.isDefault) {
-                // Namespace import (import * as X) or default import (import X from 'mod'):
-                // only create DEPENDS_ON for exports actually accessed via X.method()
-                // in the consuming file — avoids blanket edges that hide dead code.
-                const accessedNames = new Set<string>();
-                for (const call of calls) {
-                    if (call.receiverName === parsed.localName && call.isMethodCall) {
-                        accessedNames.add(call.calleeName);
-                    }
-                }
-                targets = targetResult.nodes.filter(
-                    (n) =>
-                        (n.type === 'function' || n.type === 'class' || n.type === 'variable')
-                        && accessedNames.has(n.name),
-                );
-            } else {
-                targets = targetResult.nodes.filter(
-                    (n) =>
-                        (n.type === 'function' || n.type === 'class' || n.type === 'variable')
-                        && n.name === parsed.importedName,
-                );
-            }
-
-            for (const target of targets) {
-                const key = `${sourceFileId}->${target.id}`;
-                if (seen.has(key)) continue;
-                seen.add(key);
-                edges.push({
-                    id: `${sourceFileId}->depends_on->${target.id}`,
-                    type: 'DEPENDS_ON' as const,
-                    sourceId: sourceFileId,
-                    targetId: target.id,
-                    confidence: parsed.isNamespace || imp.isDefault ? 0.7 : 0.85,
-                    kind: 'import' as const,
-                });
-            }
-        }
-    }
-    return edges;
-}
-
-/** Resolve calls through imported array aliases.
- * Example:
- *   // sanitizeMiddleware.ts
- *   export const sanitizeInputs = [sanitizeQueryParams, sanitizeBodyParams]
- *   // index.ts
- *   app.use(sanitizeInputs)
- * This creates CALLS edges from the actual caller to both underlying functions.
- */
-function resolveImportedArrayAliasCallEdges(
-    current: ParseResult,
-    allResults: ParseResult[],
-    localFuncMap: Map<string, string>,
-    resolvedImportsByFile: Map<string, Array<{ imp: ImportInfo; resolvedPath: string }>>,
-): GraphEdge[] {
-    const edges: GraphEdge[] = [];
-    const seen = new Set<string>();
-    const resultByPath = new Map(allResults.map(r => [r.file.path, r] as const));
-    const resolvedImports = resolvedImportsByFile.get(current.file.path) ?? [];
-
-    // Build local lookup: imported symbol name -> exporting file parse result
-    const importedAliasTargets = new Map<string, ParseResult[]>();
-    for (const entry of resolvedImports) {
-        const targetResult = resultByPath.get(entry.resolvedPath);
-        if (!targetResult) continue;
-        for (const specifier of entry.imp.specifiers) {
-            const normalized = normalizeImportSpecifier(specifier);
-            if (!normalized) continue;
-            const arr = importedAliasTargets.get(normalized) ?? [];
-            arr.push(targetResult);
-            importedAliasTargets.set(normalized, arr);
-        }
-    }
-
-    for (const call of current.calls) {
-        const targetFiles = importedAliasTargets.get(call.calleeName);
-        if (!targetFiles || targetFiles.length === 0) continue;
-
-        const sourceId =
-            call.callerName === '__file__'
-                ? current.file.id
-                : localFuncMap.get(call.callerName);
-        if (!sourceId) continue;
-
-        for (const targetFile of targetFiles) {
-            const aliasMembers = targetFile.arrayAliases[call.calleeName] ?? [];
-            if (aliasMembers.length === 0) continue;
-            const aliasVarNode = targetFile.nodes.find(
-                n => n.type === 'variable' && n.name === call.calleeName,
-            );
-
-            // Keep a direct usage edge to the imported alias variable when available.
-            if (aliasVarNode) {
-                const varKey = `${sourceId}->${aliasVarNode.id}`;
-                if (!seen.has(varKey)) {
-                    seen.add(varKey);
-                    edges.push({
-                        id: `${sourceId}->depends_on->${aliasVarNode.id}`,
-                        type: 'DEPENDS_ON' as const,
-                        sourceId,
-                        targetId: aliasVarNode.id,
-                        confidence: 0.9,
-                        kind: 'call' as const,
-                    });
-                }
-            }
-
-            for (const memberName of aliasMembers) {
-                const targetFunctions = targetFile.nodes.filter(
-                    n => n.type === 'function' && n.name === memberName,
-                );
-                for (const fn of targetFunctions) {
-                    const key = `${sourceId}->${fn.id}`;
-                    if (seen.has(key)) continue;
-                    seen.add(key);
-                    edges.push({
-                        id: `${sourceId}->calls->${fn.id}`,
-                        type: 'CALLS' as const,
-                        sourceId,
-                        targetId: fn.id,
-                        confidence: 0.85,
-                        line: call.line,
-                        column: call.column,
-                    });
-                }
-            }
-        }
-    }
-
-    return edges;
-}
-
-/** Resolution des edges EXTENDS (heritage de classe) */
-function resolveExtendsEdges(
-    classes: ClassNode[],
-    _funcMap: Map<string, string>,
-    _filePath: string,
-): ExtendsEdge[] {
-    const edges: ExtendsEdge[] = [];
-    const classMap = new Map<string, string>();
-    for (const cls of classes) {
-        classMap.set(cls.name, cls.id);
-    }
-
-    for (const cls of classes) {
-        if (!cls.superClass) continue;
-        const parentId = classMap.get(cls.superClass);
-        if (!parentId) continue;
-        edges.push({
-            id: `${cls.id}->extends->${parentId}`,
-            type: 'EXTENDS' as const,
-            sourceId: cls.id,
-            targetId: parentId,
-            confidence: 1.0,
-        });
-    }
-    return edges;
-}
-
-/** Resolution des edges IMPLEMENTS (interfaces) */
-function resolveImplementsEdges(
-    classes: ClassNode[],
-    _filePath: string,
-): ImplementsEdge[] {
-    const edges: ImplementsEdge[] = [];
-    const classMap = new Map<string, string>();
-    for (const cls of classes) {
-        classMap.set(cls.name, cls.id);
-    }
-
-    for (const cls of classes) {
-        for (const iface of cls.interfaces) {
-            const targetId = classMap.get(iface);
-            if (!targetId) continue;
-            edges.push({
-                id: `${cls.id}->implements->${targetId}`,
-                type: 'IMPLEMENTS' as const,
-                sourceId: cls.id,
-                targetId,
-                confidence: 1.0,
-            });
-        }
-    }
-    return edges;
-}
-
-/** Resolution des edges HANDLES : Route → handler function (intra-fichier)
- *  Cree un lien semantique entre un noeud Route et la fonction qui le gere
- *  Gere les handlers locaux et les member_expression (controller.method)
- */
-function resolveRouteHandlesEdges(
-    routes: GraphNode[],
-    funcMap: Map<string, string>,
-): HandlesEdge[] {
-    const edges: HandlesEdge[] = [];
-    for (const node of routes) {
-        if (node.type !== 'route') continue;
-        const route = node as RouteNode;
-        if (!route.handlerName || route.handlerName === 'anonymous') continue;
-
-        const methodName = extractHandlerMethodName(route.handlerName);
-        const targetId = funcMap.get(methodName);
-        if (targetId) {
-            edges.push({
-                id: `${route.id}->handles->${targetId}`,
-                type: 'HANDLES' as const,
-                sourceId: route.id,
-                targetId,
-                confidence: 0.9,
-                middleware: route.middleware ?? [],
-            });
-        }
-    }
-    return edges;
-}
-
-/** Resolution des edges HANDLES cross-fichier : Route → Function dans un autre fichier
- *  Cas typique : attributeRoutes.ts contient router.get('/sets', attributeController.getAllSets)
- *  mais getAllSets est defini dans attributeController.ts
- */
-function resolveCrossFileHandlesEdges(
-    nodes: GraphNode[],
-    localIds: Set<string>,
-    multiMap: Map<string, string[]>,
-): HandlesEdge[] {
-    const edges: HandlesEdge[] = [];
-    const seen = new Set<string>();
-
-    for (const node of nodes) {
-        if (node.type !== 'route') continue;
-        const route = node as RouteNode;
-        if (!route.handlerName || route.handlerName === 'anonymous') continue;
-
-        const methodName = extractHandlerMethodName(route.handlerName);
-        const candidateIds = multiMap.get(methodName) ?? [];
-
-        // Only target functions in OTHER files (cross-file)
-        const remoteIds = candidateIds.filter((id) => !localIds.has(id));
-        for (const targetId of remoteIds) {
-            const key = `${route.id}->${targetId}`;
-            if (seen.has(key)) continue;
-            seen.add(key);
-
-            edges.push({
-                id: `${route.id}->handles->${targetId}`,
-                type: 'HANDLES' as const,
-                sourceId: route.id,
-                targetId,
-                confidence: 0.85,
-                middleware: route.middleware ?? [],
-            });
-        }
-    }
-    return edges;
-}
-
-/** Extrait le nom de methode depuis un handlerName (supporte "controller.method" et "method") */
-function extractHandlerMethodName(handlerName: string): string {
-    return handlerName.includes('.')
-        ? handlerName.split('.').pop()!
-        : handlerName;
-}
-
-/** Resolution d'un import relatif vers l'id du fichier cible
- *  Gere le remapping ESM .js → .ts et les extensions Python/Rust
- */
-function resolveImportPath(
-    importerPath: string,
-    importSource: string,
-    filePathToId: Map<string, string>,
-): string | null {
-    const dir = path.dirname(importerPath);
-    const base = path.resolve(dir, importSource);
-
-    // Remapping ESM : import './foo.js' → chercher foo.ts d'abord
-    const stripped = base.replace(/\.(js|jsx|mjs|cjs)$/, '');
-    const hasJsExt = stripped !== base;
-
-    const candidates = hasJsExt
-        ? [
-            stripped + '.ts',
-            stripped + '.tsx',
-            stripped + '.js',
-            stripped + '.jsx',
-            stripped + '/index.ts',
-            stripped + '/index.tsx',
-            stripped + '/index.js',
-            stripped,
-            base,
-        ]
-        : [
-            base + '.ts',
-            base + '.tsx',
-            base + '.js',
-            base + '.jsx',
-            base + '.py',
-            base + '.rs',
-            base + '/index.ts',
-            base + '/index.tsx',
-            base + '/index.js',
-            base + '/mod.rs',
-            base,
-        ];
-
-    for (const candidate of candidates) {
-        const normalized = path.resolve(candidate);
-        const id = filePathToId.get(normalized);
-        if (id) return id;
-    }
-    return null;
-}
-
-// ────────────────────────────────────────────────────────────────────────
-// Path Alias Resolution (tsconfig.json / jsconfig.json)
-// ────────────────────────────────────────────────────────────────────────
-
-interface PathAliasConfig {
-    configDir: string; // directory containing the tsconfig
-    baseDir: string;   // resolved baseUrl
-    aliases: Map<string, string>; // prefix → resolved target directory
-}
-
-/** Parse un fichier tsconfig.json/jsconfig.json et extrait les path aliases */
-function parseTsConfigFile(configPath: string, visited: Set<string> = new Set()): PathAliasConfig | null {
-    const absoluteConfigPath = path.resolve(configPath);
-    if (visited.has(absoluteConfigPath)) return null;
-    visited.add(absoluteConfigPath);
-
-    const config = readJsoncFile(absoluteConfigPath);
-    if (!config) return null;
-
-    const aliases = new Map<string, string>();
-
-    // Merge aliases from extended config first, then override with local config.
-    const extendsValue = typeof config.extends === 'string' ? config.extends : null;
-    const extendedPath = extendsValue ? resolveExtendsConfigPath(absoluteConfigPath, extendsValue) : null;
-    if (extendedPath && fs.existsSync(extendedPath)) {
-        const extended = parseTsConfigFile(extendedPath, visited);
-        if (extended) {
-            for (const [prefix, targetDir] of extended.aliases.entries()) {
-                aliases.set(prefix, targetDir);
-            }
-        }
-    }
-
-    const compilerOptions = config.compilerOptions ?? {};
-    const baseUrl = compilerOptions.baseUrl ?? '.';
-    const paths: Record<string, string[]> = compilerOptions.paths ?? {};
-    const configDir = path.dirname(absoluteConfigPath);
-    const baseDir = path.resolve(configDir, baseUrl);
-
-    for (const [pattern, targets] of Object.entries(paths)) {
-        if (!Array.isArray(targets) || targets.length === 0) continue;
-        // "@/*" -> prefix "@/", target "./src/*" -> "<baseDir>/src/"
-        const prefix = pattern.replace(/\*$/, '');
-        const target = (targets[0] as string).replace(/\*$/, '');
-        aliases.set(prefix, path.resolve(baseDir, target));
-    }
-
-    if (aliases.size === 0) return null;
-
-    getLogger().debug({ configPath: absoluteConfigPath, aliases: Object.fromEntries(aliases) }, 'path aliases detected');
-    return { configDir: path.resolve(configDir), baseDir, aliases };
-}
-
-function readJsoncFile(filePath: string): any | null {
-    try {
-        const content = fs.readFileSync(filePath, 'utf-8');
-        return parseJsonc(content);
-    } catch {
-        return null;
-    }
-}
-
-function resolveExtendsConfigPath(configPath: string, extendsValue: string): string | null {
-    // Handle relative/absolute extends paths. Package-based extends are ignored for now.
-    if (!extendsValue.startsWith('.') && !path.isAbsolute(extendsValue)) return null;
-    const configDir = path.dirname(configPath);
-    let candidate = path.isAbsolute(extendsValue)
-        ? extendsValue
-        : path.resolve(configDir, extendsValue);
-    if (!path.extname(candidate)) candidate += '.json';
-    return candidate;
-}
-
-/** Decouvre TOUS les tsconfig.json/jsconfig.json dans l'arborescence des fichiers scannes
- *  Supporte les monorepos : web-app/tsconfig.json, backend/tsconfig.json, etc.
- *  Retourne les configs triees par profondeur (le plus profond en premier)
- *  pour que la resolution nearest-match fonctionne correctement.
- */
-function findAllPathAliases(filePaths: string[]): PathAliasConfig[] {
-    const configs: PathAliasConfig[] = [];
-    const checkedDirs = new Set<string>();
-    const configNames = ['tsconfig.json', 'jsconfig.json'];
-
-    // Parcourir chaque fichier et remonter son arborescence
-    for (const fp of filePaths) {
-        let dir = path.dirname(fp);
-        while (dir !== path.dirname(dir)) {
-            if (checkedDirs.has(dir)) break; // Deja verifie ce repertoire et ses parents
-            checkedDirs.add(dir);
-
-            for (const name of configNames) {
-                const configPath = path.join(dir, name);
-                if (fs.existsSync(configPath)) {
-                    const config = parseTsConfigFile(configPath);
-                    if (config) configs.push(config);
-                    break; // Un seul config par repertoire
-                }
-            }
-
-            dir = path.dirname(dir);
-        }
-    }
-
-    // Trier par profondeur decroissante (le plus profond en premier)
-    // pour que nearest-match fonctionne : web-app/tsconfig.json avant ./tsconfig.json
-    configs.sort((a, b) => b.configDir.length - a.configDir.length);
-    return configs;
-}
-
-/** Resout un import avec alias en cherchant le tsconfig le plus proche du fichier importeur
- *  Monorepo-safe : chaque sous-projet peut avoir ses propres aliases
- */
-function resolveAliasImportMulti(
-    importSource: string,
-    importerPath: string,
-    configs: PathAliasConfig[],
-    filePathToId: Map<string, string>,
-): string | null {
-    const importerDir = path.resolve(path.dirname(importerPath));
-
-    // Trouver le tsconfig le plus proche (deepest-first grace au tri)
-    for (const config of configs) {
-        if (!importerDir.startsWith(config.configDir)) continue;
-
-        // Essayer chaque alias de ce config
-        for (const [prefix, targetDir] of config.aliases) {
-            if (!importSource.startsWith(prefix)) continue;
-            const rest = importSource.slice(prefix.length);
-            const searchBases = [path.join(targetDir, rest)];
-
-            // Practical fallback for monorepo setups where @/* should resolve to <project>/src/*
-            // but inherited paths from extended tsconfig may point to a shared root.
-            if (prefix === '@/') {
-                searchBases.push(path.join(config.configDir, 'src', rest));
-            }
-
-            for (const base of searchBases) {
-                const candidates = [
-                    base + '.ts',
-                    base + '.tsx',
-                    base + '.js',
-                    base + '.jsx',
-                    base + '/index.ts',
-                    base + '/index.tsx',
-                    base + '/index.js',
-                    base,
-                ];
-
-                for (const candidate of candidates) {
-                    const normalized = path.resolve(candidate);
-                    const id = filePathToId.get(normalized);
-                    if (id) return id;
-                }
-            }
-        }
-    }
-
-    // Last-resort heuristic for '@/...' imports in projects where tsconfig alias
-    // resolution is incomplete due workspace-specific config layering.
-    if (importSource.startsWith('@/')) {
-        const rest = importSource.slice(2);
-        const guessedBase = guessProjectSrcBase(importerPath, rest);
-        if (guessedBase) {
-            const candidates = [
-                guessedBase + '.ts',
-                guessedBase + '.tsx',
-                guessedBase + '.js',
-                guessedBase + '.jsx',
-                guessedBase + '/index.ts',
-                guessedBase + '/index.tsx',
-                guessedBase + '/index.js',
-                guessedBase,
-            ];
-            for (const candidate of candidates) {
-                const normalized = path.resolve(candidate);
-                const id = filePathToId.get(normalized);
-                if (id) return id;
-            }
-        }
-    }
-    return null;
-}
-
-function guessProjectSrcBase(importerPath: string, rest: string): string | null {
-    const normalized = path.resolve(importerPath);
-    const segments = normalized.split(path.sep);
-    const srcIdx = segments.lastIndexOf('src');
-    if (srcIdx <= 0) return null;
-    const projectRoot = segments.slice(0, srcIdx).join(path.sep);
-    if (!projectRoot) return null;
-    return path.join(projectRoot, 'src', rest);
-}
-
-// ────────────────────────────────────────────────────────────────────────
-// Framework Entry Point Detection (Next.js, Nuxt, etc.)
-// ────────────────────────────────────────────────────────────────────────
-
-/** Framework entry point patterns — fonctions automatiquement invoquees par le framework */
-const FRAMEWORK_ENTRY_PATTERNS: Array<{
-    filePattern: RegExp;
-    functionNames: string[];
-}> = [
-    // Next.js middleware (src/middleware.ts or middleware.ts)
-    { filePattern: /[\\/]middleware\.(ts|js|tsx|jsx)$/, functionNames: ['middleware'] },
-    // Next.js API routes (app/**/route.ts — GET, POST, PUT, DELETE, PATCH exports)
-    { filePattern: /[\\/]route\.(ts|js|tsx|jsx)$/, functionNames: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'HEAD', 'OPTIONS'] },
-    // Next.js page components (app/**/page.tsx — default export)
-    { filePattern: /[\\/]page\.(ts|js|tsx|jsx)$/, functionNames: ['default', 'Page'] },
-    // Next.js layout components (app/**/layout.tsx)
-    { filePattern: /[\\/]layout\.(ts|js|tsx|jsx)$/, functionNames: ['default', 'Layout', 'RootLayout'] },
-    // Next.js loading/error/not-found
-    { filePattern: /[\\/](loading|error|not-found|global-error)\.(ts|js|tsx|jsx)$/, functionNames: ['default'] },
-    // next.config.js lifecycle hooks
-    { filePattern: /[\\/]next\.config\.(js|mjs|ts)$/, functionNames: ['rewrites', 'redirects', 'headers'] },
-    // Nuxt plugins/middleware
-    { filePattern: /[\\/]plugins[\\/]/, functionNames: ['default'] },
-    // Express/Fastify main app entry
-    { filePattern: /[\\/](app|server|index)\.(ts|js)$/, functionNames: ['default', 'app', 'server'] },
-];
-
-/** Cree des edges File → CALLS → Function pour les fonctions auto-invoquees par le framework
- *  Empeche les entry points framework d'etre flag dead code
- */
-function resolveFrameworkEntryEdges(
-    fileNode: { id: string; path: string },
-    functions: { id: string; name: string }[],
-): CallsEdge[] {
-    const edges: CallsEdge[] = [];
-
-    for (const pattern of FRAMEWORK_ENTRY_PATTERNS) {
-        if (!pattern.filePattern.test(fileNode.path)) continue;
-
-        for (const fn of functions) {
-            if (pattern.functionNames.includes(fn.name)) {
-                edges.push({
-                    id: `${fileNode.id}->framework->${fn.id}`,
-                    type: 'CALLS' as const,
-                    sourceId: fileNode.id,
-                    targetId: fn.id,
-                    confidence: 0.95,
-                    line: 0,
-                });
-            }
-        }
-    }
-
-    return edges;
 }

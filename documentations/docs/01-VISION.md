@@ -61,22 +61,24 @@ The **Code Fingerprint**: A self-healing, auto-populating mental model. If the A
 
 ### Current State (v0.9 — Feb 2026)
 
-NOMIK already tracks **code → code** relationships across TypeScript, JavaScript, Python, Rust, and Markdown. The knowledge graph includes functions, classes, interfaces, imports, call chains, and file dependencies. Health score: **100% Healthy** (0 dead code, 0 god objects).
+NOMIK already tracks **code → code** relationships across TypeScript, JavaScript, Python, Rust, and Markdown. The knowledge graph includes functions, classes, interfaces, imports, call chains, file dependencies, **external API calls**, and **database operations**. Health detection: dead code, god objects, god files. **94 tests passing**, modular parser architecture (481 lines, down from 1369).
 
-### Phase 1 — Database Tracking (Q1 2026)
+### Phase 1 — Database Tracking (Q1 2026) — 70% Complete
 
 **Goal**: Complete full-stack visibility: `UI → API → Function → DB Table → Column`.
 
 The #1 question every engineering team asks: *"What breaks if I change this database column?"* Without DB tracking, NOMIK can't answer it.
 
-| Feature | Detail |
-|---|---|
-| SQL migration parser | Parse `.sql`, Prisma schemas, TypeORM models, EF migrations |
-| `DBTable` / `DBColumn` nodes | New node types in the knowledge graph |
-| `QUERIES` edges | `Function → DBTable` when SQL queries are detected in code |
-| ORM detection | Prisma (`prisma.user.findMany()`), TypeORM (`@Entity()`), raw SQL |
-| `nm_db_impact` MCP tool | "Which functions query this table?" |
-| Viz integration | Database tables shown as distinct nodes in the dashboard |
+| Feature | Detail | Status |
+|---|---|---|
+| ORM detection (dynamic, import-aware) | Prisma, Supabase, Knex — receiver resolved from imports | **Done** |
+| `DBTable` nodes + `READS_FROM`/`WRITES_TO` edges | Created per file, linked to caller functions | **Done** |
+| External API detection (dynamic, import-aware) | axios, ky, got, fetch + URL heuristic | **Done** |
+| `ExternalAPI` nodes + `CALLS_EXTERNAL` edges | Created per file, linked to caller functions | **Done** |
+| SQL migration parser | Parse `.sql`, Prisma schemas, TypeORM models, EF migrations | Planned |
+| `DBColumn` nodes | Column-level granularity | Planned |
+| `nm_db_impact` MCP tool | "Which functions query this table?" | Planned |
+| Viz integration | Database tables shown as distinct nodes in the dashboard | Planned |
 
 **Impact**: Unlocks "Which functions break if I change this database column?" — the enterprise must-have.
 

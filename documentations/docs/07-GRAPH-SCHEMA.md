@@ -146,6 +146,18 @@ RETURN f.name as name, f.filePath as filePath, depCount
 ORDER BY depCount DESC
 ```
 
+### God File detection
+
+```cypher
+// Files with too many functions (threshold default: 10)
+MATCH (f:File)-[:CONTAINS]->(fn:Function)
+WHERE f.projectId = $projectId
+WITH f, count(fn) as funcCount
+WHERE funcCount > $threshold
+RETURN f.path as filePath, funcCount
+ORDER BY funcCount DESC
+```
+
 ### Dead code detection
 
 ```cypher

@@ -759,6 +759,49 @@ export function render() {
         }
     });
 
+    it('allows controller→service same-name method delegation (no local shadow for method calls)', async () => {
+        const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'nomik-parser-'));
+        try {
+            const servicePath = path.join(tmpDir, 'categoryService.ts');
+            writeFile(servicePath, `
+export async function getAllCategories(filters: any) {
+  return [];
+}
+`);
+            const controllerPath = path.join(tmpDir, 'categoryController.ts');
+            writeFile(controllerPath, `
+import * as categoryService from './categoryService';
+export async function getAllCategories(req: any, res: any) {
+  const cats = await categoryService.getAllCategories(req.query);
+  res.json(cats);
+}
+`);
+
+            const engine = createParserEngine();
+            const results = await engine.parseFiles([servicePath, controllerPath]);
+
+            const serviceResult = results.find(r => r.file.path === path.resolve(servicePath));
+            const controllerResult = results.find(r => r.file.path === path.resolve(controllerPath));
+            expect(serviceResult).toBeDefined();
+            expect(controllerResult).toBeDefined();
+
+            const serviceFn = serviceResult!.nodes.find(n => n.type === 'function' && n.name === 'getAllCategories');
+            const controllerFn = controllerResult!.nodes.find(n => n.type === 'function' && n.name === 'getAllCategories');
+            expect(serviceFn).toBeDefined();
+            expect(controllerFn).toBeDefined();
+
+            // Controller must have a CALLS edge to service — method call receiver disambiguates
+            const callEdge = controllerResult!.edges.find(
+                e => e.type === 'CALLS' &&
+                    e.sourceId === controllerFn!.id &&
+                    e.targetId === serviceFn!.id,
+            );
+            expect(callEdge).toBeDefined();
+        } finally {
+            fs.rmSync(tmpDir, { recursive: true, force: true });
+        }
+    });
+
     it('resolves dynamic import().then() destructured function as cross-file CALLS', async () => {
         const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'nomik-parser-'));
         try {

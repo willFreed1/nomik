@@ -3,7 +3,7 @@ import type { GraphNode, GraphEdge, ProjectNode } from '@nomik/core';
 import { createNeo4jDriver } from './drivers/neo4j.driver.js';
 import type { GraphDriver } from './drivers/driver.interface.js';
 import { upsertNodes, createEdges, clearFileData, purgeStaleFiles, upsertProject, deleteProjectData, listProjects, getProject } from './queries/write.js';
-import { impactAnalysis, findDeadCode, findGodObjects, graphStats, findDependencyChain, findDetailedPath, recentChanges } from './queries/read.js';
+import { impactAnalysis, findDeadCode, findGodObjects, findGodFiles, graphStats, findDependencyChain, findDetailedPath, recentChanges } from './queries/read.js';
 import { initializeSchema } from './schema/init.js';
 import { QueryCache } from './cache.js';
 import type { ImpactResult, DetailedPath } from './queries/read.js';
@@ -25,6 +25,7 @@ export interface GraphService {
     getImpact(symbolName: string, depth?: number, projectId?: string): Promise<ImpactResult[]>;
     getDeadCode(projectId?: string): Promise<Array<{ name: string; filePath: string }>>;
     getGodObjects(threshold?: number, projectId?: string): Promise<Array<{ name: string; filePath: string; depCount: number }>>;
+    getGodFiles(threshold?: number, projectId?: string): Promise<Array<{ filePath: string; functionCount: number; totalLines: number }>>;
     getStats(projectId?: string): Promise<{ nodeCount: number; edgeCount: number; fileCount: number; functionCount: number; classCount: number; routeCount: number }>;
     getDependencyChain(from: string, to: string, projectId?: string): Promise<string[][]>;
     getDetailedPath(from: string, to: string, projectId?: string): Promise<DetailedPath[]>;
@@ -112,6 +113,10 @@ export function createGraphService(config: GraphConfig): GraphService {
 
         async getGodObjects(threshold = 15, projectId?: string) {
             return cached(`godObjects:${projectId}:${threshold}`, () => findGodObjects(driver, threshold, projectId));
+        },
+
+        async getGodFiles(threshold = 10, projectId?: string) {
+            return cached(`godFiles:${projectId}:${threshold}`, () => findGodFiles(driver, threshold, projectId));
         },
 
         async getStats(projectId?: string) {

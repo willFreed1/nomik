@@ -265,6 +265,7 @@ Metriques de sante du graphe : comptages, dead code, god objects, types d'edges.
 | `includeDeadCode` | boolean | non | Inclure la liste du dead code (defaut: false) |
 | `includeGodObjects` | boolean | non | Inclure la liste des god objects (defaut: false) |
 | `godObjectThreshold` | number | non | Seuil de couplage cross-fichier pour god objects (defaut: 15) |
+| `includeGodFiles` | boolean | non | Inclure la liste des god files — fichiers avec trop de fonctions (defaut: false) |
 
 **Exemples de prompts Cursor** :
 - "Are there any dead code or god objects?"

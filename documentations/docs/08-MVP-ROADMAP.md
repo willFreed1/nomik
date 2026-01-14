@@ -81,12 +81,17 @@
 | Multi-project isolation (projectId) | HIGH | **DONE** |
 | Health score 100% (0 dead code, 0 god objects) | HIGH | **DONE** |
 | Rebrand GENOME → NOMIK | HIGH | **DONE** |
+| Parser modularization (1369→481 lines) | HIGH | **DONE** |
+| God file detection (`nm_health`) | HIGH | **DONE** |
+| API tracking (dynamic, import-aware) | HIGH | **DONE** |
+| DB tracking (Prisma/Supabase/Knex, import-aware) | HIGH | **DONE** |
+| Dead code audit v8-v9 (94/94 tests) | HIGH | **DONE** |
 
 ### Planned Roadmap (Q1–Q3 2026)
 
 | Timeline | Feature | Priority | Status | Impact |
 |---|---|---|---|---|
-| **Q1 2026** | Database Tracking (SQL/Prisma/TypeORM) | 🔥 CRITICAL | **Planned** | Full-stack `UI→API→DB` visibility. Enterprise must-have |
+| **Q1 2026** | Database Tracking (SQL/Prisma/TypeORM) | 🔥 CRITICAL | **In Progress (70%)** | Prisma/Supabase/Knex done. Missing: SQL migration parser, TypeORM/EF, `DBColumn` nodes |
 | **Q2 2026** | C# / .NET Language Support | HIGH | Not started | Opens Fortune 500 (banks, insurance, government) |
 | **Q2 2026** | Go Language Support | HIGH | Not started | Cloud/infra visibility (K8s operators, microservices) |
 | **Q2–Q3 2026** | PR Impact Analyzer | HIGH | Not started | Production safety, GitHub Actions integration |

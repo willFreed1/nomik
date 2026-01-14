@@ -66,6 +66,8 @@ const TOOLS = {
                 includeDeadCode: { type: 'boolean', description: 'Include dead code analysis', default: false },
                 includeGodObjects: { type: 'boolean', description: 'Include god object detection', default: false },
                 godObjectThreshold: { type: 'number', description: 'Dependency count threshold for god objects', default: 15 },
+                includeGodFiles: { type: 'boolean', description: 'Include god file detection (files with too many functions)', default: false },
+                godFileThreshold: { type: 'number', description: 'Function count threshold for god files', default: 10 },
             },
         },
     },
@@ -283,6 +285,10 @@ export async function handleCallTool(graph: GraphService, name: string, args: an
             if (args.includeGodObjects) {
                 const threshold = Number(args.godObjectThreshold) || 15;
                 result.godObjects = await graph.getGodObjects(threshold, projectId);
+            }
+            if (args.includeGodFiles) {
+                const threshold = Number(args.godFileThreshold) || 10;
+                result.godFiles = await graph.getGodFiles(threshold, projectId);
             }
 
             const edgeFilter = projectId ? '{projectId: $projectId}' : '';

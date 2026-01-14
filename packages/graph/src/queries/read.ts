@@ -290,6 +290,30 @@ export async function findGodObjects(
     );
 }
 
+/** Detection de god files — fichiers avec trop de fonctions (responsabilites)
+ *  Indicateur de mauvaise modularisation : un fichier avec >N fonctions est suspect
+ */
+export async function findGodFiles(
+    driver: GraphDriver,
+    threshold: number = 10,
+    projectId?: string,
+): Promise<Array<{ filePath: string; functionCount: number; totalLines: number }>> {
+    const projectFilter = projectId ? 'AND f.projectId = $projectId' : '';
+    return driver.runQuery(
+        `
+    MATCH (f:File)-[:CONTAINS]->(fn:Function)
+    WHERE true ${projectFilter}
+    WITH f, count(fn) as functionCount
+    WHERE functionCount > $threshold
+    RETURN f.path as filePath,
+           functionCount,
+           COALESCE(f.size, 0) as totalLines
+    ORDER BY functionCount DESC
+    `,
+        { threshold, projectId },
+    );
+}
+
 export async function graphStats(driver: GraphDriver, projectId?: string): Promise<{
     nodeCount: number;
     edgeCount: number;

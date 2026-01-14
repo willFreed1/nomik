@@ -74,12 +74,22 @@ nomik/
 │   │   │   │   ├── exports.ts        # Extraction exports
 │   │   │   │   ├── routes.ts         # Extraction routes HTTP/décorateurs
 │   │   │   │   ├── calls.ts          # Résolution appels → définitions
+│   │   │   │   ├── api-calls.ts      # Détection appels API (fetch/axios/ky)
+│   │   │   │   ├── db-operations.ts  # Détection opérations DB (Prisma/Supabase)
 │   │   │   │   ├── python.ts         # Extracteur Python
 │   │   │   │   ├── rust.ts           # Extracteur Rust
 │   │   │   │   ├── markdown.ts       # Parser custom Markdown
 │   │   │   │   └── index.ts          # Orchestrateur des extracteurs
+│   │   │   ├── resolvers/            # Résolution cross-file (extrait de parser.ts)
+│   │   │   │   ├── cross-file.ts     # CALLS/DEPENDS_ON cross-fichier
+│   │   │   │   ├── intra-file.ts     # CALLS intra-fichier
+│   │   │   │   ├── route-handling.ts  # HANDLES/EXTENDS/IMPLEMENTS/framework
+│   │   │   │   └── index.ts
+│   │   │   ├── config/               # Configuration tsconfig/path aliases
+│   │   │   │   ├── tsconfig-resolver.ts # Résolution aliases monorepo
+│   │   │   │   └── index.ts
 │   │   │   ├── discovery.ts         # Découverte des fichiers
-│   │   │   ├── parser.ts             # Orchestrateur principal
+│   │   │   ├── parser.ts             # Orchestrateur principal (481 lignes)
 │   │   │   └── index.ts
 │   │   ├── package.json
 │   │   └── tsconfig.json
