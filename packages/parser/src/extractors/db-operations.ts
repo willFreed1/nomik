@@ -155,13 +155,28 @@ function parseDBOperation(
         }
     }
 
-    // ── Pattern 3: Query-builder-style — x('table').method() ──
-    // knex('users').select(), db('posts').insert()
+    // ── Pattern 2b: Supabase-style via call_expression obj ──
+    // supabase.from('users').select() — obj is call_expression `supabase.from('users')`
     if (obj.type === 'call_expression') {
+        const fromTable = extractFromChain(obj);
+        if (fromTable) {
+            const operation = classifyQBMethod(methodName);
+            if (operation) {
+                return {
+                    callerName: findEnclosingFunctionName(callNode) ?? '__file__',
+                    tableName: fromTable,
+                    operation,
+                    receiverName: findChainRoot(obj) ?? 'db',
+                    line: callNode.startPosition.row + 1,
+                };
+            }
+        }
+
+        // ── Pattern 3: Query-builder-style — x('table').method() ──
+        // knex('users').select(), db('posts').insert()
         const innerFunc = obj.childForFieldName('function');
         if (innerFunc && innerFunc.type === 'identifier') {
             const receiverName = innerFunc.text;
-            // Known query builder import OR structural match (.select/.insert after function call)
             if (dbClientIds.queryBuilderIds.has(receiverName)) {
                 const tableName = extractFirstStringArg(obj);
                 if (tableName) {
@@ -200,6 +215,8 @@ function classifyQBMethod(method: string): DBOperationInfo['operation'] | null {
 }
 
 function extractFromChain(node: Parser.SyntaxNode): string | null {
+    // Walk DOWNWARD through the chain only (no parent traversal)
+    // Looking for .from('table') anywhere in the object chain
     let current: Parser.SyntaxNode | null = node;
     while (current) {
         if (current.type === 'call_expression') {
@@ -209,23 +226,18 @@ function extractFromChain(node: Parser.SyntaxNode): string | null {
                 if (prop && prop.text === 'from') {
                     return extractFirstStringArg(current);
                 }
+                // Go deeper into the object of this member_expression
+                current = func.childForFieldName('object');
+                continue;
             }
+            // Function is not member_expression (e.g. bare identifier) — stop
+            break;
         }
         if (current.type === 'member_expression') {
-            const objChild = current.childForFieldName('object');
-            if (objChild && objChild.type === 'call_expression') {
-                const func = objChild.childForFieldName('function');
-                if (func && func.type === 'member_expression') {
-                    const prop = func.childForFieldName('property');
-                    if (prop && prop.text === 'from') {
-                        return extractFirstStringArg(objChild);
-                    }
-                }
-                const result = extractFromChain(objChild);
-                if (result) return result;
-            }
+            current = current.childForFieldName('object');
+            continue;
         }
-        current = current.parent;
+        break;
     }
     return null;
 }
