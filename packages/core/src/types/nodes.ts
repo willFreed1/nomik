@@ -22,6 +22,7 @@ export interface FunctionNode {
     isGenerator: boolean;
     decorators: string[];
     confidence: number;
+    bodyHash?: string;
 }
 
 export interface ClassNode {
@@ -38,6 +39,7 @@ export interface ClassNode {
     decorators: string[];
     methods: string[];
     properties: string[];
+    bodyHash?: string;
 }
 
 export interface VariableNode {

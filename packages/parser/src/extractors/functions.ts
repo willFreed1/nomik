@@ -1,6 +1,6 @@
 import type Parser from 'tree-sitter';
 import type { FunctionNode, ParameterInfo } from '@nomik/core';
-import { createNodeId } from '../utils';
+import { createNodeId, createBodyHash } from '../utils';
 
 export function extractFunctions(tree: Parser.Tree, filePath: string): FunctionNode[] {
     const results: FunctionNode[] = [];
@@ -96,6 +96,8 @@ function buildFunctionNode(node: Parser.SyntaxNode, filePath: string): FunctionN
     const isExported = isNodeExported(node);
     const isGenerator = node.type === 'generator_function_declaration' || hasModifier(node, '*');
     const decorators = extractDecorators(node);
+    const body = node.childForFieldName('body');
+    const bodyHash = body ? createBodyHash(body.text) : undefined;
 
     return {
         id: createNodeId('function', filePath, name),
@@ -111,6 +113,7 @@ function buildFunctionNode(node: Parser.SyntaxNode, filePath: string): FunctionN
         isGenerator,
         decorators,
         confidence: 1.0,
+        bodyHash,
     };
 }
 

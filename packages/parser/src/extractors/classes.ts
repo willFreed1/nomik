@@ -1,6 +1,6 @@
 import type Parser from 'tree-sitter';
 import type { ClassNode } from '@nomik/core';
-import { createNodeId } from '../utils';
+import { createNodeId, createBodyHash } from '../utils';
 
 /** Extrait les classes, interfaces, types et enums comme noeuds Class */
 export function extractClasses(tree: Parser.Tree, filePath: string): ClassNode[] {
@@ -46,6 +46,8 @@ function buildClassNode(node: Parser.SyntaxNode, filePath: string): ClassNode | 
     const decorators = extractClassDecorators(node);
     const isExported = node.parent?.type === 'export_statement';
     const isAbstract = node.type === 'abstract_class_declaration';
+    const body = node.childForFieldName('body');
+    const bodyHash = body ? createBodyHash(body.text) : undefined;
 
     return {
         id: createNodeId('class', filePath, name),
@@ -61,6 +63,7 @@ function buildClassNode(node: Parser.SyntaxNode, filePath: string): ClassNode | 
         decorators,
         methods,
         properties,
+        bodyHash,
     };
 }
 

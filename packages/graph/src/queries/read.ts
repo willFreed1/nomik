@@ -314,6 +314,28 @@ export async function findGodFiles(
     );
 }
 
+/** Detection de code duplique — fonctions avec le meme bodyHash dans des fichiers differents
+ *  Indicateur de copier-coller : fonctions identiques (apres normalisation whitespace)
+ */
+export async function findDuplicates(
+    driver: GraphDriver,
+    projectId?: string,
+): Promise<Array<{ bodyHash: string; count: number; functions: Array<{ name: string; filePath: string }> }>> {
+    const projectFilter = projectId ? 'AND f.projectId = $projectId' : '';
+    return driver.runQuery(
+        `
+    MATCH (f:Function)
+    WHERE f.bodyHash IS NOT NULL ${projectFilter}
+    WITH f.bodyHash as bodyHash, collect({name: f.name, filePath: f.filePath}) as funcs, count(*) as cnt
+    WHERE cnt > 1
+    RETURN bodyHash, cnt as count, funcs as functions
+    ORDER BY cnt DESC
+    LIMIT 50
+    `,
+        { projectId },
+    );
+}
+
 export async function graphStats(driver: GraphDriver, projectId?: string): Promise<{
     nodeCount: number;
     edgeCount: number;

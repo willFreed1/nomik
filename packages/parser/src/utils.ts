@@ -10,6 +10,11 @@ export function createFileHash(content: string): string {
     return createHash('sha256').update(content).digest('hex');
 }
 
+export function createBodyHash(bodyText: string): string {
+    const normalized = bodyText.replace(/\s+/g, ' ').trim();
+    return createHash('sha256').update(normalized).digest('hex').slice(0, 16);
+}
+
 /** Retourne le SHA complet + info du commit courant */
 export function getGitInfo(): { sha: string; shortSha: string; message: string; author: string; date: string } | null {
     try {

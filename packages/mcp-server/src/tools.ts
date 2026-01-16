@@ -59,7 +59,7 @@ const TOOLS = {
     },
     nm_health: {
         name: 'nm_health',
-        description: 'Codebase health metrics: node counts, edge counts, dead code, god objects.',
+        description: 'Codebase health metrics: node counts, edge counts, dead code, god objects, god files, duplicate code.',
         inputSchema: {
             type: 'object',
             properties: {
@@ -68,6 +68,7 @@ const TOOLS = {
                 godObjectThreshold: { type: 'number', description: 'Dependency count threshold for god objects', default: 15 },
                 includeGodFiles: { type: 'boolean', description: 'Include god file detection (files with too many functions)', default: false },
                 godFileThreshold: { type: 'number', description: 'Function count threshold for god files', default: 10 },
+                includeDuplicates: { type: 'boolean', description: 'Include duplicate code detection (functions with identical body hash)', default: false },
             },
         },
     },
@@ -289,6 +290,9 @@ export async function handleCallTool(graph: GraphService, name: string, args: an
             if (args.includeGodFiles) {
                 const threshold = Number(args.godFileThreshold) || 10;
                 result.godFiles = await graph.getGodFiles(threshold, projectId);
+            }
+            if (args.includeDuplicates) {
+                result.duplicates = await graph.getDuplicates(projectId);
             }
 
             const edgeFilter = projectId ? '{projectId: $projectId}' : '';
