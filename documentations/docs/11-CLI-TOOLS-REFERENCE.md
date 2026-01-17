@@ -258,7 +258,7 @@ Contexte riche pour un fichier ou une fonction : ce qu'il contient, ce qu'il app
 
 ### `nm_health`
 
-Metriques de sante du graphe : comptages, dead code, god objects, types d'edges.
+Metriques de sante du graphe : comptages, dead code, god objects, god files, code duplique, types d'edges.
 
 | Parametre | Type | Requis | Description |
 |---|---|---|---|
@@ -266,6 +266,8 @@ Metriques de sante du graphe : comptages, dead code, god objects, types d'edges.
 | `includeGodObjects` | boolean | non | Inclure la liste des god objects (defaut: false) |
 | `godObjectThreshold` | number | non | Seuil de couplage cross-fichier pour god objects (defaut: 15) |
 | `includeGodFiles` | boolean | non | Inclure la liste des god files — fichiers avec trop de fonctions (defaut: false) |
+| `godFileThreshold` | number | non | Seuil de fonctions par fichier pour god files (defaut: 10) |
+| `includeDuplicates` | boolean | non | Inclure la detection de code duplique — fonctions avec bodyHash identique (defaut: false) |
 
 **Exemples de prompts Cursor** :
 - "Are there any dead code or god objects?"

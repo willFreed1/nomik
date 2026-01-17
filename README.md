@@ -144,7 +144,7 @@ nomik/
 | Monorepo | Turborepo + pnpm workspaces |
 | 3D Viz | Three.js (3d-force-graph) |
 | 2D Viz | Cytoscape.js |
-| Tests | Vitest — 94 tests across 11 test files |
+| Tests | Vitest — 137 tests across 13 test files |
 | Project Isolation | `projectId` on all nodes/edges, `.nomik/project.json` |
 | JSONC Parsing | `jsonc-parser` (VS Code's parser) for tsconfig/jsconfig |
 

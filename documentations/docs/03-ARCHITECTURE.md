@@ -90,6 +90,7 @@ nomik/
 │   │   │   │   └── index.ts
 │   │   │   ├── discovery.ts         # Découverte des fichiers
 │   │   │   ├── parser.ts             # Orchestrateur principal (481 lignes)
+│   │   │   ├── utils.ts              # createNodeId, createFileHash, createBodyHash
 │   │   │   └── index.ts
 │   │   ├── package.json
 │   │   └── tsconfig.json

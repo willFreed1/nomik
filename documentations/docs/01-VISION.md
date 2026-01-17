@@ -61,9 +61,9 @@ The **Code Fingerprint**: A self-healing, auto-populating mental model. If the A
 
 ### Current State (v0.9 — Feb 2026)
 
-NOMIK already tracks **code → code** relationships across TypeScript, JavaScript, Python, Rust, and Markdown. The knowledge graph includes functions, classes, interfaces, imports, call chains, file dependencies, **external API calls**, and **database operations**. Health detection: dead code, god objects, god files. **94 tests passing**, modular parser architecture (481 lines, down from 1369).
+NOMIK already tracks **code → code** relationships across TypeScript, JavaScript, Python, Rust, and Markdown. The knowledge graph includes functions, classes, interfaces, imports, call chains, file dependencies, **external API calls**, **database operations**, and **content hashing** (bodyHash for duplicate detection). Health detection: dead code, god objects, god files, duplicate code. **137 tests passing (13 test files)**, modular parser architecture (481 lines, down from 1369).
 
-### Phase 1 — Database Tracking (Q1 2026) — 70% Complete
+### Phase 1 — Database Tracking (Q1 2026) — 75% Complete
 
 **Goal**: Complete full-stack visibility: `UI → API → Function → DB Table → Column`.
 
@@ -78,6 +78,8 @@ The #1 question every engineering team asks: *"What breaks if I change this data
 | SQL migration parser | Parse `.sql`, Prisma schemas, TypeORM models, EF migrations | Planned |
 | `DBColumn` nodes | Column-level granularity | Planned |
 | `nm_db_impact` MCP tool | "Which functions query this table?" | Planned |
+| Content hashing (`bodyHash`) | SHA-256 whitespace-normalized hash on FunctionNode + ClassNode | **Done** |
+| Duplicate detection (`findDuplicates`) | Group functions by bodyHash, `includeDuplicates` in `nm_health` | **Done** |
 | Viz integration | Database tables shown as distinct nodes in the dashboard | Planned |
 
 **Impact**: Unlocks "Which functions break if I change this database column?" — the enterprise must-have.

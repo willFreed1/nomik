@@ -38,8 +38,8 @@
 | Label | Main properties | Description |
 |-------|-----------------|-------------|
 | `File` | `id`, `type='file'`, `path`, `language`, `hash`, `size`, `lastParsed`, `projectId` | Source file |
-| `Function` | `id`, `type='function'`, `name`, `filePath`, `startLine`, `endLine`, `params`, `returnType?`, `isAsync`, `isExported`, `isGenerator`, `decorators[]`, `confidence`, `projectId` | Function or method |
-| `Class` | `id`, `type='class'`, `name`, `filePath`, `startLine`, `endLine`, `isExported`, `isAbstract`, `superClass?`, `interfaces[]`, `decorators[]`, `methods[]`, `properties[]`, `projectId` | Class or interface |
+| `Function` | `id`, `type='function'`, `name`, `filePath`, `startLine`, `endLine`, `params`, `returnType?`, `isAsync`, `isExported`, `isGenerator`, `decorators[]`, `confidence`, `bodyHash?`, `projectId` | Function or method |
+| `Class` | `id`, `type='class'`, `name`, `filePath`, `startLine`, `endLine`, `isExported`, `isAbstract`, `superClass?`, `interfaces[]`, `decorators[]`, `methods[]`, `properties[]`, `bodyHash?`, `projectId` | Class or interface |
 | `Variable` | `id`, `type='variable'`, `name`, `filePath`, `line`, `kind` (const/let/var), `isExported`, `valueType?`, `projectId` | Top-level variable or constant |
 | `Module` | `id`, `type='module'`, `name`, `path`, `moduleType` (file/package/external), `projectId` | Logical module |
 | `Route` | `id`, `type='route'`, `method`, `path`, `handlerName`, `filePath`, `middleware[]`, `projectId` | HTTP endpoint |
@@ -182,6 +182,18 @@ WITH f, cls
 WHERE cls IS NULL
 RETURN f.name as name, f.filePath as filePath
 ORDER BY f.filePath
+```
+
+### Duplicate code detection
+
+```cypher
+// Functions with identical bodyHash (copy-paste detection)
+MATCH (f:Function)
+WHERE f.bodyHash IS NOT NULL AND f.projectId = $projectId
+WITH f.bodyHash as bodyHash, collect({name: f.name, filePath: f.filePath}) as funcs, count(*) as cnt
+WHERE cnt > 1
+RETURN bodyHash, cnt as count, funcs as functions
+ORDER BY cnt DESC
 ```
 
 ### Dependency cycles

@@ -85,13 +85,16 @@
 | God file detection (`nm_health`) | HIGH | **DONE** |
 | API tracking (dynamic, import-aware) | HIGH | **DONE** |
 | DB tracking (Prisma/Supabase/Knex, import-aware) | HIGH | **DONE** |
-| Dead code audit v8-v9 (94/94 tests) | HIGH | **DONE** |
+| Content hashing (`bodyHash`) + duplicate detection | MEDIUM | **DONE** |
+| API extractor tests (17 tests) | HIGH | **DONE** |
+| DB extractor tests (21 tests) + Supabase .from() fix | HIGH | **DONE** |
+| Dead code audit v8-v9 (137/137 tests) | HIGH | **DONE** |
 
 ### Planned Roadmap (Q1–Q3 2026)
 
 | Timeline | Feature | Priority | Status | Impact |
 |---|---|---|---|---|
-| **Q1 2026** | Database Tracking (SQL/Prisma/TypeORM) | 🔥 CRITICAL | **In Progress (70%)** | Prisma/Supabase/Knex done. Missing: SQL migration parser, TypeORM/EF, `DBColumn` nodes |
+| **Q1 2026** | Database Tracking (SQL/Prisma/TypeORM) | 🔥 CRITICAL | **In Progress (75%)** | Prisma/Supabase/Knex done (21 tests). Supabase `.from()` fix. Missing: SQL migration parser, TypeORM/EF, `DBColumn` nodes |
 | **Q2 2026** | C# / .NET Language Support | HIGH | Not started | Opens Fortune 500 (banks, insurance, government) |
 | **Q2 2026** | Go Language Support | HIGH | Not started | Cloud/infra visibility (K8s operators, microservices) |
 | **Q2–Q3 2026** | PR Impact Analyzer | HIGH | Not started | Production safety, GitHub Actions integration |
@@ -105,7 +108,7 @@
 | Graph time-travel (per-commit snapshots) | MEDIUM | Not started |
 | Observability integration (OpenTelemetry) | HIGH | Not started |
 | Infrastructure tracking (Terraform/K8s) | MEDIUM | Not started |
-| Cross-project duplicate detection | MEDIUM | Not started |
+| Cross-project duplicate detection | MEDIUM | **Done** — `bodyHash` on FunctionNode/ClassNode, `findDuplicates` query, `includeDuplicates` in `nm_health` |
 | Multi-repo federated graph | HIGH | Not started |
 | RBAC + multi-tenancy | HIGH | Not started |
 | SSO (OIDC/SAML) | MEDIUM | Not started |
