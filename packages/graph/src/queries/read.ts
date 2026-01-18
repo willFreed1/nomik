@@ -238,7 +238,7 @@ export async function findDeadCode(driver: GraphDriver, projectId?: string): Pro
     MATCH (f:Function)
     WHERE NOT (f)<-[:CALLS]-()
       AND NOT (f)<-[:HANDLES]-()
-      AND NOT (f)<-[:DEPENDS_ON {kind: 'import'}]-(:File)
+      AND NOT (f)<-[:DEPENDS_ON]-(:File)
       AND f.name <> 'constructor'
       ${projectFilter}
     WITH f
@@ -255,8 +255,14 @@ export async function findDeadCode(driver: GraphDriver, projectId?: string): Pro
     WITH f, parent
     OPTIONAL MATCH (parent)-[:CONTAINS]->(cls:Class)
     WHERE cls.methods CONTAINS ('"' + f.name + '"')
-    WITH f, cls
+    WITH f, parent, cls
     WHERE cls IS NULL
+    // Exclure les fonctions re-exportees via barrel (index.ts/js imports parent file)
+    OPTIONAL MATCH (barrel:File)-[:DEPENDS_ON|IMPORTS]->(parent)
+    WHERE barrel IS NOT NULL
+      AND (barrel.path ENDS WITH 'index.ts' OR barrel.path ENDS WITH 'index.js')
+    WITH f, barrel
+    WHERE barrel IS NULL
     RETURN f.name as name, f.filePath as filePath
     ORDER BY f.filePath
     `,
@@ -334,6 +340,96 @@ export async function findDuplicates(
     `,
         { projectId },
     );
+}
+
+export interface DBImpactSource {
+    sourceName: string;
+    sourceType: string;
+    filePath: string;
+    operation?: string;
+}
+
+export interface DBImpactResult {
+    table: string;
+    column?: string;
+    readers: DBImpactSource[];
+    writers: DBImpactSource[];
+    columns: string[];
+}
+
+/** Impact DB: qui lit/ecrit une table/colonne, scope par projet */
+export async function findDBImpact(
+    driver: GraphDriver,
+    table: string,
+    column?: string,
+    limit: number = 100,
+    projectId?: string,
+): Promise<DBImpactResult> {
+    const tableFilter = projectId ? 'AND t.projectId = $projectId' : '';
+    const sourceFilter = projectId ? 'AND src.projectId = $projectId' : '';
+    const tableRows = await driver.runQuery<{ tableName: string; columns: string[] }>(
+        `
+    MATCH (t:DBTable)
+    WHERE toLower(t.name) = toLower($table) ${tableFilter}
+    OPTIONAL MATCH (t)-[:CONTAINS]->(c:DBColumn)
+    WITH t, collect(DISTINCT c.name) as cols
+    RETURN t.name as tableName, [x IN cols WHERE x IS NOT NULL] as columns
+    LIMIT 1
+    `,
+        { table, projectId },
+    );
+
+    if (tableRows.length === 0) {
+        return { table, column, readers: [], writers: [], columns: [] };
+    }
+
+    const targetMatch = column
+        ? `
+      MATCH (t:DBTable)-[:CONTAINS]->(target:DBColumn)
+      WHERE toLower(t.name) = toLower($table)
+        AND toLower(target.name) = toLower($column)
+        ${tableFilter}
+    `
+        : `
+      MATCH (t:DBTable)
+      WHERE toLower(t.name) = toLower($table)
+        ${tableFilter}
+      WITH t AS target
+    `;
+
+    const readers = await driver.runQuery<DBImpactSource>(
+        `
+    ${targetMatch}
+    MATCH (src)-[:READS_FROM]->(target)
+    WHERE true ${sourceFilter}
+    RETURN DISTINCT COALESCE(src.name, src.path) as sourceName,
+                    labels(src)[0] as sourceType,
+                    COALESCE(src.filePath, src.path, '') as filePath,
+                    NULL as operation
+    ORDER BY sourceName ASC
+    LIMIT toInteger($limit)
+    `,
+        { table, column: column ?? null, limit, projectId },
+    );
+
+    const writers = await driver.runQuery<DBImpactSource>(
+        `
+    ${targetMatch}
+    MATCH (src)-[r:WRITES_TO]->(target)
+    WHERE true ${sourceFilter}
+    RETURN DISTINCT COALESCE(src.name, src.path) as sourceName,
+                    labels(src)[0] as sourceType,
+                    COALESCE(src.filePath, src.path, '') as filePath,
+                    r.operation as operation
+    ORDER BY sourceName ASC
+    LIMIT toInteger($limit)
+    `,
+        { table, column: column ?? null, limit, projectId },
+    );
+
+    const resolvedTable = tableRows[0]?.tableName ?? table;
+    const columns = (tableRows[0]?.columns ?? []).filter(Boolean).sort();
+    return { table: resolvedTable, column, readers, writers, columns };
 }
 
 export async function graphStats(driver: GraphDriver, projectId?: string): Promise<{

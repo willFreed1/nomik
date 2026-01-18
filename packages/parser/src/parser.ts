@@ -12,6 +12,7 @@ import { extractRoutes } from './extractors/routes';
 import { extractExports } from './extractors/exports';
 import { extractCalls, extractArrayCallbackAliases } from './extractors/calls';
 import { parseMarkdown } from './extractors/markdown';
+import { extractDBSchemaFromSQL, extractDBSchemaFromCSharpMigration, buildDBSchemaNodesAndEdges } from './extractors/db-schema';
 import { extractAPICalls, buildAPINodesAndEdges, buildHttpClientIdentifiers } from './extractors/api-calls';
 import { extractDBOperations, buildDBNodesAndEdges, buildDBClientIdentifiers } from './extractors/db-operations';
 import { extractPythonFunctions, extractPythonClasses, extractPythonImports, extractPythonCalls } from './extractors/python';
@@ -89,6 +90,26 @@ export function createParserEngine(): ParserEngine {
             const md = parseMarkdown(absolutePath, content);
             logger.debug({ filePath: absolutePath, nodes: md.nodes.length, edges: md.edges.length }, 'parsed markdown');
             return { file: md.file, nodes: md.nodes, edges: md.edges, imports: [], exports: [], calls: [], arrayAliases: {} };
+        }
+
+        if (language === 'sql' || language === 'csharp') {
+            const fileNode: FileNode = {
+                id: createNodeId('file', absolutePath, ''),
+                type: 'file',
+                path: absolutePath,
+                language,
+                hash: createFileHash(content),
+                size: Buffer.byteLength(content, 'utf-8'),
+                lastParsed: new Date().toISOString(),
+            };
+            const tables = language === 'sql'
+                ? extractDBSchemaFromSQL(content)
+                : extractDBSchemaFromCSharpMigration(content);
+            const schema = buildDBSchemaNodesAndEdges(tables, fileNode.id, absolutePath);
+            const nodes: GraphNode[] = [fileNode, ...schema.nodes];
+            const edges: GraphEdge[] = [...schema.edges];
+            logger.debug({ filePath: absolutePath, tables: tables.length, nodes: nodes.length, edges: edges.length }, 'parsed migration schema');
+            return { file: fileNode, nodes, edges, imports: [], exports: [], calls: [], arrayAliases: {} };
         }
 
         const hash = createFileHash(content);

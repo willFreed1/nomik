@@ -17,6 +17,9 @@ interface ParsedImportSpecifier {
 function parseImportSpecifier(specifier: string): ParsedImportSpecifier | null {
     const trimmed = specifier.trim();
     if (!trimmed) return null;
+    if (trimmed === '*') {
+        return { importedName: '*', localName: '*', isNamespace: true };
+    }
     if (trimmed.startsWith('* as ')) {
         const localName = trimmed.slice(5).trim();
         return localName
@@ -157,6 +160,38 @@ export function resolveCrossFileCallEdges(
     return edges;
 }
 
+function resolveReExportTargets(targetResult: ParseResult, parsed: ParsedImportSpecifier): GraphNode[] {
+    const exportedNames = collectExportedNames(targetResult);
+    const symbols = targetResult.nodes.filter(
+        (n) => (n.type === 'function' || n.type === 'class' || n.type === 'variable'),
+    );
+
+    if (parsed.importedName === '*' || parsed.isNamespace) {
+        if (exportedNames.size > 0) {
+            return symbols.filter((n) => exportedNames.has(n.name));
+        }
+        return symbols.filter((n) => Boolean((n as any).isExported));
+    }
+
+    if (parsed.importedName === 'default') {
+        const defaults = targetResult.exports.filter(e => e.isDefault && !e.isTypeOnly).map(e => e.name);
+        if (defaults.length === 0) return [];
+        const defaultSet = new Set(defaults);
+        return symbols.filter((n) => defaultSet.has(n.name));
+    }
+
+    return symbols.filter((n) => n.name === parsed.importedName);
+}
+
+function collectExportedNames(targetResult: ParseResult): Set<string> {
+    const names = new Set<string>();
+    for (const exp of targetResult.exports) {
+        if (exp.isTypeOnly || exp.name === 'default') continue;
+        names.add(exp.name);
+    }
+    return names;
+}
+
 /** Resolution cross-fichier des appels __file__ (File → fonctions dans autres fichiers) */
 export function resolveFileCrossFileCallEdges(
     calls: CallInfo[],
@@ -246,7 +281,9 @@ export function resolveImportedSymbolReferenceEdges(
             if (!parsed) continue;
 
             let targets: GraphNode[];
-            if (parsed.isNamespace || imp.isDefault) {
+            if (imp.isReExport) {
+                targets = resolveReExportTargets(targetResult, parsed);
+            } else if (parsed.isNamespace || imp.isDefault) {
                 // Namespace import (import * as X) or default import (import X from 'mod'):
                 // only create DEPENDS_ON for exports actually accessed via X.method()
                 // in the consuming file — avoids blanket edges that hide dead code.

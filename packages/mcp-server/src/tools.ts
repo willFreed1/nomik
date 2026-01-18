@@ -2,7 +2,7 @@ import type { GraphService } from '@nomik/graph';
 import { NomikError } from '@nomik/core';
 
 /** Labels Neo4j reconnus par le scan */
-const KNOWN_LABELS = ['File', 'Function', 'Class', 'Variable', 'Module', 'Route', 'DBTable', 'ExternalAPI', 'CronJob', 'Event', 'EnvVar'];
+const KNOWN_LABELS = ['File', 'Function', 'Class', 'Variable', 'Module', 'Route', 'DBTable', 'DBColumn', 'ExternalAPI', 'CronJob', 'Event', 'EnvVar'];
 
 /** Recupere le projectId depuis l'env (injecte par Cursor/IDE) */
 function getProjectId(): string | undefined {
@@ -20,6 +20,19 @@ const TOOLS = {
                 limit: { type: 'number', description: 'Max results', default: 10 },
             },
             required: ['query'],
+        },
+    },
+    nm_db_impact: {
+        name: 'nm_db_impact',
+        description: 'Analyze who reads/writes a DB table or a specific column in the knowledge graph.',
+        inputSchema: {
+            type: 'object',
+            properties: {
+                table: { type: 'string', description: 'Table name (e.g. users)' },
+                column: { type: 'string', description: 'Optional column name (e.g. email)' },
+                limit: { type: 'number', description: 'Max result rows per reads/writes list', default: 100 },
+            },
+            required: ['table'],
         },
     },
     nm_impact: {
@@ -305,6 +318,17 @@ export async function handleCallTool(graph: GraphService, name: string, args: an
             result.edgeTypes = edgeCounts;
 
             return [{ type: 'text', text: JSON.stringify(result, null, 2) }];
+        }
+
+        case 'nm_db_impact': {
+            const table = String(args.table ?? '').trim();
+            const column = args.column ? String(args.column).trim() : undefined;
+            const limit = Number(args.limit) || 100;
+            if (!table) {
+                return [{ type: 'text', text: JSON.stringify({ error: 'table is required' }) }];
+            }
+            const impact = await graph.getDBImpact(table, column, limit, projectId);
+            return [{ type: 'text', text: JSON.stringify(impact, null, 2) }];
         }
 
         case 'nm_path': {

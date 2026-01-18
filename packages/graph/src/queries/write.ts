@@ -17,6 +17,23 @@ export async function upsertNodes(driver: GraphDriver, nodes: GraphNode[], proje
     }
 }
 
+/** Supprime les donnees de plusieurs fichiers d'un projet en une passe (performance scan) */
+export async function clearFilesData(driver: GraphDriver, filePaths: string[], projectId: string): Promise<void> {
+    if (filePaths.length === 0) return;
+    await driver.runWrite(
+        `UNWIND $paths AS path
+         MATCH (f:File {path: path, projectId: $projectId})-[:CONTAINS]->(n)
+         DETACH DELETE n`,
+        { paths: filePaths, projectId },
+    );
+    await driver.runWrite(
+        `UNWIND $paths AS path
+         MATCH (f:File {path: path, projectId: $projectId})
+         DETACH DELETE f`,
+        { paths: filePaths, projectId },
+    );
+}
+
 function groupByType(nodes: GraphNode[]): Record<string, GraphNode[]> {
     const map: Record<string, GraphNode[]> = {};
     for (const n of nodes) {
@@ -134,6 +151,7 @@ function nodeTypeToLabel(type: string): string {
         module: 'Module',
         route: 'Route',
         db_table: 'DBTable',
+        db_column: 'DBColumn',
         external_api: 'ExternalAPI',
         cron_job: 'CronJob',
         event: 'Event',

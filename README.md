@@ -18,6 +18,8 @@ nomik init
 
 # 3. Scan your codebase
 nomik scan .
+# Scans files under the provided path and tags them to the current
+# project (.nomik/project.json), or use --project <name>
 
 # 4. Connect to your IDE
 nomik setup-cursor     # or: nomik setup-windsurf
@@ -35,6 +37,7 @@ Once connected, your AI assistant gets these tools automatically:
 | Tool | What it does | Example prompt |
 |---|---|---|
 | `nm_search` | Find nodes by name/path | "Find all auth-related functions" |
+| `nm_db_impact` | Analyze read/write impact for a DB table/column | "Who writes to users.email?" |
 | `nm_impact` | Impact analysis | "What breaks if I change `parseFile`?" |
 | `nm_context` | Full context for a symbol | "Show me everything about `GraphService`" |
 | `nm_health` | Codebase health metrics | "Any dead code, god objects, or god files?" |
@@ -62,8 +65,10 @@ Once connected, your AI assistant gets these tools automatically:
 - **Prisma**: `prisma.user.findMany()` → detects table + read/write operation
 - **Supabase**: `supabase.from('users').select()` → detects table from `.from()` chain
 - **Knex/query-builders**: `knex('users').select()` → detects table from function call
+- **TypeORM**: `dataSource.getRepository(User).find()` / `repo.update(...)` / `dataSource.manager.insert(User, ...)`
+- **SQL + EF migrations**: `.sql` + C# migration files parsed into schema graph (`DBTable` + `DBColumn`)
 - Receiver names resolved from **imports** (`@prisma/client`, `@supabase/supabase-js`, `knex`, etc.), not hardcoded
-- Creates `DBTable` nodes + `READS_FROM` / `WRITES_TO` edges
+- Creates `DBTable` + `DBColumn` nodes, `CONTAINS`, `READS_FROM`, and `WRITES_TO` edges
 
 ### Codebase Health
 - **Dead code detection** — functions never called (excludes constructors, class methods, React components, barrel exports)
@@ -74,7 +79,7 @@ Once connected, your AI assistant gets these tools automatically:
 
 ```bash
 nomik init                    # Setup config + Neo4j Docker + create project
-nomik scan <path>             # Parse & index codebase into graph
+nomik scan <path>             # Parse files under <path> and index into current/selected project
 nomik watch [path]            # Live file watcher, auto-reindex
 nomik status                  # Graph health & stats (project-scoped)
 nomik impact <symbol>         # Impact analysis for a symbol
@@ -98,6 +103,8 @@ nomik project info            # Show current project stats
 | **Python** | `tree-sitter-python` | functions, classes, imports, calls |
 | **Rust** | `tree-sitter-rust` | functions, structs/enums/traits, use, calls |
 | **Markdown** | Custom parser (regex) | sections (h1-h6 headings) |
+| **SQL** | Custom parser (regex) | schema extraction: CREATE/ALTER tables, columns |
+| **C# migrations** | Custom parser (regex) | EF migration schema extraction (`migrationBuilder.CreateTable`/`AddColumn`) |
 
 ## 3D Visualization
 
@@ -126,7 +133,7 @@ nomik/
 │   └── config/        — tsconfig/path alias resolution
 ├── @nomik/graph       — Neo4j driver, read/write queries, cache (TTL 30s), retry
 ├── @nomik/watcher     — Chokidar file watcher, incremental reindex
-├── @nomik/mcp-server  — MCP protocol server (stdio), 8 AI tools
+├── @nomik/mcp-server  — MCP protocol server (stdio), 9 AI tools
 ├── @nomik/viz         — React + 3d-force-graph + Cytoscape.js dashboard
 └── @nomik-ai/cli      — Commander CLI, 11 commands, standalone bundle
 ```
@@ -136,7 +143,7 @@ nomik/
 | Component | Technology |
 |---|---|
 | Language | TypeScript (ESM, strict) |
-| Parsed Languages | TypeScript, JavaScript, Python, Rust, Markdown |
+| Parsed Languages | TypeScript, JavaScript, Python, Rust, Markdown, SQL, C# migrations |
 | Graph DB | Neo4j 5 Community + APOC |
 | Parser | Tree-sitter (multi-lang grammars) |
 | AI Protocol | MCP (Model Context Protocol) |
@@ -144,14 +151,14 @@ nomik/
 | Monorepo | Turborepo + pnpm workspaces |
 | 3D Viz | Three.js (3d-force-graph) |
 | 2D Viz | Cytoscape.js |
-| Tests | Vitest — 137 tests across 13 test files |
+| Tests | Vitest — 144 tests across 14 test files |
 | Project Isolation | `projectId` on all nodes/edges, `.nomik/project.json` |
 | JSONC Parsing | `jsonc-parser` (VS Code's parser) for tsconfig/jsconfig |
 
 ## Graph Schema (summary)
 
 ### Node Types
-`File`, `Function`, `Class`, `Variable`, `Module`, `Route`, `ExternalAPI`, `DBTable`, `CronJob`, `Event`, `EnvVar`
+`File`, `Function`, `Class`, `Variable`, `Module`, `Route`, `ExternalAPI`, `DBTable`, `DBColumn`, `CronJob`, `Event`, `EnvVar`
 
 ### Edge Types
 `CONTAINS`, `CALLS`, `DEPENDS_ON`, `EXTENDS`, `IMPLEMENTS`, `HANDLES`, `IMPORTS`, `CALLS_EXTERNAL`, `READS_FROM`, `WRITES_TO`, `TRIGGERS`, `EMITS`, `LISTENS_TO`, `USES_ENV`
@@ -168,7 +175,7 @@ pnpm install
 docker compose up -d
 pnpm build
 
-# Run all tests (94 tests, 11 files)
+# Run all tests (144 tests, 14 files)
 pnpm test
 
 # Dev mode

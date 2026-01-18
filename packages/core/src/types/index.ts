@@ -7,6 +7,7 @@ export type {
     ModuleNode,
     RouteNode,
     DBTableNode,
+    DBColumnNode,
     ExternalAPINode,
     CronJobNode,
     EventNode,

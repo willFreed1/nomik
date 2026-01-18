@@ -15,7 +15,7 @@ export const graphConfigSchema = z.object({
 
 export const targetConfigSchema = z.object({
     root: z.string(),
-    include: z.array(z.string()).default(['**/*.ts', '**/*.tsx', '**/*.js', '**/*.jsx']),
+    include: z.array(z.string()).default(['**/*.ts', '**/*.tsx', '**/*.js', '**/*.jsx', '**/*.sql', '**/*.cs']),
     exclude: z.array(z.string()).default(['**/node_modules/**', '**/dist/**', '**/*.test.*', '**/*.spec.*']),
 });
 

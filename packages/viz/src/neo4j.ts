@@ -89,82 +89,6 @@ export async function fetchGraphOverview(projectId?: string) {
     }
 }
 
-/** Fetch children of a file node (Functions + Classes + their CALLS edges) */
-export async function fetchNodeNeighborhood(nodePropertyId: string, projectId?: string) {
-    const session = driver.session();
-    try {
-        const params = { nodeId: nodePropertyId, projectId: projectId ?? null };
-        const pf = projectId ? 'AND child.projectId = $projectId' : '';
-
-        const result = await session.run(`
-            MATCH (f:File {id: $nodeId})-[c:CONTAINS]->(child)
-            WHERE (child:Function OR child:Class) ${pf}
-            OPTIONAL MATCH (child)-[r:CALLS]->(target)
-            WHERE target.projectId = $projectId OR $projectId IS NULL
-            RETURN child, c, r, target
-        `, params);
-
-        const nodes = new Map<string, any>();
-        const edges: any[] = [];
-        const sanitize = (id: string) => id.replace(/:/g, '_');
-
-        result.records.forEach(record => {
-            const child = record.get('child');
-            const c = record.get('c');
-            const r = record.get('r');
-            const target = record.get('target');
-
-            const childId = sanitize(child.elementId);
-            if (!nodes.has(childId)) {
-                nodes.set(childId, {
-                    data: {
-                        ...child.properties,
-                        id: childId,
-                        label: child.labels[0],
-                        name: child.properties.name || child.labels[0],
-                    }
-                });
-            }
-
-            edges.push({
-                data: {
-                    id: sanitize(c.elementId),
-                    source: sanitize(c.startNodeElementId),
-                    target: childId,
-                    label: 'CONTAINS',
-                }
-            });
-
-            if (r && target) {
-                const targetId = sanitize(target.elementId);
-                if (!nodes.has(targetId)) {
-                    nodes.set(targetId, {
-                        data: {
-                            ...target.properties,
-                            id: targetId,
-                            label: target.labels[0],
-                            name: target.properties.name || target.labels[0],
-                        }
-                    });
-                }
-                edges.push({
-                    data: {
-                        id: sanitize(r.elementId),
-                        source: childId,
-                        target: targetId,
-                        label: 'CALLS',
-                    }
-                });
-            }
-        });
-
-        console.log('Neighborhood loaded:', { nodes: nodes.size, edges: edges.length });
-        return { nodes: Array.from(nodes.values()), edges };
-    } finally {
-        await session.close();
-    }
-}
-
 /** Fetch graph data, optionally filtered by projectId */
 export async function fetchGraphData(projectId?: string) {
     const session = driver.session();
@@ -293,13 +217,15 @@ export interface HealthStats {
 export async function fetchHealthStats(projectId?: string): Promise<HealthStats> {
     const session = driver.session();
     try {
-        const pf = projectId ? 'AND n.projectId = $projectId' : '';
+        const nodeProjectFilter = projectId ? 'AND n.projectId = $projectId' : '';
+        const functionProjectFilter = projectId ? 'AND f.projectId = $projectId' : '';
+        const edgeProjectFilter = projectId ? 'AND a.projectId = $projectId AND b.projectId = $projectId' : '';
         const pfShort = projectId ? '{projectId: $projectId}' : '';
         const params = { projectId: projectId ?? null };
 
         // Counts
         const counts = await session.run(`
-            MATCH (n) WHERE NOT n:ScanMeta AND NOT n:Project ${pf}
+            MATCH (n) WHERE NOT n:ScanMeta AND NOT n:Project ${nodeProjectFilter}
             RETURN
                 count(n) as nodeCount,
                 count(CASE WHEN n:File THEN 1 END) as fileCount,
@@ -313,17 +239,18 @@ export async function fetchHealthStats(projectId?: string): Promise<HealthStats>
         const edgeResult = await session.run(`
             MATCH (a)-[r]->(b)
             WHERE NOT a:ScanMeta AND NOT b:ScanMeta AND NOT a:Project AND NOT b:Project
-            ${projectId ? 'AND a.projectId = $projectId AND b.projectId = $projectId' : ''}
+            ${edgeProjectFilter}
             RETURN count(r) as edgeCount
         `, params);
         const edgeCount = edgeResult.records[0]?.get('edgeCount')?.toNumber?.() ?? edgeResult.records[0]?.get('edgeCount') ?? 0;
 
         // Dead code — exclut constructeurs, methodes de classes, React, barrel re-exports
         const deadCode = await session.run(`
-            MATCH (f:Function ${pfShort})
+            MATCH (f:Function)
             WHERE NOT (f)<-[:CALLS]-() AND NOT (f)<-[:HANDLES]-()
-              AND NOT (f)<-[:DEPENDS_ON {kind: 'import'}]-(:File)
+              AND NOT (f)<-[:DEPENDS_ON]-(:File)
               AND f.name <> 'constructor'
+              ${functionProjectFilter}
             WITH f
             WHERE NOT f.filePath ENDS WITH '.tsx'
               AND NOT f.filePath ENDS WITH '.jsx'
@@ -337,8 +264,13 @@ export async function fetchHealthStats(projectId?: string): Promise<HealthStats>
             WITH f, parent
             OPTIONAL MATCH (parent)-[:CONTAINS]->(cls:Class)
             WHERE cls.methods CONTAINS ('"' + f.name + '"')
-            WITH f, cls
+            WITH f, parent, cls
             WHERE cls IS NULL
+            OPTIONAL MATCH (barrel:File)-[:DEPENDS_ON|IMPORTS]->(parent)
+            WHERE barrel IS NOT NULL
+              AND (barrel.path ENDS WITH 'index.ts' OR barrel.path ENDS WITH 'index.js')
+            WITH f, barrel
+            WHERE barrel IS NULL
             RETURN f.name as name, f.filePath as filePath
             ORDER BY f.filePath, f.name
         `, params);

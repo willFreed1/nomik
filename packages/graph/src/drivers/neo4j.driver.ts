@@ -5,6 +5,23 @@ import type { GraphDriver } from './driver.interface.js';
 const MAX_RETRIES = 3;
 const RETRY_BASE_MS = 500;
 
+function isTransientNeo4jError(err: unknown): boolean {
+    if (!err || typeof err !== 'object') return false;
+    const anyErr = err as { code?: string; message?: string; name?: string };
+    const code = String(anyErr.code ?? '');
+    const msg = String(anyErr.message ?? '').toLowerCase();
+    const name = String(anyErr.name ?? '').toLowerCase();
+    return code.startsWith('Neo.TransientError')
+        || code.includes('ServiceUnavailable')
+        || code.includes('SessionExpired')
+        || msg.includes('connection')
+        || msg.includes('timeout')
+        || msg.includes('service unavailable')
+        || msg.includes('session expired')
+        || name.includes('serviceunavailable')
+        || name.includes('sessionexpired');
+}
+
 /** Retry avec backoff exponentiel pour les erreurs transientes Neo4j */
 async function withRetry<T>(fn: () => Promise<T>, label: string, logger: ReturnType<typeof getLogger>): Promise<T> {
     let lastError: Error | undefined;
@@ -13,10 +30,7 @@ async function withRetry<T>(fn: () => Promise<T>, label: string, logger: ReturnT
             return await fn();
         } catch (err) {
             lastError = err instanceof Error ? err : new Error(String(err));
-            const isTransient = lastError.message.includes('connection')
-                || lastError.message.includes('timeout')
-                || lastError.message.includes('UNAVAILABLE')
-                || lastError.message.includes('ServiceUnavailable');
+            const isTransient = isTransientNeo4jError(err);
             if (!isTransient || attempt === MAX_RETRIES - 1) throw lastError;
             const delay = RETRY_BASE_MS * Math.pow(2, attempt);
             logger.warn({ attempt: attempt + 1, delay, label, error: lastError.message }, 'neo4j retry');
@@ -33,17 +47,24 @@ export function createNeo4jDriver(config: GraphConfig): GraphDriver {
 
     async function connect(): Promise<void> {
         try {
-            driver = neo4j.driver(
-                config.uri,
-                neo4j.auth.basic(config.auth.username, config.auth.password),
-                {
-                    maxConnectionPoolSize: config.maxConnectionPoolSize,
-                    connectionTimeout: config.connectionTimeoutMs,
-                },
-            );
-            const info = await driver.getServerInfo();
-            connected = true;
-            logger.info({ address: info.address, version: info.protocolVersion }, 'neo4j connected');
+            await withRetry(async () => {
+                if (driver) {
+                    await driver.close();
+                    driver = null;
+                }
+                const nextDriver = neo4j.driver(
+                    config.uri,
+                    neo4j.auth.basic(config.auth.username, config.auth.password),
+                    {
+                        maxConnectionPoolSize: config.maxConnectionPoolSize,
+                        connectionTimeout: config.connectionTimeoutMs,
+                    },
+                );
+                const info = await nextDriver.getServerInfo();
+                driver = nextDriver;
+                connected = true;
+                logger.info({ address: info.address, version: info.protocolVersion }, 'neo4j connected');
+            }, 'connect', logger);
         } catch (err) {
             throw new GraphConnectionError(
                 `Failed to connect to Neo4j at ${config.uri}: ${err instanceof Error ? err.message : String(err)}`,

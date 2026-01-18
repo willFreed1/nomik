@@ -18,7 +18,15 @@ function App() {
         fetchProjects()
             .then(p => {
                 setProjects(p);
-                if (p.length === 1 && p[0]) setSelectedProjectId(p[0].id);
+                if (p.length === 0) return;
+
+                const preferred = p.find(project => {
+                    const name = project.name.toLowerCase();
+                    const root = project.rootPath.toLowerCase();
+                    return name === 'nomik' || root.includes('\\genome') || root.includes('/genome');
+                }) ?? p[0];
+
+                if (preferred) setSelectedProjectId(preferred.id);
             })
             .catch(err => console.error('Failed to load projects:', err));
     }, []);
@@ -28,7 +36,11 @@ function App() {
         setStatsLoading(true);
         fetchHealthStats(selectedProjectId)
             .then(s => { setStats(s); setStatsLoading(false); })
-            .catch(() => setStatsLoading(false));
+            .catch(err => {
+                console.error('Failed to load health stats:', err);
+                setStats(null);
+                setStatsLoading(false);
+            });
     }, [selectedProjectId]);
 
     return (

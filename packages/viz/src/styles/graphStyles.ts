@@ -28,7 +28,7 @@ export const graphStyles: any[] = [
         selector: 'node[label="File"]',
         style: {
             'background-color': '#083344',
-            'border-color': '#06b6d4',
+            'border-color': 'data(dirColor)',
             'border-width': 3,
             'color': '#22d3ee',
             'shape': 'round-rectangle',
@@ -47,7 +47,7 @@ export const graphStyles: any[] = [
         selector: 'node[label="Function"]',
         style: {
             'background-color': '#064e3b',
-            'border-color': '#10b981',
+            'border-color': 'data(dirColor)',
             'border-width': 1.5,
             'color': '#86efac',
             'width': 12,
@@ -60,7 +60,7 @@ export const graphStyles: any[] = [
         selector: 'node[label="Class"]',
         style: {
             'background-color': '#3b0764',
-            'border-color': '#a855f7',
+            'border-color': 'data(dirColor)',
             'border-width': 2,
             'color': '#d8b4fe',
             'shape': 'diamond',
@@ -79,18 +79,18 @@ export const graphStyles: any[] = [
             'target-arrow-shape': 'triangle',
             'curve-style': 'bezier',
             'arrow-scale': 0.8,
-            'opacity': 0.4,
+            'opacity': 0.55,
         }
     },
-    // CALLS : edges amber
+    // CALLS : edges amber/orange — highly visible
     {
         selector: 'edge[label="CALLS"]',
         style: {
-            'line-color': '#f59e0b',
-            'target-arrow-color': '#f59e0b',
+            'line-color': '#fbbf24',
+            'target-arrow-color': '#fbbf24',
             'line-style': 'solid',
-            'opacity': 0.5,
-            'width': 1.5,
+            'opacity': 0.8,
+            'width': 2,
         }
     },
     // DEPENDS_ON : edges sky dashed (imports entre fichiers)
@@ -100,7 +100,7 @@ export const graphStyles: any[] = [
             'line-color': '#38bdf8',
             'target-arrow-color': '#38bdf8',
             'line-style': 'dashed',
-            'opacity': 0.6,
+            'opacity': 0.75,
             'width': 2,
         }
     },
@@ -197,6 +197,32 @@ export const graphStyles: any[] = [
             'z-index': 1000,
         }
     },
+    {
+        selector: 'node.search-focus',
+        style: {
+            'border-color': '#f8fafc',
+            'border-width': 5,
+            'overlay-color': '#22d3ee',
+            'overlay-opacity': 0.25,
+            'overlay-padding': 8,
+            'z-index': 1100,
+        }
+    },
+    {
+        selector: 'edge.search-edge',
+        style: {
+            'opacity': 0.9,
+            'width': 2.5,
+            'line-color': '#22d3ee',
+            'target-arrow-color': '#22d3ee',
+            'z-index': 950,
+        }
+    },
+    // Filter visibility control
+    {
+        selector: '.filter-hidden',
+        style: { 'display': 'none' }
+    },
 ];
 
 /** Performance-optimized styles for large graphs (>300 nodes) */
@@ -225,7 +251,7 @@ export const graphStylesFast: any[] = [
         selector: 'node[label="File"]',
         style: {
             'background-color': '#083344',
-            'border-color': '#06b6d4',
+            'border-color': 'data(dirColor)',
             'border-width': 2,
             'color': '#22d3ee',
             'shape': 'round-rectangle',
@@ -243,7 +269,7 @@ export const graphStylesFast: any[] = [
         selector: 'node[label="Function"]',
         style: {
             'background-color': '#064e3b',
-            'border-color': '#10b981',
+            'border-color': 'data(dirColor)',
             'border-width': 1,
             'color': '#86efac',
             'width': 8,
@@ -256,7 +282,7 @@ export const graphStylesFast: any[] = [
         selector: 'node[label="Class"]',
         style: {
             'background-color': '#3b0764',
-            'border-color': '#a855f7',
+            'border-color': 'data(dirColor)',
             'border-width': 1.5,
             'color': '#d8b4fe',
             'shape': 'diamond',
@@ -273,19 +299,18 @@ export const graphStylesFast: any[] = [
             'line-color': '#1e293b',
             'target-arrow-color': '#1e293b',
             'target-arrow-shape': 'triangle',
-            'curve-style': 'haystack',  // Much faster than bezier
-            'haystack-radius': 0.5,
+            'curve-style': 'bezier',
             'arrow-scale': 0.6,
-            'opacity': 0.25,
+            'opacity': 0.35,
         }
     },
     {
         selector: 'edge[label="CALLS"]',
         style: {
-            'line-color': '#92400e',
-            'target-arrow-color': '#92400e',
-            'opacity': 0.3,
-            'width': 1,
+            'line-color': '#fbbf24',
+            'target-arrow-color': '#fbbf24',
+            'opacity': 0.5,
+            'width': 1.5,
         }
     },
     {
@@ -294,7 +319,7 @@ export const graphStylesFast: any[] = [
             'line-color': '#38bdf8',
             'target-arrow-color': '#38bdf8',
             'line-style': 'dashed',
-            'opacity': 0.4,
+            'opacity': 0.55,
             'width': 1.5,
         }
     },
@@ -365,5 +390,30 @@ export const graphStylesFast: any[] = [
             'overlay-opacity': 0.2,
             'z-index': 1000,
         }
+    },
+    {
+        selector: 'node.search-focus',
+        style: {
+            'border-color': '#f8fafc',
+            'border-width': 4,
+            'overlay-color': '#22d3ee',
+            'overlay-opacity': 0.2,
+            'z-index': 1050,
+        }
+    },
+    {
+        selector: 'edge.search-edge',
+        style: {
+            'opacity': 0.75,
+            'width': 2,
+            'line-color': '#22d3ee',
+            'target-arrow-color': '#22d3ee',
+            'z-index': 920,
+        }
+    },
+    // Filter visibility control
+    {
+        selector: '.filter-hidden',
+        style: { 'display': 'none' }
     },
 ];

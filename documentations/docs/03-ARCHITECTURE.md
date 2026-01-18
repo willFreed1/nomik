@@ -123,10 +123,10 @@ nomik/
 │   │
 │   ├── mcp-server/              # Serveur protocole MCP
 │   │   ├── src/
-│   │   │   ├── tools.ts              # 8 outils : nm_search, nm_impact,
-│   │   │   │                          # nm_trace, nm_context,
-│   │   │   │                          # nm_health, nm_path,
-│   │   │   │                          # nm_changes, nm_projects
+│   │   │   ├── tools.ts              # 9 outils : nm_search, nm_db_impact,
+│   │   │   │                          # nm_impact, nm_trace,
+│   │   │   │                          # nm_context, nm_health,
+│   │   │   │                          # nm_path, nm_changes, nm_projects
 │   │   │   ├── resources.ts           # Ressources MCP
 │   │   │   └── index.ts
 │   │   ├── package.json

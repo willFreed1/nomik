@@ -20,7 +20,7 @@ function parse(code: string) {
 }
 
 function emptyIds(): DBClientIds {
-    return { prismaIds: new Set(), supabaseIds: new Set(), queryBuilderIds: new Set() };
+    return { prismaIds: new Set(), supabaseIds: new Set(), queryBuilderIds: new Set(), typeormIds: new Set() };
 }
 
 // ── buildDBClientIdentifiers ────────────────────────────────────────
@@ -28,7 +28,7 @@ function emptyIds(): DBClientIds {
 describe('buildDBClientIdentifiers', () => {
     it('detects @prisma/client import', () => {
         const imports: ImportInfo[] = [
-            { source: '@prisma/client', specifiers: ['PrismaClient'], isDefault: false, isDynamic: false, isTypeOnly: false, line: 1 },
+            { source: '@prisma/client', specifiers: ['PrismaClient'], isDefault: false, isDynamic: false, isReExport: false, isTypeOnly: false, line: 1 },
         ];
         const ids = buildDBClientIdentifiers(imports);
         expect(ids.prismaIds.has('PrismaClient')).toBe(true);
@@ -36,7 +36,7 @@ describe('buildDBClientIdentifiers', () => {
 
     it('detects @supabase/supabase-js import', () => {
         const imports: ImportInfo[] = [
-            { source: '@supabase/supabase-js', specifiers: ['createClient'], isDefault: false, isDynamic: false, isTypeOnly: false, line: 1 },
+            { source: '@supabase/supabase-js', specifiers: ['createClient'], isDefault: false, isDynamic: false, isReExport: false, isTypeOnly: false, line: 1 },
         ];
         const ids = buildDBClientIdentifiers(imports);
         expect(ids.supabaseIds.has('createClient')).toBe(true);
@@ -45,7 +45,7 @@ describe('buildDBClientIdentifiers', () => {
 
     it('detects knex import', () => {
         const imports: ImportInfo[] = [
-            { source: 'knex', specifiers: ['knex'], isDefault: true, isDynamic: false, isTypeOnly: false, line: 1 },
+            { source: 'knex', specifiers: ['knex'], isDefault: true, isDynamic: false, isReExport: false, isTypeOnly: false, line: 1 },
         ];
         const ids = buildDBClientIdentifiers(imports);
         expect(ids.queryBuilderIds.has('knex')).toBe(true);
@@ -53,7 +53,7 @@ describe('buildDBClientIdentifiers', () => {
 
     it('detects drizzle-orm import', () => {
         const imports: ImportInfo[] = [
-            { source: 'drizzle-orm', specifiers: ['drizzle'], isDefault: false, isDynamic: false, isTypeOnly: false, line: 1 },
+            { source: 'drizzle-orm', specifiers: ['drizzle'], isDefault: false, isDynamic: false, isReExport: false, isTypeOnly: false, line: 1 },
         ];
         const ids = buildDBClientIdentifiers(imports);
         expect(ids.queryBuilderIds.has('drizzle')).toBe(true);
@@ -61,7 +61,7 @@ describe('buildDBClientIdentifiers', () => {
 
     it('ignores non-DB packages', () => {
         const imports: ImportInfo[] = [
-            { source: 'lodash', specifiers: ['get'], isDefault: false, isDynamic: false, isTypeOnly: false, line: 1 },
+            { source: 'lodash', specifiers: ['get'], isDefault: false, isDynamic: false, isReExport: false, isTypeOnly: false, line: 1 },
         ];
         const ids = buildDBClientIdentifiers(imports);
         expect(ids.prismaIds.size).toBe(0);
@@ -86,7 +86,7 @@ describe('extractDBOperations (Prisma)', () => {
                 return prisma.user.findMany();
             }
         `);
-        const ids: DBClientIds = { prismaIds: new Set(['prisma']), supabaseIds: new Set(), queryBuilderIds: new Set() };
+        const ids: DBClientIds = { prismaIds: new Set(['prisma']), supabaseIds: new Set(), queryBuilderIds: new Set(), typeormIds: new Set() };
         const ops = extractDBOperations(tree, '/test.ts', ids);
         expect(ops.length).toBe(1);
         expect(ops[0].tableName).toBe('user');
@@ -100,7 +100,7 @@ describe('extractDBOperations (Prisma)', () => {
                 return prisma.post.create({ data: { title: 'hello' } });
             }
         `);
-        const ids: DBClientIds = { prismaIds: new Set(['prisma']), supabaseIds: new Set(), queryBuilderIds: new Set() };
+        const ids: DBClientIds = { prismaIds: new Set(['prisma']), supabaseIds: new Set(), queryBuilderIds: new Set(), typeormIds: new Set() };
         const ops = extractDBOperations(tree, '/test.ts', ids);
         expect(ops.length).toBe(1);
         expect(ops[0].tableName).toBe('post');
@@ -113,7 +113,7 @@ describe('extractDBOperations (Prisma)', () => {
                 return prisma.user.update({ where: { id: 1 }, data: { name: 'new' } });
             }
         `);
-        const ids: DBClientIds = { prismaIds: new Set(['prisma']), supabaseIds: new Set(), queryBuilderIds: new Set() };
+        const ids: DBClientIds = { prismaIds: new Set(['prisma']), supabaseIds: new Set(), queryBuilderIds: new Set(), typeormIds: new Set() };
         const ops = extractDBOperations(tree, '/test.ts', ids);
         expect(ops.length).toBe(1);
         expect(ops[0].operation).toBe('UPDATE');
@@ -125,7 +125,7 @@ describe('extractDBOperations (Prisma)', () => {
                 return prisma.user.delete({ where: { id: 1 } });
             }
         `);
-        const ids: DBClientIds = { prismaIds: new Set(['prisma']), supabaseIds: new Set(), queryBuilderIds: new Set() };
+        const ids: DBClientIds = { prismaIds: new Set(['prisma']), supabaseIds: new Set(), queryBuilderIds: new Set(), typeormIds: new Set() };
         const ops = extractDBOperations(tree, '/test.ts', ids);
         expect(ops.length).toBe(1);
         expect(ops[0].operation).toBe('DELETE');
@@ -154,7 +154,7 @@ describe('extractDBOperations (Supabase)', () => {
                 return supabase.from('users').select('*');
             }
         `);
-        const ids: DBClientIds = { prismaIds: new Set(), supabaseIds: new Set(['supabase']), queryBuilderIds: new Set() };
+        const ids: DBClientIds = { prismaIds: new Set(), supabaseIds: new Set(['supabase']), queryBuilderIds: new Set(), typeormIds: new Set() };
         const ops = extractDBOperations(tree, '/test.ts', ids);
         expect(ops.length).toBe(1);
         expect(ops[0].tableName).toBe('users');
@@ -167,7 +167,7 @@ describe('extractDBOperations (Supabase)', () => {
                 return supabase.from('posts').insert({ title: 'new' });
             }
         `);
-        const ids: DBClientIds = { prismaIds: new Set(), supabaseIds: new Set(['supabase']), queryBuilderIds: new Set() };
+        const ids: DBClientIds = { prismaIds: new Set(), supabaseIds: new Set(['supabase']), queryBuilderIds: new Set(), typeormIds: new Set() };
         const ops = extractDBOperations(tree, '/test.ts', ids);
         expect(ops.length).toBe(1);
         expect(ops[0].tableName).toBe('posts');
@@ -184,7 +184,7 @@ describe('extractDBOperations (Knex)', () => {
                 return knex('users').select('*');
             }
         `);
-        const ids: DBClientIds = { prismaIds: new Set(), supabaseIds: new Set(), queryBuilderIds: new Set(['knex']) };
+        const ids: DBClientIds = { prismaIds: new Set(), supabaseIds: new Set(), queryBuilderIds: new Set(['knex']), typeormIds: new Set() };
         const ops = extractDBOperations(tree, '/test.ts', ids);
         expect(ops.length).toBe(1);
         expect(ops[0].tableName).toBe('users');
@@ -197,7 +197,7 @@ describe('extractDBOperations (Knex)', () => {
                 return db('posts').insert({ title: 'hello' });
             }
         `);
-        const ids: DBClientIds = { prismaIds: new Set(), supabaseIds: new Set(), queryBuilderIds: new Set(['db']) };
+        const ids: DBClientIds = { prismaIds: new Set(), supabaseIds: new Set(), queryBuilderIds: new Set(['db']), typeormIds: new Set() };
         const ops = extractDBOperations(tree, '/test.ts', ids);
         expect(ops.length).toBe(1);
         expect(ops[0].tableName).toBe('posts');
@@ -223,7 +223,7 @@ describe('extractDBOperations (edge cases)', () => {
         const tree = await parse(`
             prisma.user.findMany();
         `);
-        const ids: DBClientIds = { prismaIds: new Set(['prisma']), supabaseIds: new Set(), queryBuilderIds: new Set() };
+        const ids: DBClientIds = { prismaIds: new Set(['prisma']), supabaseIds: new Set(), queryBuilderIds: new Set(), typeormIds: new Set() };
         const ops = extractDBOperations(tree, '/test.ts', ids);
         expect(ops.length).toBe(1);
         expect(ops[0].callerName).toBe('__file__');
@@ -240,6 +240,7 @@ describe('buildDBNodesAndEdges', () => {
             operation: 'SELECT' as const,
             receiverName: 'prisma',
             line: 5,
+            columns: [],
         }];
         const funcMap = new Map([['getUsers', 'func-id-1']]);
         const { nodes, edges } = buildDBNodesAndEdges(dbOps, funcMap, 'file-id', '/test.ts');
@@ -248,9 +249,7 @@ describe('buildDBNodesAndEdges', () => {
         expect(nodes[0].type).toBe('db_table');
         expect((nodes[0] as any).name).toBe('users');
 
-        expect(edges.length).toBe(1);
-        expect(edges[0].type).toBe('READS_FROM');
-        expect(edges[0].sourceId).toBe('func-id-1');
+        expect(edges.some(e => e.type === 'READS_FROM' && e.sourceId === 'func-id-1')).toBe(true);
     });
 
     it('creates WRITES_TO edge for INSERT', () => {
@@ -260,18 +259,18 @@ describe('buildDBNodesAndEdges', () => {
             operation: 'INSERT' as const,
             receiverName: 'prisma',
             line: 10,
+            columns: [],
         }];
         const funcMap = new Map([['createPost', 'func-id-2']]);
         const { edges } = buildDBNodesAndEdges(dbOps, funcMap, 'file-id', '/test.ts');
 
-        expect(edges.length).toBe(1);
-        expect(edges[0].type).toBe('WRITES_TO');
+        expect(edges.some(e => e.type === 'WRITES_TO')).toBe(true);
     });
 
     it('deduplicates table nodes for same table', () => {
         const dbOps = [
-            { callerName: 'a', tableName: 'users', operation: 'SELECT' as const, receiverName: 'p', line: 1 },
-            { callerName: 'b', tableName: 'users', operation: 'INSERT' as const, receiverName: 'p', line: 2 },
+            { callerName: 'a', tableName: 'users', operation: 'SELECT' as const, receiverName: 'p', line: 1, columns: [] },
+            { callerName: 'b', tableName: 'users', operation: 'INSERT' as const, receiverName: 'p', line: 2, columns: [] },
         ];
         const funcMap = new Map([['a', 'id-a'], ['b', 'id-b']]);
         const { nodes, edges } = buildDBNodesAndEdges(dbOps, funcMap, 'file-id', '/test.ts');
@@ -279,7 +278,7 @@ describe('buildDBNodesAndEdges', () => {
         expect(nodes.length).toBe(1);
         expect((nodes[0] as any).operations).toContain('SELECT');
         expect((nodes[0] as any).operations).toContain('INSERT');
-        expect(edges.length).toBe(2);
+        expect(edges.filter(e => e.type === 'READS_FROM' || e.type === 'WRITES_TO').length).toBe(2);
     });
 
     it('falls back to fileId when caller not in funcMap', () => {
@@ -289,8 +288,52 @@ describe('buildDBNodesAndEdges', () => {
             operation: 'SELECT' as const,
             receiverName: null,
             line: 1,
+            columns: [],
         }];
         const { edges } = buildDBNodesAndEdges(dbOps, new Map(), 'file-id', '/test.ts');
-        expect(edges[0].sourceId).toBe('file-id');
+        const reads = edges.find(e => e.type === 'READS_FROM');
+        expect(reads?.sourceId).toBe('file-id');
+    });
+
+    it('creates DBColumn nodes and column-level edges when columns are present', () => {
+        const dbOps = [{
+            callerName: 'getUsers',
+            tableName: 'users',
+            operation: 'SELECT' as const,
+            receiverName: 'repo',
+            line: 1,
+            columns: ['email'],
+        }];
+        const { nodes, edges } = buildDBNodesAndEdges(dbOps, new Map([['getUsers', 'fn-id']]), 'file-id', '/test.ts');
+        expect(nodes.some(n => n.type === 'db_column' && (n as any).name === 'email')).toBe(true);
+        expect(edges.some(e => e.type === 'CONTAINS')).toBe(true);
+        expect(edges.some(e => e.type === 'READS_FROM' && e.targetId !== undefined)).toBe(true);
+    });
+});
+
+describe('extractDBOperations (TypeORM)', () => {
+    it('detects repository factory usage (dataSource.getRepository(User).find())', async () => {
+        const tree = await parse(`
+            async function listUsers(dataSource: any) {
+                return dataSource.getRepository(User).find();
+            }
+        `);
+        const ops = extractDBOperations(tree, '/test.ts', emptyIds());
+        expect(ops.length).toBe(1);
+        expect(ops[0].tableName).toBe('user');
+        expect(ops[0].operation).toBe('SELECT');
+    });
+
+    it('detects repository alias variable usage (userRepo.update())', async () => {
+        const tree = await parse(`
+            async function bump(dataSource: any) {
+                const userRepo = dataSource.getRepository(User);
+                return userRepo.update({ id: 1 }, { name: 'x' });
+            }
+        `);
+        const ops = extractDBOperations(tree, '/test.ts', emptyIds());
+        expect(ops.length).toBe(1);
+        expect(ops[0].tableName).toBe('user');
+        expect(ops[0].operation).toBe('UPDATE');
     });
 });

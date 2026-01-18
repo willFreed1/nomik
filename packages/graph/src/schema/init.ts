@@ -12,6 +12,7 @@ const SCHEMA_INIT = [
     'CREATE CONSTRAINT project_id IF NOT EXISTS FOR (p:Project) REQUIRE p.id IS UNIQUE',
     // Contraintes pour les types de noeuds futurs (pre-provisionnees)
     'CREATE CONSTRAINT dbtable_id IF NOT EXISTS FOR (d:DBTable) REQUIRE d.id IS UNIQUE',
+    'CREATE CONSTRAINT dbcolumn_id IF NOT EXISTS FOR (d:DBColumn) REQUIRE d.id IS UNIQUE',
     'CREATE CONSTRAINT externalapi_id IF NOT EXISTS FOR (e:ExternalAPI) REQUIRE e.id IS UNIQUE',
     'CREATE CONSTRAINT cronjob_id IF NOT EXISTS FOR (c:CronJob) REQUIRE c.id IS UNIQUE',
     'CREATE CONSTRAINT event_id IF NOT EXISTS FOR (e:Event) REQUIRE e.id IS UNIQUE',
@@ -29,6 +30,8 @@ const SCHEMA_INIT = [
     'CREATE INDEX module_project IF NOT EXISTS FOR (m:Module) ON (m.projectId)',
     'CREATE INDEX route_project IF NOT EXISTS FOR (r:Route) ON (r.projectId)',
     'CREATE INDEX variable_project IF NOT EXISTS FOR (v:Variable) ON (v.projectId)',
+    'CREATE INDEX dbtable_project IF NOT EXISTS FOR (d:DBTable) ON (d.projectId)',
+    'CREATE INDEX dbcolumn_project IF NOT EXISTS FOR (d:DBColumn) ON (d.projectId)',
 ];
 
 export async function initializeSchema(driver: GraphDriver): Promise<void> {

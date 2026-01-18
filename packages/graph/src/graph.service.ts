@@ -2,8 +2,8 @@ import { type GraphConfig, getLogger } from '@nomik/core';
 import type { GraphNode, GraphEdge, ProjectNode } from '@nomik/core';
 import { createNeo4jDriver } from './drivers/neo4j.driver.js';
 import type { GraphDriver } from './drivers/driver.interface.js';
-import { upsertNodes, createEdges, clearFileData, purgeStaleFiles, upsertProject, deleteProjectData, listProjects, getProject } from './queries/write.js';
-import { impactAnalysis, findDeadCode, findGodObjects, findGodFiles, findDuplicates, graphStats, findDependencyChain, findDetailedPath, recentChanges } from './queries/read.js';
+import { upsertNodes, createEdges, clearFileData, clearFilesData, purgeStaleFiles, upsertProject, deleteProjectData, listProjects, getProject } from './queries/write.js';
+import { impactAnalysis, findDeadCode, findGodObjects, findGodFiles, findDuplicates, graphStats, findDependencyChain, findDetailedPath, recentChanges, findDBImpact } from './queries/read.js';
 import { initializeSchema } from './schema/init.js';
 import { QueryCache } from './cache.js';
 import type { ImpactResult, DetailedPath } from './queries/read.js';
@@ -25,6 +25,7 @@ export interface GraphService {
     getImpact(symbolName: string, depth?: number, projectId?: string): Promise<ImpactResult[]>;
     getDeadCode(projectId?: string): Promise<Array<{ name: string; filePath: string }>>;
     getGodObjects(threshold?: number, projectId?: string): Promise<Array<{ name: string; filePath: string; depCount: number }>>;
+    getDBImpact(table: string, column?: string, limit?: number, projectId?: string): Promise<{ table: string; column?: string; readers: Array<{ sourceName: string; sourceType: string; filePath: string }>; writers: Array<{ sourceName: string; sourceType: string; filePath: string; operation?: string }>; columns: string[] }>;
     getGodFiles(threshold?: number, projectId?: string): Promise<Array<{ filePath: string; functionCount: number; totalLines: number }>>;
     getDuplicates(projectId?: string): Promise<Array<{ bodyHash: string; count: number; functions: Array<{ name: string; filePath: string }> }>>;
     getStats(projectId?: string): Promise<{ nodeCount: number; edgeCount: number; fileCount: number; functionCount: number; classCount: number; routeCount: number }>;
@@ -87,13 +88,13 @@ export function createGraphService(config: GraphConfig): GraphService {
             logger.debug({ projectId }, 'purged stale files from previous scans');
 
             // Phase 1 : Supprimer les anciennes donnees de TOUS les fichiers d'abord
-            for (const r of results) {
-                await clearFileData(driver, r.file.path, projectId);
-            }
+            await clearFilesData(driver, currentPaths, projectId);
+
             // Phase 2 : Creer TOUS les noeuds (result.nodes inclut deja le FileNode)
-            for (const r of results) {
-                await upsertNodes(driver, r.nodes, projectId);
-            }
+            const allNodes: GraphNode[] = [];
+            for (const r of results) allNodes.push(...r.nodes);
+            await upsertNodes(driver, allNodes, projectId);
+
             // Phase 3 : Creer TOUTES les edges (intra + cross-fichier preservees)
             const allEdges: GraphEdge[] = [];
             for (const r of results) {
@@ -101,7 +102,7 @@ export function createGraphService(config: GraphConfig): GraphService {
             }
             await createEdges(driver, allEdges, projectId);
             cache.invalidateAll();
-            logger.info({ files: results.length, edges: allEdges.length }, 'batch ingestion complete (3-phase)');
+            logger.info({ files: results.length, nodes: allNodes.length, edges: allEdges.length }, 'batch ingestion complete (3-phase)');
         },
 
         async getImpact(symbolName: string, depth = 5, projectId?: string) {
@@ -114,6 +115,10 @@ export function createGraphService(config: GraphConfig): GraphService {
 
         async getGodObjects(threshold = 15, projectId?: string) {
             return cached(`godObjects:${projectId}:${threshold}`, () => findGodObjects(driver, threshold, projectId));
+        },
+
+        async getDBImpact(table: string, column?: string, limit = 100, projectId?: string) {
+            return cached(`dbImpact:${projectId}:${table}:${column ?? ''}:${limit}`, () => findDBImpact(driver, table, column, limit, projectId));
         },
 
         async getGodFiles(threshold = 10, projectId?: string) {

@@ -19,7 +19,7 @@ nomik init --no-docker   # Sans Docker
 
 ### `nomik scan <path>`
 
-Scanne un repertoire, parse les fichiers (TS/JS/Python/Rust/Markdown) et ingere les noeuds/edges dans Neo4j. Rafraichit les donnees par fichier (supprime l'ancien contenu avant re-insertion).
+Scanne un repertoire, parse les fichiers (TS/JS/Python/Rust/Markdown/SQL/C# EF migrations) et ingere les noeuds/edges dans Neo4j. Rafraichit les donnees par fichier (supprime l'ancien contenu avant re-insertion).
 
 ```bash
 nomik scan .
@@ -152,7 +152,7 @@ Le projet courant est stocke dans `.nomik/project.json`.
 
 ---
 
-## Outils MCP — 8 outils
+## Outils MCP — 9 outils
 
 Ces outils sont exposes automatiquement quand le serveur MCP est connecte a Cursor ou Claude.
 
@@ -272,6 +272,22 @@ Metriques de sante du graphe : comptages, dead code, god objects, god files, cod
 **Exemples de prompts Cursor** :
 - "Are there any dead code or god objects?"
 - "Give me full graph health stats with dead code details"
+
+---
+
+### `nm_db_impact`
+
+Analyse l'impact DB pour une table (et optionnellement une colonne) : qui lit, qui ecrit, et colonnes connues.
+
+| Parametre | Type | Requis | Description |
+|---|---|---|---|
+| `table` | string | oui | Nom de table (ex: `users`) |
+| `column` | string | non | Nom de colonne (ex: `email`) |
+| `limit` | number | non | Max lignes par liste readers/writers (defaut: 100) |
+
+**Exemples de prompts Cursor** :
+- "Who reads table users?"
+- "Who writes users.email?"
 
 ---
 

@@ -79,6 +79,15 @@ export interface DBTableNode {
     operations: Array<'SELECT' | 'INSERT' | 'UPDATE' | 'DELETE'>;
 }
 
+export interface DBColumnNode {
+    id: string;
+    type: 'db_column';
+    name: string;
+    tableName: string;
+    dataType?: string;
+    nullable?: boolean;
+}
+
 export interface ExternalAPINode {
     id: string;
     type: 'external_api';
@@ -137,6 +146,7 @@ export type GraphNode =
     | ModuleNode
     | RouteNode
     | DBTableNode
+    | DBColumnNode
     | ExternalAPINode
     | CronJobNode
     | EventNode

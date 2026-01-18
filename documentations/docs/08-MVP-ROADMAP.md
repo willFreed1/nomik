@@ -1,5 +1,7 @@
 # NOMIK — MVP Roadmap & Milestones
 
+> Last refresh: **2026-02-17**
+
 ## Phase 1: Foundation (Weeks 1-4) — "First Heartbeat"
 
 ### Goal: Parse a TypeScript project → store in Neo4j → query via CLI
@@ -12,10 +14,10 @@
 | 4 | `@nomik/cli` — `nomik init`, `scan`, `query` | End-to-end: `nomik scan ./myproject && nomik query "MATCH..."` |
 
 ### Key Milestones
-- [ ] `nomik scan` successfully parses 10K+ line TypeScript project
-- [ ] Neo4j browser shows nodes and edges with correct relationships
-- [ ] `nomik query` returns impact analysis results
-- [ ] Docker Compose one-command setup works
+- [x] `nomik scan` successfully parses 10K+ line TypeScript project
+- [x] Neo4j browser shows nodes and edges with correct relationships
+- [x] `nomik query` returns impact analysis results
+- [x] Docker Compose one-command setup works
 
 ---
 
@@ -25,15 +27,15 @@
 
 | Week | Deliverable | Exit Criteria |
 |---|---|---|
-| 5 | `@nomik/mcp-server` — basic MCP tools | Cursor connects, `nomik_search_nodes` works |
+| 5 | `@nomik/mcp-server` — basic MCP tools | Cursor connects, `nm_search` works |
 | 6 | MCP tools: impact analysis, dependency trace | Cursor answers "What breaks if I change X?" |
 | 7 | `@nomik/watcher` — incremental updates | Save a file → graph updates in <2s |
 | 8 | Integration testing + polish | Stable 30-minute Cursor session without errors |
 
 ### Key Milestones
-- [ ] Cursor IDE connects to NOMIK MCP server
-- [ ] AI answers graph-powered questions accurately
-- [ ] File changes reflected in graph within 2 seconds
+- [x] Cursor IDE connects to NOMIK MCP server
+- [x] AI answers graph-powered questions accurately
+- [x] File changes reflected in graph within 2 seconds
 - [ ] Zero crashes during extended development sessions
 
 ---
@@ -50,9 +52,9 @@
 | 12 | Polish, dark theme, export, demo recording | Production-quality demo for pitching |
 
 ### Key Milestones
-- [ ] Dashboard loads graph in <3s for 10K-line project
-- [ ] God Object detection visually highlights problem areas
-- [ ] Impact analysis highlighted paths are correct
+- [x] Dashboard loads graph in <3s for 10K-line project
+- [x] God Object detection visually highlights problem areas
+- [x] Impact analysis highlighted paths are correct
 - [ ] Demo recording ready for investor/customer pitch
 
 ---
@@ -87,14 +89,14 @@
 | DB tracking (Prisma/Supabase/Knex, import-aware) | HIGH | **DONE** |
 | Content hashing (`bodyHash`) + duplicate detection | MEDIUM | **DONE** |
 | API extractor tests (17 tests) | HIGH | **DONE** |
-| DB extractor tests (21 tests) + Supabase .from() fix | HIGH | **DONE** |
-| Dead code audit v8-v9 (137/137 tests) | HIGH | **DONE** |
+| DB extractor tests (24 tests) + schema parser tests (3) | HIGH | **DONE** |
+| Dead code audit + parser hardening (144 tests, 14 files) | HIGH | **DONE** |
 
 ### Planned Roadmap (Q1–Q3 2026)
 
 | Timeline | Feature | Priority | Status | Impact |
 |---|---|---|---|---|
-| **Q1 2026** | Database Tracking (SQL/Prisma/TypeORM) | 🔥 CRITICAL | **In Progress (75%)** | Prisma/Supabase/Knex done (21 tests). Supabase `.from()` fix. Missing: SQL migration parser, TypeORM/EF, `DBColumn` nodes |
+| **Q1 2026** | Database Tracking (SQL/Prisma/TypeORM/EF migrations) | 🔥 CRITICAL | **Done** | Prisma/Supabase/Knex + TypeORM detection, SQL/C# migration parser, `DBTable` + `DBColumn` nodes, `nm_db_impact` tool |
 | **Q2 2026** | C# / .NET Language Support | HIGH | Not started | Opens Fortune 500 (banks, insurance, government) |
 | **Q2 2026** | Go Language Support | HIGH | Not started | Cloud/infra visibility (K8s operators, microservices) |
 | **Q2–Q3 2026** | PR Impact Analyzer | HIGH | Not started | Production safety, GitHub Actions integration |

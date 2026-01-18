@@ -6,6 +6,7 @@ export interface ImportInfo {
     specifiers: string[];
     isDefault: boolean;
     isDynamic: boolean;
+    isReExport: boolean;
     isTypeOnly: boolean;
     line: number;
 }
@@ -20,6 +21,11 @@ export function extractImports(tree: Parser.Tree, _filePath: string): ImportInfo
         if (node.type === 'import_statement') {
             const info = buildImportInfo(node);
             if (info) results.push(info);
+        }
+
+        if (node.type === 'export_statement') {
+            const reExport = buildReExportImportInfo(node);
+            if (reExport) results.push(reExport);
         }
 
         if (node.type === 'call_expression') {
@@ -76,6 +82,48 @@ function buildImportInfo(node: Parser.SyntaxNode): ImportInfo | null {
         specifiers,
         isDefault,
         isDynamic: false,
+        isReExport: false,
+        isTypeOnly,
+        line: node.startPosition.row + 1,
+    };
+}
+
+function buildReExportImportInfo(node: Parser.SyntaxNode): ImportInfo | null {
+    const sourceNode = node.childForFieldName('source');
+    if (!sourceNode) return null;
+
+    const source = sourceNode.text.replace(/['"]/g, '');
+    const specifiers: string[] = [];
+    let isTypeOnly = node.children.some((c) => c.text === 'type' && c.type === 'type');
+
+    for (const child of node.namedChildren) {
+        if (child.type === 'export_clause') {
+            for (const named of child.namedChildren) {
+                if (named.type === 'export_specifier') {
+                    const raw = named.text.trim();
+                    if (!raw) continue;
+                    if (raw.startsWith('type ')) isTypeOnly = true;
+                    specifiers.push(raw.replace(/^type\s+/, ''));
+                }
+            }
+        }
+        if (child.type === 'namespace_export') {
+            const raw = child.text.trim();
+            if (raw) specifiers.push(raw);
+        }
+    }
+
+    if (specifiers.length === 0) {
+        // export * from './foo'
+        specifiers.push('*');
+    }
+
+    return {
+        source,
+        specifiers,
+        isDefault: false,
+        isDynamic: false,
+        isReExport: true,
         isTypeOnly,
         line: node.startPosition.row + 1,
     };
@@ -96,6 +144,7 @@ function tryDynamicImport(node: Parser.SyntaxNode): ImportInfo | null {
         specifiers: [],
         isDefault: false,
         isDynamic: true,
+        isReExport: false,
         isTypeOnly: false,
         line: node.startPosition.row + 1,
     };

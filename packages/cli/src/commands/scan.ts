@@ -16,7 +16,7 @@ export const scanCommand = new Command('scan')
             ...envConfig,
             target: {
                 root: targetPath,
-                include: ['**/*.ts', '**/*.tsx', '**/*.js', '**/*.jsx', '**/*.md', '**/*.py', '**/*.rs'],
+                include: ['**/*.ts', '**/*.tsx', '**/*.js', '**/*.jsx', '**/*.md', '**/*.py', '**/*.rs', '**/*.sql', '**/*.cs'],
                 exclude: [
                     '**/node_modules/**', '**/dist/**', '**/build/**', '**/out/**',
                     '**/.next/**', '**/.nuxt/**', '**/.svelte-kit/**', '**/coverage/**',

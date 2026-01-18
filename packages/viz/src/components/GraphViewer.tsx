@@ -5,10 +5,18 @@ import { graphStyles, graphStylesFast } from '../styles/graphStyles';
 import { graphLayout } from '../styles/graphLayout';
 import { getAdaptiveLayout } from '../styles/graphLayout';
 import { SearchBar } from './SearchBar';
-import { FilterPanel } from './FilterPanel';
+import { FilterPanel, type DirectoryInfo } from './FilterPanel';
 import { NodeDetail } from './NodeDetail';
 import { HelpButton } from './HelpModal';
 import { LayoutSelector } from './LayoutSelector';
+
+// Distinct colors for directory clustering (border color = directory)
+const DIR_PALETTE = [
+    '#06b6d4', '#f59e0b', '#10b981', '#a855f7', '#ef4444',
+    '#3b82f6', '#ec4899', '#84cc16', '#f97316', '#14b8a6',
+    '#6366f1', '#d946ef', '#0ea5e9', '#eab308', '#22d3ee',
+];
+const DIR_FALLBACK = '#475569';
 
 /** Rendering phase for progressive loading UX */
 type Phase = 'loading' | 'computing' | 'streaming' | 'ready' | 'error';
@@ -19,7 +27,93 @@ interface GraphViewerProps {
     onViewModeChange: (mode: ViewMode) => void;
 }
 
-/** Main 2D graph viewer — headless layout + progressive streaming */
+/** Extract meaningful directory group from a file path (monorepo-aware) */
+function extractDirectoryGroup(filePath: string): string {
+    if (!filePath) return 'root';
+    const normalized = filePath.replace(/\\/g, '/');
+    const parts = normalized.split('/').filter(p => p.length > 0);
+    parts.pop(); // Remove filename
+    if (!parts.length) return 'root';
+
+    // Monorepo: packages/X/src/Y → X/Y
+    if (parts[0] === 'packages' && parts.length >= 2) {
+        const pkg = parts[1]!;
+        const rest = parts.slice(2).filter(p => p !== 'src' && p !== 'source');
+        return rest.length > 0 ? `${pkg}/${rest[0]!}` : pkg;
+    }
+
+    // App root with src: backend/src/Y → backend/Y
+    if (parts.length >= 2 && (parts[1] === 'src' || parts[1] === 'source')) {
+        const root = parts[0]!;
+        const sub = parts.slice(2);
+        return sub.length > 0 ? `${root}/${sub[0]!}` : root;
+    }
+
+    // Simple src/source prefix
+    if (parts[0] === 'src' || parts[0] === 'source') parts.shift();
+
+    return parts[0] || 'root';
+}
+
+interface DirInfoResult {
+    directories: DirectoryInfo[];
+    nodeToDir: Map<string, string>;
+    dirColors: Map<string, string>;
+}
+
+/** Compute directory assignments + colors for all nodes (no compound nodes) */
+function buildDirectoryInfo(nodeEls: any[], edgeEls: any[]): DirInfoResult {
+    const fileToDir = new Map<string, string>();
+    const dirCounts = new Map<string, number>();
+
+    for (const node of nodeEls) {
+        if (node.data.label === 'File') {
+            const path = node.data.path || node.data.filePath || node.data.name || '';
+            const dir = extractDirectoryGroup(path);
+            fileToDir.set(node.data.id, dir);
+            dirCounts.set(dir, (dirCounts.get(dir) || 0) + 1);
+        }
+    }
+
+    // Map Function/Class to their parent File's directory via CONTAINS edges
+    const childToFile = new Map<string, string>();
+    for (const edge of edgeEls) {
+        if (edge.data.label === 'CONTAINS') {
+            childToFile.set(edge.data.target, edge.data.source);
+        }
+    }
+
+    const nodeToDir = new Map<string, string>();
+    for (const node of nodeEls) {
+        if (node.data.label === 'File') {
+            nodeToDir.set(node.data.id, fileToDir.get(node.data.id)!);
+        } else {
+            const fileId = childToFile.get(node.data.id);
+            if (fileId) {
+                const dir = fileToDir.get(fileId);
+                if (dir) {
+                    nodeToDir.set(node.data.id, dir);
+                    dirCounts.set(dir, (dirCounts.get(dir) || 0) + 1);
+                }
+            }
+        }
+    }
+
+    // Assign a unique color to each directory (sorted by count)
+    const sorted = Array.from(dirCounts.entries()).sort((a, b) => b[1] - a[1]);
+    const dirColors = new Map<string, string>();
+    const directories: DirectoryInfo[] = [];
+    for (let i = 0; i < sorted.length; i++) {
+        const [dir, count] = sorted[i]!;
+        const color = DIR_PALETTE[i % DIR_PALETTE.length]!;
+        dirColors.set(dir, color);
+        directories.push({ name: dir, count, color });
+    }
+
+    return { directories, nodeToDir, dirColors };
+}
+
+/** Main 2D graph viewer — headless layout + directory grouping + progressive streaming */
 export function GraphViewer({ projectId, viewMode, onViewModeChange }: GraphViewerProps) {
     const containerRef = useRef<HTMLDivElement>(null);
     const cyRef = useRef<cytoscape.Core | null>(null);
@@ -28,8 +122,10 @@ export function GraphViewer({ projectId, viewMode, onViewModeChange }: GraphView
     const [selectedNode, setSelectedNode] = useState<cytoscape.NodeSingular | null>(null);
     const [isLargeGraph, setIsLargeGraph] = useState(false);
     const [stats, setStats] = useState({ nodes: 0, edges: 0, streamed: 0 });
+    const [directories, setDirectories] = useState<DirectoryInfo[]>([]);
+    const [quality, setQuality] = useState<'full' | 'optimized'>('full');
 
-    // Master effect: fetch data → compute layout headlessly → stream into visible cy
+    // Master effect: fetch → build directories → headless layout → stream
     useEffect(() => {
         if (!containerRef.current) return;
         let cancelled = false;
@@ -43,6 +139,7 @@ export function GraphViewer({ projectId, viewMode, onViewModeChange }: GraphView
         setError(null);
         setSelectedNode(null);
         setStats({ nodes: 0, edges: 0, streamed: 0 });
+        setDirectories([]);
 
         async function run() {
             try {
@@ -58,28 +155,30 @@ export function GraphViewer({ projectId, viewMode, onViewModeChange }: GraphView
                 const validEdges = edgeEls.filter((e: any) =>
                     nodeIds.has(e.data.source) && nodeIds.has(e.data.target)
                 );
-                const allElements = [...nodeEls, ...validEdges];
+
+                // ── Build directory info (colors, no compound nodes) ──
+                const { directories: dirs, nodeToDir, dirColors } = buildDirectoryInfo(nodeEls, validEdges);
+                setDirectories(dirs);
+
                 const large = nodeEls.length > 300;
                 setIsLargeGraph(large);
                 setStats({ nodes: nodeEls.length, edges: validEdges.length, streamed: 0 });
 
-                // ── Phase 2: Compute layout headlessly (no rendering = no lag) ──
+                // ── Phase 2: Compute flat layout (no compound nodes) ──
                 setPhase('computing');
-                // Yield to browser so overlay renders before heavy computation
                 await new Promise(r => requestAnimationFrame(r));
                 if (cancelled) return;
 
-                const activeLayout = large ? getAdaptiveLayout(allElements.length) : graphLayout;
+                const flatElements = [...nodeEls, ...validEdges];
+                const activeLayout = large ? getAdaptiveLayout(flatElements.length) : graphLayout;
                 const activeStyles = large ? graphStylesFast : graphStyles;
 
-                // Headless cy — computes positions without touching the DOM
                 const headlessCy = cytoscape({
                     headless: true,
                     styleEnabled: false,
-                    elements: allElements,
+                    elements: flatElements,
                 });
 
-                // Run layout synchronously (headless = no rendering overhead)
                 const positions = new Map<string, { x: number; y: number }>();
                 await new Promise<void>((resolve) => {
                     const layout = headlessCy.layout({
@@ -98,7 +197,7 @@ export function GraphViewer({ projectId, viewMode, onViewModeChange }: GraphView
                 headlessCy.destroy();
                 if (cancelled) return;
 
-                // ── Phase 3: Stream elements into visible cy with pre-computed positions ──
+                // ── Phase 3: Stream elements progressively ──
                 setPhase('streaming');
 
                 const cy = cytoscape({
@@ -110,40 +209,38 @@ export function GraphViewer({ projectId, viewMode, onViewModeChange }: GraphView
                 });
                 cyRef.current = cy;
 
-                // Performance options for large graphs
                 if (large) {
                     try {
                         (cy as any).renderer().options.textureOnViewport = true;
                         (cy as any).renderer().options.hideEdgesOnViewport = true;
-                    } catch (_) { /* renderer options not available in all versions */ }
+                    } catch (_) { /* optional renderer optimization */ }
                 }
 
-                // Progressive batch streaming — nodes first, then edges
                 const BATCH_SIZE = large ? 200 : 100;
 
-                // Stream nodes with pre-computed positions
+                // Stream nodes with directory color + group data
                 for (let i = 0; i < nodeEls.length; i += BATCH_SIZE) {
                     if (cancelled) return;
                     const batch = nodeEls.slice(i, i + BATCH_SIZE);
                     cy.batch(() => {
                         for (const el of batch) {
                             const pos = positions.get(el.data.id);
-                            cy.add({ ...el, position: pos ?? { x: 0, y: 0 } });
+                            const dir = nodeToDir.get(el.data.id) ?? '';
+                            const color = dirColors.get(dir) ?? DIR_FALLBACK;
+                            const data = { ...el.data, dirGroup: dir, dirColor: color };
+                            cy.add({ data, position: pos ?? { x: 0, y: 0 } });
                         }
                     });
                     setStats(s => ({ ...s, streamed: Math.min(i + BATCH_SIZE, nodeEls.length) }));
-                    // Yield to browser between batches
                     await new Promise(r => requestAnimationFrame(r));
                 }
 
-                // Stream edges in batches
+                // Stream edges
                 for (let i = 0; i < validEdges.length; i += BATCH_SIZE * 2) {
                     if (cancelled) return;
                     const batch = validEdges.slice(i, i + BATCH_SIZE * 2);
                     cy.batch(() => {
-                        for (const el of batch) {
-                            cy.add(el);
-                        }
+                        for (const el of batch) cy.add(el);
                     });
                     await new Promise(r => requestAnimationFrame(r));
                 }
@@ -154,7 +251,8 @@ export function GraphViewer({ projectId, viewMode, onViewModeChange }: GraphView
                 // Setup event handlers
                 cy.on('tap', 'node', (evt) => {
                     const node = evt.target;
-                    cy.elements().removeClass('impact-source impact-callee impact-caller impact-edge faded search-match');
+
+                    cy.elements().removeClass('impact-source impact-callee impact-caller impact-edge faded search-match search-focus search-edge');
                     setSelectedNode(node);
 
                     const callees = node.outgoers('edge[label="CALLS"]');
@@ -177,11 +275,10 @@ export function GraphViewer({ projectId, viewMode, onViewModeChange }: GraphView
                 });
                 cy.on('tap', (evt) => {
                     if (evt.target === cy) {
-                        cy.elements().removeClass('impact-source impact-callee impact-caller impact-edge faded search-match');
+                        cy.elements().removeClass('impact-source impact-callee impact-caller impact-edge faded search-match search-focus search-edge');
                         setSelectedNode(null);
                     }
                 });
-                // Edge labels on hover (skip for large graphs — perf cost)
                 if (!large) {
                     cy.on('mouseover', 'edge', (evt) => {
                         evt.target.style('label', evt.target.data('label'));
@@ -219,14 +316,31 @@ export function GraphViewer({ projectId, viewMode, onViewModeChange }: GraphView
         };
     }, [projectId, viewMode]);
 
+    // Apply quality-dependent edge styles on toggle
+    useEffect(() => {
+        const cy = cyRef.current;
+        if (!cy || phase !== 'ready') return;
+        const full = quality === 'full';
+        cy.style().fromJson(full ? graphStyles : graphStylesFast).update();
+
+        try {
+            const renderer = (cy as any).renderer?.();
+            if (renderer?.options) {
+                renderer.options.textureOnViewport = !full && isLargeGraph;
+                renderer.options.hideEdgesOnViewport = !full && isLargeGraph;
+            }
+        } catch (_) {
+            // optional renderer optimization toggles
+        }
+    }, [quality, phase, isLargeGraph]);
+
     const handleCloseDetail = useCallback(() => {
         const cy = cyRef.current;
         if (!cy) return;
-        cy.elements().removeClass('impact-source impact-callee impact-caller impact-edge faded search-match');
+        cy.elements().removeClass('impact-source impact-callee impact-caller impact-edge faded search-match search-focus search-edge');
         setSelectedNode(null);
     }, []);
 
-    // Phase-aware loading message
     const phaseMessage = phase === 'loading' ? (viewMode === 'overview' ? 'FETCHING OVERVIEW...' : 'FETCHING GRAPH DATA...')
         : phase === 'computing' ? `COMPUTING LAYOUT (${stats.nodes} nodes, ${stats.edges} edges)...`
         : phase === 'streaming' ? `STREAMING ${stats.streamed}/${stats.nodes} nodes...`
@@ -239,7 +353,7 @@ export function GraphViewer({ projectId, viewMode, onViewModeChange }: GraphView
                 <div className="flex items-center gap-2">
                     <SearchBar cy={cyRef.current} />
                     <HelpButton />
-                    <LayoutSelector cy={cyRef.current} />
+                    <LayoutSelector cy={cyRef.current} animate={quality === 'full'} />
                     {/* View mode toggle */}
                     <div className="flex items-center gap-1 bg-slate-900 rounded border border-slate-700 p-0.5">
                         <button
@@ -255,13 +369,30 @@ export function GraphViewer({ projectId, viewMode, onViewModeChange }: GraphView
                             Full Graph
                         </button>
                     </div>
+                    {/* Quality toggle */}
+                    <div className="flex items-center gap-1 bg-slate-900 rounded border border-slate-700 p-0.5">
+                        <button
+                            onClick={() => setQuality('full')}
+                            className={`px-2 py-0.5 rounded text-[10px] font-mono transition-all ${quality === 'full' ? 'bg-cyan-900/60 text-cyan-400 border border-cyan-700' : 'text-slate-500 border border-transparent hover:text-slate-300'}`}
+                            title="Full quality: smooth layout animations, high edge visibility"
+                        >
+                            Full Quality
+                        </button>
+                        <button
+                            onClick={() => setQuality('optimized')}
+                            className={`px-2 py-0.5 rounded text-[10px] font-mono transition-all ${quality === 'optimized' ? 'bg-amber-900/60 text-amber-400 border border-amber-700' : 'text-slate-500 border border-transparent hover:text-slate-300'}`}
+                            title="Optimized: instant layouts, reduced visuals for large graphs"
+                        >
+                            Optimized
+                        </button>
+                    </div>
                     {isLargeGraph && phase === 'ready' && (
                         <span className="px-2 py-0.5 rounded text-[10px] font-mono bg-amber-900/40 text-amber-400 border border-amber-800">
-                            FAST MODE
+                            LARGE GRAPH
                         </span>
                     )}
                 </div>
-                {phase === 'ready' && <FilterPanel cy={cyRef.current} />}
+                {phase === 'ready' && <FilterPanel cy={cyRef.current} directories={directories} />}
             </div>
 
             {/* Graph + Detail panel */}
@@ -273,17 +404,26 @@ export function GraphViewer({ projectId, viewMode, onViewModeChange }: GraphView
                 </div>
 
                 {/* Legend */}
-                <div className="absolute bottom-4 left-4 z-10 flex items-center gap-4 text-[10px] font-mono pointer-events-none">
-                    <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-cyan-500 inline-block" /> File</span>
-                    {viewMode === 'full' && <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-emerald-500 inline-block" /> Function</span>}
-                    {viewMode === 'full' && <span className="flex items-center gap-1"><span className="w-2 h-2 rounded bg-purple-500 inline-block" style={{ transform: 'rotate(45deg)', width: 8, height: 8 }} /> Class</span>}
-                    <span className="text-slate-600">|</span>
-                    {viewMode === 'full' && <span className="flex items-center gap-1"><span className="w-3 h-0.5 bg-slate-500 inline-block" /> CONTAINS</span>}
-                    {viewMode === 'full' && <span className="flex items-center gap-1"><span className="w-3 h-0.5 bg-amber-500 inline-block" /> CALLS</span>}
-                    <span className="flex items-center gap-1"><span className="w-3 h-0.5 bg-sky-400 inline-block" style={{ borderTop: '1px dashed #38bdf8' }} /> DEPENDS_ON</span>
+                <div className="absolute bottom-4 left-4 z-10 flex items-center gap-3 text-[10px] font-mono pointer-events-none flex-wrap">
+                    <span className="flex items-center gap-1"><span className="w-3 h-2 rounded-sm bg-slate-800 border border-cyan-500 inline-block" /> File</span>
+                    {viewMode === 'full' && <span className="flex items-center gap-1"><span className="w-2 h-2 rounded-full bg-slate-800 border border-emerald-500 inline-block" /> Function</span>}
+                    {viewMode === 'full' && <span className="flex items-center gap-1"><span className="w-2 h-2 bg-slate-800 border border-purple-500 inline-block" style={{ transform: 'rotate(45deg)' }} /> Class</span>}
+                    {directories.length > 0 && (
+                        <>
+                            <span className="text-slate-600">|</span>
+                            <span className="text-slate-500">Border color = directory</span>
+                            {directories.slice(0, 6).map(d => (
+                                <span key={d.name} className="flex items-center gap-1">
+                                    <span className="w-2 h-2 rounded-full inline-block" style={{ backgroundColor: d.color }} />
+                                    <span className="text-slate-500">{d.name}</span>
+                                </span>
+                            ))}
+                            {directories.length > 6 && <span className="text-slate-600">+{directories.length - 6}</span>}
+                        </>
+                    )}
                 </div>
 
-                {/* Cytoscape container — managed manually for full control */}
+                {/* Cytoscape container */}
                 <div ref={containerRef} className="w-full h-full" />
 
                 {/* Phase overlays */}
@@ -301,7 +441,6 @@ export function GraphViewer({ projectId, viewMode, onViewModeChange }: GraphView
                     </div>
                 )}
 
-                {/* Error */}
                 {phase === 'error' && (
                     <div className="absolute inset-0 flex items-center justify-center z-30">
                         <div className="text-red-500 font-mono text-sm">SYSTEM ERROR: {error}</div>

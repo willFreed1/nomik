@@ -1,6 +1,6 @@
 import path from 'node:path';
 
-export type SupportedLanguage = 'typescript' | 'tsx' | 'javascript' | 'markdown' | 'python' | 'rust';
+export type SupportedLanguage = 'typescript' | 'tsx' | 'javascript' | 'markdown' | 'python' | 'rust' | 'sql' | 'csharp';
 
 const extensionMap: Record<string, SupportedLanguage> = {
     '.ts': 'typescript',
@@ -13,6 +13,8 @@ const extensionMap: Record<string, SupportedLanguage> = {
     '.py': 'python',
     '.pyw': 'python',
     '.rs': 'rust',
+    '.sql': 'sql',
+    '.cs': 'csharp',
 };
 
 export function detectLanguage(filePath: string): SupportedLanguage | null {

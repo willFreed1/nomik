@@ -71,6 +71,54 @@ app.use(sanitizeInputs);
         }
     });
 
+    it('creates symbol dependency edges for barrel re-exports', async () => {
+        const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'nomik-parser-'));
+        try {
+            const servicePath = path.join(tmpDir, 'lib', 'graph.service.ts');
+            const indexPath = path.join(tmpDir, 'lib', 'index.ts');
+            const appPath = path.join(tmpDir, 'app.ts');
+
+            writeFile(servicePath, `
+export function createGraphService() {
+  return true;
+}
+`);
+
+            writeFile(indexPath, `
+export { createGraphService } from './graph.service';
+`);
+
+            writeFile(appPath, `
+import { createGraphService } from './lib';
+export function boot() {
+  return createGraphService();
+}
+`);
+
+            const engine = createParserEngine();
+            const results = await engine.parseFiles([servicePath, indexPath, appPath]);
+
+            const serviceResult = results.find(r => r.file.path === path.resolve(servicePath));
+            const indexResult = results.find(r => r.file.path === path.resolve(indexPath));
+            expect(serviceResult).toBeDefined();
+            expect(indexResult).toBeDefined();
+
+            const createGraphServiceFn = serviceResult!.nodes.find(
+                n => n.type === 'function' && n.name === 'createGraphService',
+            );
+            expect(createGraphServiceFn).toBeDefined();
+
+            const reExportSymbolEdge = indexResult!.edges.find(
+                e => e.type === 'DEPENDS_ON'
+                    && e.sourceId === indexResult!.file.id
+                    && e.targetId === createGraphServiceFn!.id,
+            );
+            expect(reExportSymbolEdge).toBeDefined();
+        } finally {
+            fs.rmSync(tmpDir, { recursive: true, force: true });
+        }
+    });
+
     it('disambiguates obj.method() cross-file calls using imported receiver provenance', async () => {
         const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'nomik-parser-'));
         try {

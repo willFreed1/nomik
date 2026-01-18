@@ -61,9 +61,9 @@ The **Code Fingerprint**: A self-healing, auto-populating mental model. If the A
 
 ### Current State (v0.9 — Feb 2026)
 
-NOMIK already tracks **code → code** relationships across TypeScript, JavaScript, Python, Rust, and Markdown. The knowledge graph includes functions, classes, interfaces, imports, call chains, file dependencies, **external API calls**, **database operations**, and **content hashing** (bodyHash for duplicate detection). Health detection: dead code, god objects, god files, duplicate code. **137 tests passing (13 test files)**, modular parser architecture (481 lines, down from 1369).
+NOMIK already tracks **code → code** relationships across TypeScript, JavaScript, Python, Rust, Markdown, SQL, and C# migrations. The knowledge graph includes functions, classes, interfaces, imports, call chains, file dependencies, **external API calls**, **database operations**, and **content hashing** (bodyHash for duplicate detection). Health detection: dead code, god objects, god files, duplicate code. **144 tests passing (14 test files)**, modular parser architecture (481 lines, down from 1369).
 
-### Phase 1 — Database Tracking (Q1 2026) — 75% Complete
+### Phase 1 — Database Tracking (Q1 2026) — Complete
 
 **Goal**: Complete full-stack visibility: `UI → API → Function → DB Table → Column`.
 
@@ -71,16 +71,13 @@ The #1 question every engineering team asks: *"What breaks if I change this data
 
 | Feature | Detail | Status |
 |---|---|---|
-| ORM detection (dynamic, import-aware) | Prisma, Supabase, Knex — receiver resolved from imports | **Done** |
+| ORM detection (dynamic, import-aware) | Prisma, Supabase, Knex, TypeORM — receiver resolved from imports | **Done** |
 | `DBTable` nodes + `READS_FROM`/`WRITES_TO` edges | Created per file, linked to caller functions | **Done** |
 | External API detection (dynamic, import-aware) | axios, ky, got, fetch + URL heuristic | **Done** |
 | `ExternalAPI` nodes + `CALLS_EXTERNAL` edges | Created per file, linked to caller functions | **Done** |
-| SQL migration parser | Parse `.sql`, Prisma schemas, TypeORM models, EF migrations | Planned |
-| `DBColumn` nodes | Column-level granularity | Planned |
-| `nm_db_impact` MCP tool | "Which functions query this table?" | Planned |
-| Content hashing (`bodyHash`) | SHA-256 whitespace-normalized hash on FunctionNode + ClassNode | **Done** |
-| Duplicate detection (`findDuplicates`) | Group functions by bodyHash, `includeDuplicates` in `nm_health` | **Done** |
-| Viz integration | Database tables shown as distinct nodes in the dashboard | Planned |
+| SQL migration parser | Parse `.sql` files + C# Entity Framework migration schemas (DB schema only, not full C# language) | **Done** |
+| `DBColumn` nodes | Column-level granularity | **Done** |
+| `nm_db_impact` MCP tool | "Which functions query this table?" | **Done** |
 
 **Impact**: Unlocks "Which functions break if I change this database column?" — the enterprise must-have.
 
