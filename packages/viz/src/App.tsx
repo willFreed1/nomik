@@ -3,10 +3,11 @@ import { GraphViewer } from './components/GraphViewer';
 import { Graph3DViewer } from './components/Graph3DViewer';
 import { ProjectSelector } from './components/ProjectSelector';
 import { StatsPanel } from './components/StatsPanel';
-import { fetchProjects, fetchHealthStats, type HealthStats } from './neo4j';
+import { fetchProjects, fetchHealthStats, type HealthStats, type ViewMode } from './neo4j';
 
 function App() {
     const [mode, setMode] = useState<'3d' | '2d'>('3d');
+    const [viewMode, setViewMode] = useState<ViewMode>('overview');
     const [projects, setProjects] = useState<Array<{ id: string; name: string; rootPath: string }>>([]);
     const [selectedProjectId, setSelectedProjectId] = useState<string | undefined>(undefined);
     const [stats, setStats] = useState<HealthStats | null>(null);
@@ -66,8 +67,8 @@ function App() {
                 {/* Graph viewer */}
                 <div className="flex-1 p-3 overflow-hidden">
                     {mode === '3d'
-                        ? <Graph3DViewer projectId={selectedProjectId} />
-                        : <GraphViewer projectId={selectedProjectId} />
+                        ? <Graph3DViewer projectId={selectedProjectId} viewMode={viewMode} onViewModeChange={setViewMode} />
+                        : <GraphViewer projectId={selectedProjectId} viewMode={viewMode} onViewModeChange={setViewMode} />
                     }
                 </div>
             </main>

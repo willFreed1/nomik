@@ -8,6 +8,163 @@ export const driver = neo4j.driver(
     )
 );
 
+/** View mode for progressive loading */
+export type ViewMode = 'overview' | 'full';
+
+/** Fetch overview: Files + DEPENDS_ON only (fast for any project size) */
+export async function fetchGraphOverview(projectId?: string) {
+    const session = driver.session();
+    try {
+        console.log('Fetching overview...', projectId ? `(project: ${projectId})` : '(all)');
+        const pf = projectId ? 'WHERE f.projectId = $projectId' : '';
+        const pf2 = projectId ? 'AND f.projectId = $projectId AND g.projectId = $projectId' : '';
+        const params = { projectId: projectId ?? null };
+
+        // Files with function/class counts for sizing
+        const fileResult = await session.run(`
+            MATCH (f:File) ${pf}
+            OPTIONAL MATCH (f)-[:CONTAINS]->(fn:Function)
+            OPTIONAL MATCH (f)-[:CONTAINS]->(cls:Class)
+            RETURN f, count(DISTINCT fn) as funcCount, count(DISTINCT cls) as classCount
+        `, params);
+
+        // DEPENDS_ON edges between files
+        const depResult = await session.run(`
+            MATCH (f:File)-[r:DEPENDS_ON]->(g:File)
+            WHERE NOT f:ScanMeta AND NOT g:ScanMeta ${pf2}
+            RETURN f.id as sourceId, g.id as targetId, r
+        `, params);
+
+        const nodes = new Map<string, any>();
+        const edges: any[] = [];
+        const sanitize = (id: string) => id.replace(/:/g, '_');
+
+        fileResult.records.forEach(record => {
+            const f = record.get('f');
+            const funcCount = record.get('funcCount')?.toNumber?.() ?? record.get('funcCount') ?? 0;
+            const classCount = record.get('classCount')?.toNumber?.() ?? record.get('classCount') ?? 0;
+            const nId = sanitize(f.elementId);
+            const parts = (f.properties.path ?? '').split(/[/\\]/);
+            const name = parts[parts.length - 1] || f.properties.name || 'File';
+            nodes.set(nId, {
+                data: {
+                    ...f.properties,
+                    id: nId,
+                    label: 'File',
+                    name,
+                    funcCount,
+                    classCount,
+                    childCount: funcCount + classCount,
+                }
+            });
+        });
+
+        // Build a lookup from property id to elementId
+        const propIdToElementId = new Map<string, string>();
+        fileResult.records.forEach(record => {
+            const f = record.get('f');
+            propIdToElementId.set(f.properties.id, sanitize(f.elementId));
+        });
+
+        depResult.records.forEach(record => {
+            const r = record.get('r');
+            const sourceId = propIdToElementId.get(record.get('sourceId'));
+            const targetId = propIdToElementId.get(record.get('targetId'));
+            if (sourceId && targetId && nodes.has(sourceId) && nodes.has(targetId)) {
+                edges.push({
+                    data: {
+                        id: sanitize(r.elementId),
+                        source: sourceId,
+                        target: targetId,
+                        label: 'DEPENDS_ON',
+                    }
+                });
+            }
+        });
+
+        console.log('Overview loaded:', { nodes: nodes.size, edges: edges.length });
+        return { nodes: Array.from(nodes.values()), edges };
+    } finally {
+        await session.close();
+    }
+}
+
+/** Fetch children of a file node (Functions + Classes + their CALLS edges) */
+export async function fetchNodeNeighborhood(nodePropertyId: string, projectId?: string) {
+    const session = driver.session();
+    try {
+        const params = { nodeId: nodePropertyId, projectId: projectId ?? null };
+        const pf = projectId ? 'AND child.projectId = $projectId' : '';
+
+        const result = await session.run(`
+            MATCH (f:File {id: $nodeId})-[c:CONTAINS]->(child)
+            WHERE (child:Function OR child:Class) ${pf}
+            OPTIONAL MATCH (child)-[r:CALLS]->(target)
+            WHERE target.projectId = $projectId OR $projectId IS NULL
+            RETURN child, c, r, target
+        `, params);
+
+        const nodes = new Map<string, any>();
+        const edges: any[] = [];
+        const sanitize = (id: string) => id.replace(/:/g, '_');
+
+        result.records.forEach(record => {
+            const child = record.get('child');
+            const c = record.get('c');
+            const r = record.get('r');
+            const target = record.get('target');
+
+            const childId = sanitize(child.elementId);
+            if (!nodes.has(childId)) {
+                nodes.set(childId, {
+                    data: {
+                        ...child.properties,
+                        id: childId,
+                        label: child.labels[0],
+                        name: child.properties.name || child.labels[0],
+                    }
+                });
+            }
+
+            edges.push({
+                data: {
+                    id: sanitize(c.elementId),
+                    source: sanitize(c.startNodeElementId),
+                    target: childId,
+                    label: 'CONTAINS',
+                }
+            });
+
+            if (r && target) {
+                const targetId = sanitize(target.elementId);
+                if (!nodes.has(targetId)) {
+                    nodes.set(targetId, {
+                        data: {
+                            ...target.properties,
+                            id: targetId,
+                            label: target.labels[0],
+                            name: target.properties.name || target.labels[0],
+                        }
+                    });
+                }
+                edges.push({
+                    data: {
+                        id: sanitize(r.elementId),
+                        source: childId,
+                        target: targetId,
+                        label: 'CALLS',
+                    }
+                });
+            }
+        });
+
+        console.log('Neighborhood loaded:', { nodes: nodes.size, edges: edges.length });
+        return { nodes: Array.from(nodes.values()), edges };
+    } finally {
+        await session.close();
+    }
+}
+
 /** Fetch graph data, optionally filtered by projectId */
 export async function fetchGraphData(projectId?: string) {
     const session = driver.session();

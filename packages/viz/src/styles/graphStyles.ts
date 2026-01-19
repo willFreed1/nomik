@@ -198,3 +198,172 @@ export const graphStyles: any[] = [
         }
     },
 ];
+
+/** Performance-optimized styles for large graphs (>300 nodes) */
+export const graphStylesFast: any[] = [
+    {
+        selector: 'node',
+        style: {
+            'background-color': '#1e293b',
+            'label': 'data(name)',
+            'color': '#cbd5e1',
+            'text-valign': 'bottom',
+            'text-halign': 'center',
+            'text-margin-y': 4,
+            'font-size': '9px',
+            'font-family': 'monospace',
+            'width': 14,
+            'height': 14,
+            'border-width': 1,
+            'border-color': '#475569',
+            'overlay-padding': '2px',
+            'overlay-opacity': 0,
+            'min-zoomed-font-size': 10,  // Hide labels when zoomed out
+        }
+    },
+    {
+        selector: 'node[label="File"]',
+        style: {
+            'background-color': '#083344',
+            'border-color': '#06b6d4',
+            'border-width': 2,
+            'color': '#22d3ee',
+            'shape': 'round-rectangle',
+            'width': 40,
+            'height': 24,
+            'font-size': '11px',
+            'font-weight': 'bold',
+            'text-valign': 'center',
+            'text-margin-y': 0,
+            'z-index': 20,
+            'min-zoomed-font-size': 6,
+        }
+    },
+    {
+        selector: 'node[label="Function"]',
+        style: {
+            'background-color': '#064e3b',
+            'border-color': '#10b981',
+            'border-width': 1,
+            'color': '#86efac',
+            'width': 8,
+            'height': 8,
+            'font-size': '8px',
+            'min-zoomed-font-size': 14,  // Only show when zoomed in close
+        }
+    },
+    {
+        selector: 'node[label="Class"]',
+        style: {
+            'background-color': '#3b0764',
+            'border-color': '#a855f7',
+            'border-width': 1.5,
+            'color': '#d8b4fe',
+            'shape': 'diamond',
+            'width': 16,
+            'height': 16,
+            'font-size': '9px',
+            'min-zoomed-font-size': 12,
+        }
+    },
+    {
+        selector: 'edge',
+        style: {
+            'width': 1,
+            'line-color': '#1e293b',
+            'target-arrow-color': '#1e293b',
+            'target-arrow-shape': 'triangle',
+            'curve-style': 'haystack',  // Much faster than bezier
+            'haystack-radius': 0.5,
+            'arrow-scale': 0.6,
+            'opacity': 0.25,
+        }
+    },
+    {
+        selector: 'edge[label="CALLS"]',
+        style: {
+            'line-color': '#92400e',
+            'target-arrow-color': '#92400e',
+            'opacity': 0.3,
+            'width': 1,
+        }
+    },
+    {
+        selector: 'edge[label="DEPENDS_ON"]',
+        style: {
+            'line-color': '#38bdf8',
+            'target-arrow-color': '#38bdf8',
+            'line-style': 'dashed',
+            'opacity': 0.4,
+            'width': 1.5,
+        }
+    },
+    {
+        selector: 'node:selected',
+        style: {
+            'border-width': 3,
+            'border-color': '#fff',
+            'overlay-color': '#fff',
+            'overlay-opacity': 0.15,
+            'z-index': 999
+        }
+    },
+    {
+        selector: 'node.impact-source',
+        style: {
+            'border-color': '#ef4444',
+            'border-width': 4,
+            'overlay-color': '#ef4444',
+            'overlay-opacity': 0.2,
+            'z-index': 1000,
+        }
+    },
+    {
+        selector: 'node.impact-callee',
+        style: {
+            'border-color': '#f59e0b',
+            'border-width': 2,
+            'overlay-color': '#f59e0b',
+            'overlay-opacity': 0.1,
+            'z-index': 900,
+        }
+    },
+    {
+        selector: 'node.impact-caller',
+        style: {
+            'border-color': '#3b82f6',
+            'border-width': 2,
+            'overlay-color': '#3b82f6',
+            'overlay-opacity': 0.1,
+            'z-index': 900,
+        }
+    },
+    {
+        selector: 'edge.impact-edge',
+        style: {
+            'line-color': '#f59e0b',
+            'target-arrow-color': '#f59e0b',
+            'width': 2,
+            'opacity': 0.8,
+            'z-index': 900,
+        }
+    },
+    {
+        selector: 'node.faded',
+        style: { 'opacity': 0.1 }
+    },
+    {
+        selector: 'edge.faded',
+        style: { 'opacity': 0.03 }
+    },
+    {
+        selector: 'node.search-match',
+        style: {
+            'border-color': '#22d3ee',
+            'border-width': 3,
+            'overlay-color': '#22d3ee',
+            'overlay-opacity': 0.2,
+            'z-index': 1000,
+        }
+    },
+];
