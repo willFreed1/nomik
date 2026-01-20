@@ -367,11 +367,13 @@ export function createParserEngine(): ParserEngine {
             );
 
             // Build set of all file IDs this file imports from (static + dynamic)
+            // Then transitively expand through barrel re-exports (export * from './foo')
             const importedFileIds = new Set<string>();
             for (const { resolvedPath } of resolvedImportsByFile.get(r.file.path) ?? []) {
                 const fid = filePathToId.get(resolvedPath);
                 if (fid) importedFileIds.add(fid);
             }
+            expandBarrelReExports(importedFileIds, filePathToId, resolvedImportsByFile);
 
             // Cross-file CALLS (named functions → functions in other files)
             const crossCallEdges = resolveCrossFileCallEdges(
@@ -541,4 +543,34 @@ function idToFilePath(fileId: string, filePathToId: Map<string, string>): string
         if (id === fileId) return fp;
     }
     return null;
+}
+
+/**
+ * Transitively expand importedFileIds through barrel re-exports.
+ * When file A imports from barrel B (index.ts), and B does `export * from './C'`,
+ * add C's file ID so cross-file CALLS resolution can match functions in C.
+ */
+function expandBarrelReExports(
+    importedFileIds: Set<string>,
+    filePathToId: Map<string, string>,
+    resolvedImportsByFile: Map<string, Array<{ imp: ImportInfo; resolvedPath: string }>>,
+): void {
+    const idToPath = new Map<string, string>();
+    for (const [p, id] of filePathToId) {
+        idToPath.set(id, p);
+    }
+    const queue = [...importedFileIds];
+    while (queue.length > 0) {
+        const fid = queue.shift()!;
+        const fpath = idToPath.get(fid);
+        if (!fpath) continue;
+        for (const { imp, resolvedPath } of resolvedImportsByFile.get(fpath) ?? []) {
+            if (!imp.isReExport) continue;
+            const targetId = filePathToId.get(resolvedPath);
+            if (targetId && !importedFileIds.has(targetId)) {
+                importedFileIds.add(targetId);
+                queue.push(targetId);
+            }
+        }
+    }
 }

@@ -850,6 +850,69 @@ export async function getAllCategories(req: any, res: any) {
         }
     });
 
+    it('resolves cross-file CALLS through barrel re-exports (export * from)', async () => {
+        const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'nomik-parser-'));
+        try {
+            const sqlPath = path.join(tmpDir, 'db-schema', 'sql.ts');
+            const pythonPath = path.join(tmpDir, 'db-schema', 'python.ts');
+            const barrelPath = path.join(tmpDir, 'db-schema', 'index.ts');
+            const parserPath = path.join(tmpDir, 'parser.ts');
+
+            writeFile(sqlPath, `
+export function extractDBSchemaFromSQL(content: string) {
+  return [];
+}
+`);
+            writeFile(pythonPath, `
+export function extractDBSchemaFromPython(content: string) {
+  return [];
+}
+`);
+            writeFile(barrelPath, `
+export * from './sql';
+export * from './python';
+`);
+            writeFile(parserPath, `
+import { extractDBSchemaFromSQL, extractDBSchemaFromPython } from './db-schema/index';
+export function parseFile(content: string) {
+  const sql = extractDBSchemaFromSQL(content);
+  const py = extractDBSchemaFromPython(content);
+  return [...sql, ...py];
+}
+`);
+
+            const engine = createParserEngine();
+            const results = await engine.parseFiles([sqlPath, pythonPath, barrelPath, parserPath]);
+
+            const sqlResult = results.find(r => r.file.path === path.resolve(sqlPath));
+            const pythonResult = results.find(r => r.file.path === path.resolve(pythonPath));
+            const parserResult = results.find(r => r.file.path === path.resolve(parserPath));
+            expect(sqlResult).toBeDefined();
+            expect(pythonResult).toBeDefined();
+            expect(parserResult).toBeDefined();
+
+            const sqlFn = sqlResult!.nodes.find(n => n.type === 'function' && n.name === 'extractDBSchemaFromSQL');
+            const pythonFn = pythonResult!.nodes.find(n => n.type === 'function' && n.name === 'extractDBSchemaFromPython');
+            const parseFn = parserResult!.nodes.find(n => n.type === 'function' && n.name === 'parseFile');
+            expect(sqlFn).toBeDefined();
+            expect(pythonFn).toBeDefined();
+            expect(parseFn).toBeDefined();
+
+            // CALLS edges must exist through the barrel
+            const callToSQL = parserResult!.edges.find(
+                e => e.type === 'CALLS' && e.sourceId === parseFn!.id && e.targetId === sqlFn!.id,
+            );
+            expect(callToSQL).toBeDefined();
+
+            const callToPython = parserResult!.edges.find(
+                e => e.type === 'CALLS' && e.sourceId === parseFn!.id && e.targetId === pythonFn!.id,
+            );
+            expect(callToPython).toBeDefined();
+        } finally {
+            fs.rmSync(tmpDir, { recursive: true, force: true });
+        }
+    });
+
     it('resolves dynamic import().then() destructured function as cross-file CALLS', async () => {
         const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'nomik-parser-'));
         try {
