@@ -10,6 +10,7 @@ import { recentCommand } from './commands/recent.js';
 import { setupCursorCommand } from './commands/setup-cursor.js';
 import { setupWindsurfCommand } from './commands/setup-windsurf.js';
 import { projectCommand } from './commands/project.js';
+import { prImpactCommand } from './commands/pr-impact.js';
 
 const program = new Command();
 
@@ -29,5 +30,6 @@ program.addCommand(recentCommand);
 program.addCommand(setupCursorCommand);
 program.addCommand(setupWindsurfCommand);
 program.addCommand(projectCommand);
+program.addCommand(prImpactCommand);
 
 program.parse();

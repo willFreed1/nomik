@@ -15,6 +15,8 @@ import { parseMarkdown } from './extractors/markdown';
 import { extractDBSchemaFromSQL, extractDBSchemaFromCSharpMigration, extractDBSchemaFromPythonMigration, isPythonMigrationFile, buildDBSchemaNodesAndEdges } from './extractors/db-schema/index';
 import { extractAPICalls, buildAPINodesAndEdges, buildHttpClientIdentifiers } from './extractors/api-calls';
 import { extractDBOperations, buildDBNodesAndEdges, buildDBClientIdentifiers } from './extractors/db-operations';
+import { extractEnvVars, extractPythonEnvVars, buildEnvVarNodesAndEdges } from './extractors/env-vars';
+import { extractEvents, extractPythonEvents, buildEventNodesAndEdges } from './extractors/events';
 import { extractPythonFunctions, extractPythonClasses, extractPythonImports, extractPythonCalls } from './extractors/python';
 import { extractRustFunctions, extractRustClasses, extractRustImports, extractRustCalls } from './extractors/rust';
 import { createNodeId, createFileHash } from './utils';
@@ -218,7 +220,35 @@ export function createParserEngine(): ParserEngine {
             }
         }
 
-        const nodes: GraphNode[] = [fileNode, ...functions, ...classes, ...variables, ...routes, ...moduleNodes, ...apiNodes, ...dbNodes, ...migrationSchemaNodes];
+        // Environment variable tracking (TS/JS + Python)
+        let envNodes: GraphNode[] = [];
+        let envEdges: GraphEdge[] = [];
+        if (language !== 'rust') {
+            const envVarInfos = language === 'python'
+                ? extractPythonEnvVars(content)
+                : tree ? extractEnvVars(tree, absolutePath) : [];
+            if (envVarInfos.length > 0) {
+                const env = buildEnvVarNodesAndEdges(envVarInfos, localFuncMap, fileNode.id, absolutePath);
+                envNodes = env.nodes;
+                envEdges = env.edges;
+            }
+        }
+
+        // Event / message bus tracking (TS/JS + Python)
+        let eventNodes: GraphNode[] = [];
+        let eventEdges: GraphEdge[] = [];
+        if (language !== 'rust') {
+            const eventInfos = language === 'python'
+                ? extractPythonEvents(content)
+                : tree ? extractEvents(tree, absolutePath) : [];
+            if (eventInfos.length > 0) {
+                const ev = buildEventNodesAndEdges(eventInfos, localFuncMap, fileNode.id, absolutePath);
+                eventNodes = ev.nodes;
+                eventEdges = ev.edges;
+            }
+        }
+
+        const nodes: GraphNode[] = [fileNode, ...functions, ...classes, ...variables, ...routes, ...moduleNodes, ...apiNodes, ...dbNodes, ...migrationSchemaNodes, ...envNodes, ...eventNodes];
 
         const localVarMap = new Map<string, string>();
         for (const v of variables) {
@@ -248,6 +278,24 @@ export function createParserEngine(): ParserEngine {
         // Edges framework: File → Function for Next.js, Nuxt, etc. entry points
         const frameworkEdges = resolveFrameworkEntryEdges(fileNode, functions);
 
+        // Edges EXPORTS: File → exported Function/Class/Variable
+        const localClassMap = new Map<string, string>();
+        for (const c of classes) localClassMap.set(c.name, c.id);
+        const exportEdges: GraphEdge[] = [];
+        for (const exp of exports) {
+            if (exp.isTypeOnly) continue;
+            const targetId = localFuncMap.get(exp.name) ?? localClassMap.get(exp.name) ?? localVarMap.get(exp.name);
+            if (!targetId) continue;
+            exportEdges.push({
+                id: `${fileNode.id}->exports->${targetId}`,
+                type: 'EXPORTS' as const,
+                sourceId: fileNode.id,
+                targetId,
+                confidence: 1.0,
+                isDefault: exp.isDefault,
+            });
+        }
+
         const edges: GraphEdge[] = [
             ...containsEdges,
             ...importEdges,
@@ -262,6 +310,9 @@ export function createParserEngine(): ParserEngine {
             ...apiEdges,
             ...dbEdges,
             ...migrationSchemaEdges,
+            ...envEdges,
+            ...eventEdges,
+            ...exportEdges,
         ];
 
         logger.debug({ filePath: absolutePath, nodes: nodes.length, edges: edges.length }, 'parsed file');

@@ -152,7 +152,7 @@ nomik/
 | Monorepo | Turborepo + pnpm workspaces |
 | 3D Viz | Three.js (3d-force-graph) |
 | 2D Viz | Cytoscape.js |
-| Tests | Vitest — 150 tests across 14 test files |
+| Tests | Vitest — 174 tests across 17 test files |
 | Project Isolation | `projectId` on all nodes/edges, `.nomik/project.json` |
 | JSONC Parsing | `jsonc-parser` (VS Code's parser) for tsconfig/jsconfig |
 
@@ -176,7 +176,7 @@ pnpm install
 docker compose up -d
 pnpm build
 
-# Run all tests (150 tests, 14 files)
+# Run all tests (174 tests, 17 files)
 pnpm test
 
 # Dev mode

@@ -61,7 +61,7 @@ The **Code Fingerprint**: A self-healing, auto-populating mental model. If the A
 
 ### Current State (v0.9 — Feb 2026)
 
-NOMIK already tracks **code → code** relationships across TypeScript, JavaScript, Python, Rust, Markdown, SQL, C# migrations, and Python migrations (Django/Alembic). The knowledge graph includes functions, classes, interfaces, imports, call chains, file dependencies, **external API calls**, **database operations**, and **content hashing** (bodyHash for duplicate detection). Health detection: dead code, god objects, god files, duplicate code. **150 tests passing (14 test files)**, modular parser architecture (481 lines, down from 1369).
+NOMIK already tracks **code → code** relationships across TypeScript, JavaScript, Python, Rust, Markdown, SQL, C# migrations, and Python migrations (Django/Alembic). The knowledge graph includes functions, classes, interfaces, imports, call chains, file dependencies, **external API calls**, **database operations**, **environment variables** (USES_ENV edges), **event/message bus** (EMITS/LISTENS_TO edges), **EXPORTS edges**, and **content hashing** (bodyHash for duplicate detection). Health detection: dead code, god objects, god files, duplicate code. **PR Impact Analyzer** (`nomik pr-impact`) for blast-radius analysis. **174 tests passing (17 test files)**, modular parser architecture.
 
 ### Phase 1 — Database Tracking (Q1 2026) — Complete
 
