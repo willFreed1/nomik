@@ -61,7 +61,7 @@ The **Code Fingerprint**: A self-healing, auto-populating mental model. If the A
 
 ### Current State (v0.9 — Feb 2026)
 
-NOMIK already tracks **code → code** relationships across TypeScript, JavaScript, Python, Rust, Markdown, SQL, and C# migrations. The knowledge graph includes functions, classes, interfaces, imports, call chains, file dependencies, **external API calls**, **database operations**, and **content hashing** (bodyHash for duplicate detection). Health detection: dead code, god objects, god files, duplicate code. **144 tests passing (14 test files)**, modular parser architecture (481 lines, down from 1369).
+NOMIK already tracks **code → code** relationships across TypeScript, JavaScript, Python, Rust, Markdown, SQL, C# migrations, and Python migrations (Django/Alembic). The knowledge graph includes functions, classes, interfaces, imports, call chains, file dependencies, **external API calls**, **database operations**, and **content hashing** (bodyHash for duplicate detection). Health detection: dead code, god objects, god files, duplicate code. **150 tests passing (14 test files)**, modular parser architecture (481 lines, down from 1369).
 
 ### Phase 1 — Database Tracking (Q1 2026) — Complete
 
@@ -75,7 +75,8 @@ The #1 question every engineering team asks: *"What breaks if I change this data
 | `DBTable` nodes + `READS_FROM`/`WRITES_TO` edges | Created per file, linked to caller functions | **Done** |
 | External API detection (dynamic, import-aware) | axios, ky, got, fetch + URL heuristic | **Done** |
 | `ExternalAPI` nodes + `CALLS_EXTERNAL` edges | Created per file, linked to caller functions | **Done** |
-| SQL migration parser | Parse `.sql` files + C# Entity Framework migration schemas (DB schema only, not full C# language) | **Done** |
+| SQL migration parser | Parse `.sql` files + C# EF migration schemas (DB schema only) | **Done** |
+| Python migration parser | Django (`CreateModel`/`AddField`) + Alembic (`op.create_table`/`op.add_column`) | **Done** |
 | `DBColumn` nodes | Column-level granularity | **Done** |
 | `nm_db_impact` MCP tool | "Which functions query this table?" | **Done** |
 

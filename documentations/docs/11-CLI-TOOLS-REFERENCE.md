@@ -1,38 +1,38 @@
-# NOMIK — Reference complete CLI & outils MCP
+# NOMIK — Complete CLI & MCP Tools Reference
 
-> Toutes les commandes CLI et tous les outils MCP avec exemples d'utilisation.
+> All CLI commands and MCP tools with usage examples.
 
 ---
 
-## CLI — 11 commandes
+## CLI — 11 Commands
 
 ### `nomik init`
 
-Initialise un nouveau projet NOMIK : cree la config, demarre Neo4j via Docker, cree `.nomik/project.json`.
+Initializes a new NOMIK project: creates config, starts Neo4j via Docker, creates `.nomik/project.json`.
 
 ```bash
 nomik init
-nomik init --no-docker   # Sans Docker
+nomik init --no-docker   # Without Docker
 ```
 
 ---
 
 ### `nomik scan <path>`
 
-Scanne un repertoire, parse les fichiers (TS/JS/Python/Rust/Markdown/SQL/C# EF migrations) et ingere les noeuds/edges dans Neo4j. Rafraichit les donnees par fichier (supprime l'ancien contenu avant re-insertion).
+Scans a directory, parses files (TS/JS/Python/Rust/Markdown/SQL/C# EF/Django/Alembic migrations) and ingests nodes/edges into Neo4j. Refreshes data per file (deletes old content before re-insertion).
 
 ```bash
 nomik scan .
 nomik scan ./src --project my-api
 ```
 
-**Comportement** : pour chaque fichier, `clearFileData()` supprime les anciens noeuds, puis re-insere. Ce n'est pas un append — c'est un refresh par fichier.
+**Behavior**: for each file, `clearFileData()` deletes old nodes, then re-inserts. This is not an append — it's a per-file refresh.
 
 ---
 
 ### `nomik status`
 
-Verifie la connexion Neo4j et affiche les statistiques du projet courant (noeuds, edges, fichiers, fonctions, classes, routes).
+Checks the Neo4j connection and displays current project statistics (nodes, edges, files, functions, classes, routes).
 
 ```bash
 nomik status
@@ -42,20 +42,20 @@ nomik status
 
 ### `nomik impact <symbol>`
 
-Analyse d'impact : quels noeuds sont affectes si on modifie un symbole. Utilise APOC `expandConfig` pour traverser le graphe en profondeur avec les types de relation reels.
+Impact analysis: which nodes are affected if a symbol is modified. Uses APOC `expandConfig` to traverse the graph in depth with real relationship types.
 
 ```bash
 nomik impact "parseFile" --depth 5
 nomik impact "GraphService" --depth 3
 ```
 
-**Sortie** : liste de noeuds impactes avec profondeur reelle et type de relation (`CALLS`, `DEPENDS_ON`, etc.).
+**Output**: list of impacted nodes with actual depth and relationship type (`CALLS`, `DEPENDS_ON`, etc.).
 
 ---
 
 ### `nomik watch [path]`
 
-Surveillance continue des fichiers. Re-indexe automatiquement les fichiers modifies (chokidar, debounce 500ms par defaut).
+Continuous file monitoring. Automatically re-indexes modified files (chokidar, 500ms debounce by default).
 
 ```bash
 nomik watch .
@@ -66,36 +66,36 @@ nomik watch ./src --debounce 1000
 
 ### `nomik serve`
 
-Demarre le dashboard de visualisation (et garde un mode de debug MCP local).
+Starts the visualization dashboard (and keeps a local MCP debug mode).
 
 ```bash
 nomik serve
 nomik serve --no-viz
 ```
 
-> **Note MCP IDE**: pour Cursor/Windsurf en mode stdio, `nomik serve` n'est pas requis.  
-> Apres `setup-cursor` ou `setup-windsurf`, l'IDE lance le serveur MCP automatiquement.
+> **MCP IDE Note**: for Cursor/Windsurf in stdio mode, `nomik serve` is not required.  
+> After `setup-cursor` or `setup-windsurf`, the IDE launches the MCP server automatically.
 
 ---
 
 ### `nomik query "<cypher>"`
 
-Execute une requete Cypher brute contre le graphe.
+Executes a raw Cypher query against the graph.
 
 ```bash
-# Format tableau
+# Table format
 nomik query "MATCH (n:Function) RETURN n.name, n.filePath LIMIT 10"
 
-# Format JSON
+# JSON format
 nomik query "MATCH (n)-[r]->(m) RETURN type(r), count(*)" --json
 
-# Dead code — fonctions jamais appelees (exclut constructeurs, methodes de classes, React, barrel re-exports)
+# Dead code — functions never called (excludes constructors, class methods, React, barrel re-exports)
 nomik query "MATCH (f:Function) WHERE NOT (f)<-[:CALLS]-() AND NOT (f)<-[:HANDLES]-() AND f.name <> 'constructor' WITH f WHERE NOT f.filePath ENDS WITH '.tsx' AND NOT f.filePath ENDS WITH '.jsx' OPTIONAL MATCH (parent:File)-[:CONTAINS]->(f) WITH f, parent WHERE parent IS NULL OR (NOT parent.path ENDS WITH 'index.ts' AND NOT parent.path ENDS WITH 'index.js') RETURN f.name, f.filePath ORDER BY f.filePath"
 
-# God objects — couplage cross-fichier inattendu (seuil: 15)
+# God objects — unexpected cross-file coupling (threshold: 15)
 nomik query "MATCH (f:Function)-[:CALLS]->(target) MATCH (ff:File)-[:CONTAINS]->(f) WHERE NOT (ff)-[:CONTAINS]->(target) MATCH (tf:File)-[:CONTAINS]->(target) WHERE NOT (ff)-[:DEPENDS_ON]->(tf) WITH f, count(DISTINCT target) as deps WHERE deps > 15 RETURN f.name, f.filePath, deps ORDER BY deps DESC"
 
-# Chemin le plus court entre deux symboles
+# Shortest path between two symbols
 nomik query "MATCH (a {name: 'parseFile'}), (b {name: 'GraphService'}) MATCH path = shortestPath((a)-[*..10]-(b)) RETURN [n IN nodes(path) | n.name] as chain"
 ```
 
@@ -103,7 +103,7 @@ nomik query "MATCH (a {name: 'parseFile'}), (b {name: 'GraphService'}) MATCH pat
 
 ### `nomik recent`
 
-Affiche les noeuds recemment modifies (scope par projet).
+Displays recently modified nodes (scoped by project).
 
 ```bash
 nomik recent
@@ -114,11 +114,11 @@ nomik recent --since 2026-02-10T00:00:00Z --limit 50 --json
 
 ### `nomik setup-cursor`
 
-Configure automatiquement `.cursor/mcp.json` pour connecter Cursor AI a NOMIK. Injecte `NOMIK_PROJECT_ID` automatiquement.
+Automatically configures `.cursor/mcp.json` to connect Cursor AI to NOMIK. Injects `NOMIK_PROJECT_ID` automatically.
 
 ```bash
 nomik setup-cursor
-nomik setup-cursor --global   # Config globale (tous les projets)
+nomik setup-cursor --global   # Global config (all projects)
 nomik setup-cursor --config-path ./custom-mcp.json
 ```
 
@@ -126,11 +126,11 @@ nomik setup-cursor --config-path ./custom-mcp.json
 
 ### `nomik setup-windsurf`
 
-Configure automatiquement `~/.codeium/windsurf/mcp_config.json` pour connecter Windsurf AI a NOMIK. Injecte `NOMIK_PROJECT_ID` automatiquement.
+Automatically configures `~/.codeium/windsurf/mcp_config.json` to connect Windsurf AI to NOMIK. Injects `NOMIK_PROJECT_ID` automatically.
 
 ```bash
 nomik setup-windsurf
-nomik setup-windsurf --global   # Compatibilite (Windsurf utilise un config user-level)
+nomik setup-windsurf --global   # Compatibility (Windsurf uses a user-level config)
 nomik setup-windsurf --config-path ./custom-mcp_config.json
 ```
 
@@ -138,34 +138,34 @@ nomik setup-windsurf --config-path ./custom-mcp_config.json
 
 ### `nomik project <subcommand>`
 
-Gestion multi-projet — isolation des donnees dans Neo4j via `projectId`.
+Multi-project management — data isolation in Neo4j via `projectId`.
 
 ```bash
-nomik project list              # Liste tous les projets
-nomik project create my-api     # Cree un projet
-nomik project switch my-api     # Change de projet actif
-nomik project delete my-api     # Supprime un projet et ses donnees
-nomik project info              # Stats du projet courant
+nomik project list              # List all projects
+nomik project create my-api     # Create a project
+nomik project switch my-api     # Switch active project
+nomik project delete my-api     # Delete a project and its data
+nomik project info              # Current project stats
 ```
 
-Le projet courant est stocke dans `.nomik/project.json`.
+The current project is stored in `.nomik/project.json`.
 
 ---
 
-## Outils MCP — 9 outils
+## MCP Tools — 9 tools
 
-Ces outils sont exposes automatiquement quand le serveur MCP est connecte a Cursor ou Claude.
+These tools are automatically exposed when the MCP server is connected to Cursor or Claude.
 
 ### `nm_search`
 
-Recherche de noeuds par nom, chemin ou pattern. Supporte les wildcards.
+Search for nodes by name, path, or pattern. Supports wildcards.
 
-| Parametre | Type | Requis | Description |
+| Parameter | Type | Required | Description |
 |---|---|---|---|
-| `query` | string | oui | Terme de recherche (nom du symbole) |
-| `limit` | number | non | Nombre max de resultats (defaut: 10) |
+| `query` | string | yes | Search term (symbol name) |
+| `limit` | number | no | Max number of results (default: 10) |
 
-**Exemples de prompts Cursor** :
+**Cursor prompt examples**:
 - "Find all auth-related functions"
 - "Search for GraphService"
 - "Show me all route handlers"
@@ -174,18 +174,18 @@ Recherche de noeuds par nom, chemin ou pattern. Supporte les wildcards.
 
 ### `nm_impact`
 
-Analyse d'impact descendante. Retourne les noeuds dependants avec la **profondeur reelle** et le **type de relation reel** (pas de donnees hardcodees).
+Downstream impact analysis. Returns dependent nodes with **actual depth** and **real relationship type** (no hardcoded data).
 
-| Parametre | Type | Requis | Description |
+| Parameter | Type | Required | Description |
 |---|---|---|---|
-| `symbolId` | string | oui | ID ou nom du noeud source |
-| `depth` | number | non | Profondeur de traversee (defaut: 3) |
+| `symbolId` | string | yes | ID or name of the source node |
+| `depth` | number | no | Traversal depth (default: 3) |
 
-**Exemples de prompts Cursor** :
+**Cursor prompt examples**:
 - "What breaks if I change parseFile?"
 - "Impact analysis for GraphService with depth 5"
 
-**Reponse** :
+**Response**:
 ```json
 [
   { "name": "scanCommand", "type": "Function", "filePath": "cli/scan.ts", "depth": 1, "relationship": "CALLS" },
@@ -197,14 +197,14 @@ Analyse d'impact descendante. Retourne les noeuds dependants avec la **profondeu
 
 ### `nm_trace`
 
-Chaine de dependance complete entre deux symboles. Retourne le chemin le plus court sous forme de liste de noms.
+Complete dependency chain between two symbols. Returns the shortest path as a list of names.
 
-| Parametre | Type | Requis | Description |
+| Parameter | Type | Required | Description |
 |---|---|---|---|
-| `from` | string | oui | Nom du symbole source |
-| `to` | string | oui | Nom du symbole cible |
+| `from` | string | yes | Source symbol name |
+| `to` | string | yes | Target symbol name |
 
-**Exemples de prompts Cursor** :
+**Cursor prompt examples**:
 - "Show the dependency chain from scanCommand to neo4j"
 - "How does parseFile depend on createNodeId?"
 
@@ -212,16 +212,16 @@ Chaine de dependance complete entre deux symboles. Retourne le chemin le plus co
 
 ### `nm_path`
 
-Chemin le plus court entre deux entites avec **detail complet** : types de noeuds, types de relations a chaque etape.
+Shortest path between two entities with **full detail**: node types and relationship types at each step.
 
-| Parametre | Type | Requis | Description |
+| Parameter | Type | Required | Description |
 |---|---|---|---|
-| `from` | string | oui | Nom du noeud source |
-| `to` | string | oui | Nom du noeud cible |
+| `from` | string | yes | Source node name |
+| `to` | string | yes | Target node name |
 
-> **Difference avec `nm_trace`** : `nm_path` retourne les types de noeuds et de relations a chaque etape. `nm_trace` retourne uniquement les noms.
+> **Difference from `nm_trace`**: `nm_path` returns node types and relationship types at each step. `nm_trace` returns only names.
 
-**Reponse** :
+**Response**:
 ```json
 {
   "from": "parseFile",
@@ -244,13 +244,13 @@ Chemin le plus court entre deux entites avec **detail complet** : types de noeud
 
 ### `nm_context`
 
-Contexte riche pour un fichier ou une fonction : ce qu'il contient, ce qu'il appelle, qui l'appelle, ses imports, ses heritages.
+Rich context for a file or function: what it contains, what it calls, who calls it, its imports, its inheritance.
 
-| Parametre | Type | Requis | Description |
+| Parameter | Type | Required | Description |
 |---|---|---|---|
-| `name` | string | oui | Nom du fichier (chemin) ou de la fonction/classe |
+| `name` | string | yes | File name (path) or function/class name |
 
-**Exemples de prompts Cursor** :
+**Cursor prompt examples**:
 - "Give me context for graph.service.ts"
 - "What does parseFile call and who calls it?"
 
@@ -258,18 +258,18 @@ Contexte riche pour un fichier ou une fonction : ce qu'il contient, ce qu'il app
 
 ### `nm_health`
 
-Metriques de sante du graphe : comptages, dead code, god objects, god files, code duplique, types d'edges.
+Graph health metrics: counts, dead code, god objects, god files, duplicate code, edge types.
 
-| Parametre | Type | Requis | Description |
+| Parameter | Type | Required | Description |
 |---|---|---|---|
-| `includeDeadCode` | boolean | non | Inclure la liste du dead code (defaut: false) |
-| `includeGodObjects` | boolean | non | Inclure la liste des god objects (defaut: false) |
-| `godObjectThreshold` | number | non | Seuil de couplage cross-fichier pour god objects (defaut: 15) |
-| `includeGodFiles` | boolean | non | Inclure la liste des god files — fichiers avec trop de fonctions (defaut: false) |
-| `godFileThreshold` | number | non | Seuil de fonctions par fichier pour god files (defaut: 10) |
-| `includeDuplicates` | boolean | non | Inclure la detection de code duplique — fonctions avec bodyHash identique (defaut: false) |
+| `includeDeadCode` | boolean | no | Include dead code list (default: false) |
+| `includeGodObjects` | boolean | no | Include god objects list (default: false) |
+| `godObjectThreshold` | number | no | Cross-file coupling threshold for god objects (default: 15) |
+| `includeGodFiles` | boolean | no | Include god files list — files with too many functions (default: false) |
+| `godFileThreshold` | number | no | Functions per file threshold for god files (default: 10) |
+| `includeDuplicates` | boolean | no | Include duplicate code detection — functions with identical bodyHash (default: false) |
 
-**Exemples de prompts Cursor** :
+**Cursor prompt examples**:
 - "Are there any dead code or god objects?"
 - "Give me full graph health stats with dead code details"
 
@@ -277,15 +277,15 @@ Metriques de sante du graphe : comptages, dead code, god objects, god files, cod
 
 ### `nm_db_impact`
 
-Analyse l'impact DB pour une table (et optionnellement une colonne) : qui lit, qui ecrit, et colonnes connues.
+Analyzes DB impact for a table (and optionally a column): who reads, who writes, and known columns.
 
-| Parametre | Type | Requis | Description |
+| Parameter | Type | Required | Description |
 |---|---|---|---|
-| `table` | string | oui | Nom de table (ex: `users`) |
-| `column` | string | non | Nom de colonne (ex: `email`) |
-| `limit` | number | non | Max lignes par liste readers/writers (defaut: 100) |
+| `table` | string | yes | Table name (e.g., `users`) |
+| `column` | string | no | Column name (e.g., `email`) |
+| `limit` | number | no | Max rows per readers/writers list (default: 100) |
 
-**Exemples de prompts Cursor** :
+**Cursor prompt examples**:
 - "Who reads table users?"
 - "Who writes users.email?"
 
@@ -293,14 +293,14 @@ Analyse l'impact DB pour une table (et optionnellement une colonne) : qui lit, q
 
 ### `nm_changes`
 
-Noeuds modifies recemment (par `updatedAt`).
+Recently modified nodes (by `updatedAt`).
 
-| Parametre | Type | Requis | Description |
+| Parameter | Type | Required | Description |
 |---|---|---|---|
-| `since` | string | non | Date ISO (defaut: 24h) |
-| `limit` | number | non | Max resultats (defaut: 30) |
+| `since` | string | no | ISO date (default: 24h) |
+| `limit` | number | no | Max results (default: 30) |
 
-**Exemples de prompts Cursor** :
+**Cursor prompt examples**:
 - "What changed in the last hour?"
 - "Show me recent changes since yesterday"
 
@@ -308,39 +308,39 @@ Noeuds modifies recemment (par `updatedAt`).
 
 ### `nm_projects`
 
-Liste tous les projets dans le graphe Neo4j.
+Lists all projects in the Neo4j graph.
 
-| Parametre | Type | Requis | Description |
+| Parameter | Type | Required | Description |
 |---|---|---|---|
-| _(aucun)_ | — | — | — |
+| _(none)_ | — | — | — |
 
-**Exemple de prompt Cursor** :
+**Cursor prompt example**:
 - "What projects does NOMIK track?"
 
 ---
 
-## Requetes Cypher utiles
+## Useful Cypher Queries
 
 ```cypher
--- Tous les types d'edges et leurs comptages
+-- All edge types and their counts
 MATCH ()-[r]->() RETURN type(r) as type, count(r) as count ORDER BY count DESC
 
--- Fonctions les plus appelees (hotspots)
+-- Most-called functions (hotspots)
 MATCH (f:Function)<-[r:CALLS]-()
 RETURN f.name, f.filePath, count(r) as callers
 ORDER BY callers DESC LIMIT 10
 
--- Fichiers les plus connectes
+-- Most-connected files
 MATCH (f:File)-[r]-()
 RETURN f.path, count(r) as connections
 ORDER BY connections DESC LIMIT 10
 
--- Fonctions orphelines (ni appelees ni appelantes)
+-- Orphan functions (neither called nor calling)
 MATCH (f:Function)
 WHERE NOT (f)-[:CALLS]->() AND NOT (f)<-[:CALLS]-()
 RETURN f.name, f.filePath
 
--- Chaine d'appels complete depuis une fonction
+-- Complete call chain from a function
 MATCH path = (start:Function {name: "parseFile"})-[:CALLS*1..5]->(end)
 RETURN [n IN nodes(path) | n.name] as chain, length(path) as depth
 ORDER BY depth DESC
@@ -348,15 +348,15 @@ ORDER BY depth DESC
 
 ---
 
-## Variables d'environnement
+## Environment Variables
 
-| Variable | Utilisation | Defaut |
+| Variable | Usage | Default |
 |---|---|---|
-| `NOMIK_GRAPH_DRIVER` | Driver de base de donnees (`neo4j`) | `neo4j` |
-| `NOMIK_GRAPH_URI` | URI de connexion Neo4j | `bolt://localhost:7687` |
-| `NOMIK_GRAPH_USER` | Utilisateur Neo4j | `neo4j` |
-| `NOMIK_GRAPH_PASS` | Mot de passe Neo4j | `nomik_local` |
-| `NOMIK_LOG_LEVEL` | Niveau de log (`debug`, `info`, `warn`, `error`) | `info` |
-| `NOMIK_MCP_PORT` | Port du serveur MCP (mode SSE) | `3334` |
-| `NOMIK_VIZ_PORT` | Port du dashboard de visualisation | `3333` |
-| `NOMIK_PROJECT_ID` | ID du projet pour le scope MCP | _(non defini = tous les projets)_ |
+| `NOMIK_GRAPH_DRIVER` | Database driver (`neo4j`) | `neo4j` |
+| `NOMIK_GRAPH_URI` | Neo4j connection URI | `bolt://localhost:7687` |
+| `NOMIK_GRAPH_USER` | Neo4j user | `neo4j` |
+| `NOMIK_GRAPH_PASS` | Neo4j password | `nomik_local` |
+| `NOMIK_LOG_LEVEL` | Log level (`debug`, `info`, `warn`, `error`) | `info` |
+| `NOMIK_MCP_PORT` | MCP server port (SSE mode) | `3334` |
+| `NOMIK_VIZ_PORT` | Visualization dashboard port | `3333` |
+| `NOMIK_PROJECT_ID` | Project ID for MCP scope | _(undefined = all projects)_ |

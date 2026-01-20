@@ -12,7 +12,7 @@ import { extractRoutes } from './extractors/routes';
 import { extractExports } from './extractors/exports';
 import { extractCalls, extractArrayCallbackAliases } from './extractors/calls';
 import { parseMarkdown } from './extractors/markdown';
-import { extractDBSchemaFromSQL, extractDBSchemaFromCSharpMigration, buildDBSchemaNodesAndEdges } from './extractors/db-schema';
+import { extractDBSchemaFromSQL, extractDBSchemaFromCSharpMigration, extractDBSchemaFromPythonMigration, isPythonMigrationFile, buildDBSchemaNodesAndEdges } from './extractors/db-schema/index';
 import { extractAPICalls, buildAPINodesAndEdges, buildHttpClientIdentifiers } from './extractors/api-calls';
 import { extractDBOperations, buildDBNodesAndEdges, buildDBClientIdentifiers } from './extractors/db-operations';
 import { extractPythonFunctions, extractPythonClasses, extractPythonImports, extractPythonCalls } from './extractors/python';
@@ -85,7 +85,7 @@ export function createParserEngine(): ParserEngine {
 
         const content = fs.readFileSync(absolutePath, 'utf-8');
 
-        // Fichiers markdown : parsing sans tree-sitter
+        // Markdown files: parse without tree-sitter
         if (language === 'markdown') {
             const md = parseMarkdown(absolutePath, content);
             logger.debug({ filePath: absolutePath, nodes: md.nodes.length, edges: md.edges.length }, 'parsed markdown');
@@ -127,7 +127,7 @@ export function createParserEngine(): ParserEngine {
             lastParsed: new Date().toISOString(),
         };
 
-        // Dispatch vers les extracteurs specifiques au langage
+        // Dispatch to language-specific extractors
         let functions: FunctionNode[], classes: ClassNode[], variables: VariableNode[], imports: ImportInfo[], exports: ExportInfo[], calls: CallInfo[], routes: GraphNode[];
         let arrayAliases: Record<string, string[]> = {};
 
@@ -150,7 +150,7 @@ export function createParserEngine(): ParserEngine {
             exports = [];
             arrayAliases = {};
         } else {
-            // typescript, tsx, javascript — memes extracteurs (tsx utilise le grammar TSX de tree-sitter)
+            // typescript, tsx, javascript — same extractors (tsx uses tree-sitter TSX grammar)
             functions = extractFunctions(tree, absolutePath);
             classes = extractClasses(tree, absolutePath);
             variables = extractVariables(tree, absolutePath);
@@ -163,7 +163,7 @@ export function createParserEngine(): ParserEngine {
 
         const moduleNodes = buildModuleNodes(imports);
 
-        // Edges CONTAINS : File → Function/Class/Route
+        // Edges CONTAINS: File → Function/Class/Route
         const containsEdges: GraphEdge[] = [...functions, ...classes, ...variables, ...routes].map((n) => ({
             id: `${fileNode.id}->contains->${n.id}`,
             type: 'CONTAINS' as const,
@@ -172,18 +172,18 @@ export function createParserEngine(): ParserEngine {
             confidence: 1.0,
         }));
 
-        // Edges IMPORTS : File → Module
+        // Edges IMPORTS: File → Module
         const importEdges = importsToEdges(imports, fileNode.id, (source) =>
             createNodeId('module', source, ''),
         );
 
-        // Edges CALLS : resolution intra-fichier
+        // Edges CALLS: intra-file resolution
         const localFuncMap = new Map<string, string>();
         for (const fn of functions) {
             localFuncMap.set(fn.name, fn.id);
         }
 
-        // API & DB tracking (TS/JS only — Python/Rust extractors can be added later)
+        // API & DB tracking (TS/JS only for runtime DB operations)
         let apiNodes: GraphNode[] = [];
         let apiEdges: GraphEdge[] = [];
         let dbNodes: GraphNode[] = [];
@@ -205,7 +205,20 @@ export function createParserEngine(): ParserEngine {
             }
         }
 
-        const nodes: GraphNode[] = [fileNode, ...functions, ...classes, ...variables, ...routes, ...moduleNodes, ...apiNodes, ...dbNodes];
+        // Python migration enrichment: extract DB schema from Django/Alembic migration files
+        let migrationSchemaNodes: GraphNode[] = [];
+        let migrationSchemaEdges: GraphEdge[] = [];
+        if (language === 'python' && isPythonMigrationFile(content)) {
+            const migrationTables = extractDBSchemaFromPythonMigration(content);
+            if (migrationTables.length > 0) {
+                const schema = buildDBSchemaNodesAndEdges(migrationTables, fileNode.id, absolutePath);
+                migrationSchemaNodes = schema.nodes;
+                migrationSchemaEdges = schema.edges;
+                logger.debug({ filePath: absolutePath, tables: migrationTables.length }, 'extracted Python migration schema');
+            }
+        }
+
+        const nodes: GraphNode[] = [fileNode, ...functions, ...classes, ...variables, ...routes, ...moduleNodes, ...apiNodes, ...dbNodes, ...migrationSchemaNodes];
 
         const localVarMap = new Map<string, string>();
         for (const v of variables) {
@@ -213,26 +226,26 @@ export function createParserEngine(): ParserEngine {
         }
         const localCallEdges = resolveCallEdges(calls, localFuncMap);
 
-        // Edges CALLS depuis le contexte fichier (appels dans callbacks anonymes, top-level)
+        // Edges CALLS from file context (calls in anonymous callbacks, top-level)
         const fileCallEdges = resolveFileCallEdges(calls, localFuncMap, fileNode.id);
 
-        // Edges DEPENDS_ON pour references variable-array -> fonctions
+        // Edges DEPENDS_ON for variable-array references -> functions
         // Ex: sanitizeInputs -> sanitizeBodyParams
         const variableRefEdges = resolveVariableArrayReferenceEdges(arrayAliases, localVarMap, localFuncMap);
-        // Edges DEPENDS_ON pour declarations const/let qui wrap une fonction du meme nom
+        // Edges DEPENDS_ON for const/let declarations wrapping a same-name function
         // Ex: export const sanitizeBodyParams = (...) => ...
         const variableDeclEdges = resolveVariableDeclarationAliasEdges(localVarMap, localFuncMap);
 
-        // Edges EXTENDS : Class → Class parent
+        // Edges EXTENDS: Class → parent Class
         const extendsEdges = resolveExtendsEdges(classes, localFuncMap, absolutePath);
 
-        // Edges IMPLEMENTS : Class → Interface (par nom)
+        // Edges IMPLEMENTS: Class → Interface (by name)
         const implementsEdges = resolveImplementsEdges(classes, absolutePath);
 
-        // Edges HANDLES : Route → handler function (Express router.get('/path', handler))
+        // Edges HANDLES: Route → handler function (Express router.get('/path', handler))
         const handlesEdges = resolveRouteHandlesEdges(routes, localFuncMap);
 
-        // Edges framework : File → Function pour les entry points Next.js, Nuxt, etc.
+        // Edges framework: File → Function for Next.js, Nuxt, etc. entry points
         const frameworkEdges = resolveFrameworkEntryEdges(fileNode, functions);
 
         const edges: GraphEdge[] = [
@@ -248,6 +261,7 @@ export function createParserEngine(): ParserEngine {
             ...frameworkEdges,
             ...apiEdges,
             ...dbEdges,
+            ...migrationSchemaEdges,
         ];
 
         logger.debug({ filePath: absolutePath, nodes: nodes.length, edges: edges.length }, 'parsed file');
@@ -269,7 +283,7 @@ export function createParserEngine(): ParserEngine {
             }
         }
 
-        // Resolution cross-fichier : DEPENDS_ON (imports), CALLS, EXTENDS
+        // Cross-file resolution: DEPENDS_ON (imports), CALLS, EXTENDS
         const globalFuncMap = new Map<string, string>();
         const globalFuncMultiMap = new Map<string, string[]>();
         const globalClassMap = new Map<string, string>();
@@ -289,8 +303,8 @@ export function createParserEngine(): ParserEngine {
             }
         }
 
-        // Resolution des aliases de chemin (tsconfig.json paths: { "@/*": ["./src/*"] })
-        // Supporte les monorepos avec plusieurs tsconfig (web-app/, backend/, etc.)
+        // Resolution of path aliases (tsconfig.json paths: { "@/*": ["./src/*"] })
+        // Supports monorepos with multiple tsconfig (web-app/, backend/, etc.)
         const allAliasConfigs = findAllPathAliases(filePaths);
         if (allAliasConfigs.length > 0) {
             logger.info(
@@ -299,7 +313,7 @@ export function createParserEngine(): ParserEngine {
             );
         }
 
-        // Resolution DEPENDS_ON : File → File via imports relatifs ET aliases
+        // DEPENDS_ON resolution: File → File via relative imports AND aliases
         const resolvedImportsByFile = new Map<string, Array<{ imp: ImportInfo; resolvedPath: string }>>();
         let dependsOnCount = 0;
         for (const r of results) {
@@ -359,7 +373,7 @@ export function createParserEngine(): ParserEngine {
                 if (fid) importedFileIds.add(fid);
             }
 
-            // CALLS cross-fichier (fonctions nommees → fonctions dans autres fichiers)
+            // Cross-file CALLS (named functions → functions in other files)
             const crossCallEdges = resolveCrossFileCallEdges(
                 r.calls,
                 localIds,
@@ -391,7 +405,7 @@ export function createParserEngine(): ParserEngine {
                 }
             }
 
-            // CALLS cross-fichier depuis le contexte fichier (__file__ → fonctions dans autres fichiers)
+            // Cross-file CALLS from file context (__file__ → functions in other files)
             const crossFileEdges = resolveFileCrossFileCallEdges(
                 r.calls,
                 localIds,
@@ -430,7 +444,7 @@ export function createParserEngine(): ParserEngine {
                 }
             }
 
-            // EXTENDS cross-fichier
+            // Cross-file EXTENDS
             for (const n of r.nodes) {
                 if (n.type === 'class' && n.superClass) {
                     const parentId = globalClassMap.get(n.superClass);
@@ -452,7 +466,7 @@ export function createParserEngine(): ParserEngine {
                 }
             }
 
-            // HANDLES cross-fichier : Route → Function handler dans un autre fichier
+            // Cross-file HANDLES: Route → Function handler in another file
             const crossHandlesEdges = resolveCrossFileHandlesEdges(r.nodes, localIds, globalFuncMultiMap);
             for (const edge of crossHandlesEdges) {
                 if (!existingEdgeIds.has(edge.id)) {

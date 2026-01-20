@@ -66,7 +66,7 @@ Once connected, your AI assistant gets these tools automatically:
 - **Supabase**: `supabase.from('users').select()` → detects table from `.from()` chain
 - **Knex/query-builders**: `knex('users').select()` → detects table from function call
 - **TypeORM**: `dataSource.getRepository(User).find()` / `repo.update(...)` / `dataSource.manager.insert(User, ...)`
-- **SQL + EF migrations**: `.sql` + C# migration files parsed into schema graph (`DBTable` + `DBColumn`)
+- **SQL + EF + Django/Alembic migrations**: `.sql`, C# EF, and Python migration files parsed into schema graph (`DBTable` + `DBColumn`)
 - Receiver names resolved from **imports** (`@prisma/client`, `@supabase/supabase-js`, `knex`, etc.), not hardcoded
 - Creates `DBTable` + `DBColumn` nodes, `CONTAINS`, `READS_FROM`, and `WRITES_TO` edges
 
@@ -105,6 +105,7 @@ nomik project info            # Show current project stats
 | **Markdown** | Custom parser (regex) | sections (h1-h6 headings) |
 | **SQL** | Custom parser (regex) | schema extraction: CREATE/ALTER tables, columns |
 | **C# migrations** | Custom parser (regex) | EF migration schema extraction (`migrationBuilder.CreateTable`/`AddColumn`) |
+| **Python migrations** | Custom parser (regex) | Django (`CreateModel`/`AddField`) + Alembic (`op.create_table`/`op.add_column`) |
 
 ## 3D Visualization
 
@@ -151,7 +152,7 @@ nomik/
 | Monorepo | Turborepo + pnpm workspaces |
 | 3D Viz | Three.js (3d-force-graph) |
 | 2D Viz | Cytoscape.js |
-| Tests | Vitest — 144 tests across 14 test files |
+| Tests | Vitest — 150 tests across 14 test files |
 | Project Isolation | `projectId` on all nodes/edges, `.nomik/project.json` |
 | JSONC Parsing | `jsonc-parser` (VS Code's parser) for tsconfig/jsconfig |
 
@@ -175,7 +176,7 @@ pnpm install
 docker compose up -d
 pnpm build
 
-# Run all tests (144 tests, 14 files)
+# Run all tests (150 tests, 14 files)
 pnpm test
 
 # Dev mode
