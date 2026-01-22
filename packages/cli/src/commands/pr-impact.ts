@@ -1,9 +1,27 @@
 import { Command } from 'commander';
 import path from 'node:path';
+import { execSync } from 'node:child_process';
 import { loadConfigFromEnv, validateConfig, createLogger, setLogger } from '@nomik/core';
 import { createParserEngine, getGitDiff, isSupportedFile } from '@nomik/parser';
 import { createGraphService } from '@nomik/graph';
 import { readProjectConfig } from '../utils/project-config.js';
+
+/** Auto-detect the default branch (master or main) */
+function detectDefaultBranch(): string {
+    try {
+        // Check remote HEAD first
+        const ref = execSync('git symbolic-ref refs/remotes/origin/HEAD', { encoding: 'utf-8', stdio: ['pipe', 'pipe', 'pipe'] }).trim();
+        return ref.replace('refs/remotes/origin/', '');
+    } catch {
+        // Fallback: check if master or main exists locally
+        try {
+            execSync('git rev-parse --verify master', { encoding: 'utf-8', stdio: ['pipe', 'pipe', 'pipe'] });
+            return 'master';
+        } catch {
+            return 'main';
+        }
+    }
+}
 
 // ────────────────────────────────────────────────────────────────────────
 // PR Impact Analyzer
@@ -32,25 +50,26 @@ interface ImpactEntry {
 
 export const prImpactCommand = new Command('pr-impact')
     .description('Analyze the blast radius of a PR (git diff → graph traversal → risk report)')
-    .option('-b, --base <branch>', 'Base branch to diff against', 'main')
+    .option('-b, --base <branch>', 'Base branch to diff against (auto-detects master/main)')
     .option('--depth <n>', 'Maximum traversal depth', '3')
     .option('-j, --json', 'Output raw JSON')
-    .action(async (opts: { base: string; depth: string; json?: boolean }) => {
+    .action(async (opts: { base?: string; depth: string; json?: boolean }) => {
         const logger = createLogger({ level: 'info', pretty: true });
         setLogger(logger);
 
         // ── Step 1: Git diff ──
-        const diff = getGitDiff(opts.base);
+        const base = opts.base ?? detectDefaultBranch();
+        const diff = getGitDiff(base);
 
         if (diff.files.length === 0) {
-            console.log(`\n  No changes found against ${opts.base}\n`);
+            console.log(`\n  No changes found against ${base}\n`);
             return;
         }
 
         // Filter to supported source files only
         const sourceFiles = diff.files.filter(f => f.status !== 'deleted' && isSupportedFile(f.filePath));
 
-        console.log(`\n🔍 PR Impact Analysis (base: ${opts.base})`);
+        console.log(`\n🔍 PR Impact Analysis (base: ${base})`);
         console.log(`   ${diff.totalChangedFiles} files changed, ${diff.totalChangedLines} lines modified`);
         console.log(`   ${sourceFiles.length} parseable source files\n`);
 
@@ -74,12 +93,12 @@ export const prImpactCommand = new Command('pr-impact')
             for (const node of result.nodes) {
                 if (node.type !== 'function' && node.type !== 'class') continue;
 
-                // Check if any changed line falls within this node's line range
-                const startLine = 'line' in node ? (node as any).line : undefined;
-                const endLine = 'endLine' in node ? (node as any).endLine : undefined;
+                // FunctionNode/ClassNode use startLine/endLine
+                const sl = 'startLine' in node ? (node as any).startLine as number : undefined;
+                const el = 'endLine' in node ? (node as any).endLine as number : undefined;
 
-                if (startLine && endLine) {
-                    for (let l = startLine; l <= endLine; l++) {
+                if (sl && el) {
+                    for (let l = sl; l <= el; l++) {
                         if (changedLineSet.has(l)) {
                             changedSymbols.push({
                                 name: node.name,
@@ -90,9 +109,8 @@ export const prImpactCommand = new Command('pr-impact')
                             break;
                         }
                     }
-                } else if (startLine && changedLineSet.size > 0) {
-                    // Fallback: if we only have start line, check if it's in the changed set
-                    if (changedLineSet.has(startLine)) {
+                } else if (sl && changedLineSet.size > 0) {
+                    if (changedLineSet.has(sl)) {
                         changedSymbols.push({
                             name: node.name,
                             type: node.type as 'function' | 'class',

@@ -4,7 +4,7 @@
 
 ---
 
-## CLI — 11 Commands
+## CLI — 12 Commands
 
 ### `nomik init`
 
@@ -149,6 +149,62 @@ nomik project info              # Current project stats
 ```
 
 The current project is stored in `.nomik/project.json`.
+
+---
+
+### `nomik pr-impact`
+
+PR blast-radius analyzer. Parses git diff against a base branch, re-parses changed files to identify modified functions/classes, then queries the knowledge graph to find all downstream dependents. Outputs a risk report.
+
+```bash
+# Auto-detects default branch (master or main)
+nomik pr-impact
+
+# Diff against a specific branch
+nomik pr-impact --base develop
+
+# Limit graph traversal depth
+nomik pr-impact --base main --depth 5
+
+# JSON output (for CI/CD pipelines)
+nomik pr-impact --json
+```
+
+**Workflow**:
+1. `git diff <base>` → list of changed files + changed line ranges
+2. Re-parse changed source files → detect which functions/classes were modified
+3. Query Neo4j graph for each changed symbol → blast radius (callers, dependents)
+4. Aggregate into risk report: `LOW` / `MEDIUM` / `HIGH`
+
+**Output example**:
+```
+🔍 PR Impact Analysis (base: main)
+   5 files changed, 42 lines modified
+   3 parseable source files
+
+   2 changed symbols detected:
+
+     ⚡  parseFile  (packages/parser/src/parser.ts)
+     ⚡  extractEnvVars  (packages/parser/src/extractors/env-vars.ts)
+
+════════════════════════════════════════════════════════════
+  📊 PR IMPACT REPORT
+════════════════════════════════════════════════════════════
+
+  Risk Level: 🟡 MEDIUM
+  Changed Symbols: 2
+  Total Impacted: 8
+
+  ─── ⚡ parseFile (6 dependents) ───
+      file: packages/parser/src/parser.ts
+      depth 1:
+        CALLS        Function   scanCommand  (packages/cli/src/commands/scan.ts)
+        CALLS        Function   watchHandler (packages/watcher/src/handler.ts)
+      depth 2:
+        DEPENDS_ON   File       scan.ts  (packages/cli/src/commands/scan.ts)
+```
+
+> **Note**: Works without Neo4j — falls back to diff-only analysis (shows changed symbols but no graph traversal).
 
 ---
 

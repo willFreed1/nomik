@@ -77,7 +77,7 @@ export function createWatcher(
             ignored,
             persistent: true,
             ignoreInitial: true,
-            awaitWriteFinish: { stabilityThreshold: 200, pollInterval: 50 },
+            followSymlinks: false,
         });
 
         fsWatcher.on('change', (fp) => scheduleReindex(fp as string));

@@ -40,6 +40,25 @@ async function withRetry<T>(fn: () => Promise<T>, label: string, logger: ReturnT
     throw lastError;
 }
 
+/** Recursively convert BigInt values (Neo4j Integers on Node.js v24) to regular numbers */
+function convertBigInts(val: unknown): unknown {
+    if (typeof val === 'bigint') return Number(val);
+    if (val === null || val === undefined) return val;
+    // Neo4j Integer object { low, high }
+    if (typeof val === 'object' && 'low' in (val as any) && 'high' in (val as any) && typeof (val as any).toNumber === 'function') {
+        return (val as any).toNumber();
+    }
+    if (Array.isArray(val)) return val.map(convertBigInts);
+    if (typeof val === 'object') {
+        const out: Record<string, unknown> = {};
+        for (const [k, v] of Object.entries(val as Record<string, unknown>)) {
+            out[k] = convertBigInts(v);
+        }
+        return out;
+    }
+    return val;
+}
+
 export function createNeo4jDriver(config: GraphConfig): GraphDriver {
     const logger = getLogger();
     let driver: Driver | null = null;
@@ -98,7 +117,7 @@ export function createNeo4jDriver(config: GraphConfig): GraphDriver {
             const session = getSession();
             try {
                 const result = await session.run(cypher, params);
-                return result.records.map((r) => r.toObject() as T);
+                return result.records.map((r) => convertBigInts(r.toObject()) as T);
             } finally {
                 await session.close();
             }
