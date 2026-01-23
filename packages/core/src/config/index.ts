@@ -1,4 +1,4 @@
-import { type NomikConfig, nomikConfigSchema } from '../types/config.js';
+import { type NomikConfig, type NomikConfigInput, nomikConfigSchema } from '../types/config.js';
 import { ConfigError } from '../errors/index.js';
 
 const CONFIG_FILENAMES = [
@@ -7,7 +7,7 @@ const CONFIG_FILENAMES = [
     'nomik.config.json',
 ];
 
-export function defineConfig(config: Partial<NomikConfig> & Pick<NomikConfig, 'target'>): NomikConfig {
+export function defineConfig(config: NomikConfigInput): NomikConfig {
     const result = nomikConfigSchema.safeParse(config);
     if (!result.success) {
         const issues = result.error.issues.map((i) => `${i.path.join('.')}: ${i.message}`).join(', ');

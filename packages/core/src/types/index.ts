@@ -50,6 +50,7 @@ export {
 
 export type {
     NomikConfig,
+    NomikConfigInput,
     GraphConfig,
     TargetConfig,
     ParserConfig,

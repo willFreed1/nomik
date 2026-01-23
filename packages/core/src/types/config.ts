@@ -73,3 +73,4 @@ export type McpConfig = z.infer<typeof mcpConfigSchema>;
 export type VizConfig = z.infer<typeof vizConfigSchema>;
 export type LogConfig = z.infer<typeof logConfigSchema>;
 export type NomikConfig = z.infer<typeof nomikConfigSchema>;
+export type NomikConfigInput = z.input<typeof nomikConfigSchema>;

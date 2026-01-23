@@ -3,10 +3,10 @@ import type { GraphNode, GraphEdge, ProjectNode } from '@nomik/core';
 import { createNeo4jDriver } from './drivers/neo4j.driver.js';
 import type { GraphDriver } from './drivers/driver.interface.js';
 import { upsertNodes, createEdges, clearFileData, clearFilesData, purgeStaleFiles, upsertProject, deleteProjectData, listProjects, getProject } from './queries/write.js';
-import { impactAnalysis, findDeadCode, findGodObjects, findGodFiles, findDuplicates, graphStats, findDependencyChain, findDetailedPath, recentChanges, findDBImpact } from './queries/read.js';
+import { impactAnalysis, findDeadCode, findGodObjects, findGodFiles, findDuplicates, graphStats, findDependencyChain, findDetailedPath, recentChanges, findDBImpact, getFileSymbols } from './queries/read.js';
 import { initializeSchema } from './schema/init.js';
 import { QueryCache } from './cache.js';
-import type { ImpactResult, DetailedPath } from './queries/read.js';
+import type { ImpactResult, DetailedPath, FileSymbol } from './queries/read.js';
 
 export interface ParseResult {
     file: { id: string; path: string; language: string; hash: string; size: number; lastParsed: string; type: 'file' };
@@ -23,6 +23,7 @@ export interface GraphService {
     /** Ingestion 3-phases : clear → upsert → edges (preserve les edges cross-fichier) */
     ingestBatch(results: ParseResult[], projectId: string): Promise<void>;
     getImpact(symbolName: string, depth?: number, projectId?: string): Promise<ImpactResult[]>;
+    getFileSymbols(filePath: string, projectId?: string): Promise<FileSymbol[]>;
     getDeadCode(projectId?: string): Promise<Array<{ name: string; filePath: string }>>;
     getGodObjects(threshold?: number, projectId?: string): Promise<Array<{ name: string; filePath: string; depCount: number }>>;
     getDBImpact(table: string, column?: string, limit?: number, projectId?: string): Promise<{ table: string; column?: string; readers: Array<{ sourceName: string; sourceType: string; filePath: string }>; writers: Array<{ sourceName: string; sourceType: string; filePath: string; operation?: string }>; columns: string[] }>;
@@ -107,6 +108,10 @@ export function createGraphService(config: GraphConfig): GraphService {
 
         async getImpact(symbolName: string, depth = 5, projectId?: string) {
             return cached(`impact:${projectId}:${symbolName}:${depth}`, () => impactAnalysis(driver, symbolName, depth, projectId));
+        },
+
+        async getFileSymbols(filePath: string, projectId?: string) {
+            return cached(`fileSymbols:${projectId}:${filePath}`, () => getFileSymbols(driver, filePath, projectId));
         },
 
         async getDeadCode(projectId?: string) {

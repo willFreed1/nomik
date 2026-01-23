@@ -56,6 +56,40 @@ export async function impactAnalysis(
     }));
 }
 
+/** Return all functions and classes contained in a file, as known by the graph */
+export interface FileSymbol {
+    name: string;
+    type: 'Function' | 'Class';
+    id: string;
+    isExported: boolean;
+    startLine: number;
+    endLine: number;
+}
+
+export async function getFileSymbols(
+    driver: GraphDriver,
+    filePath: string,
+    projectId?: string,
+): Promise<FileSymbol[]> {
+    const projectFilter = projectId ? 'AND child.projectId = $projectId' : '';
+    return driver.runQuery<FileSymbol>(
+        `
+    MATCH (f:File)-[:CONTAINS]->(child)
+    WHERE f.path = $filePath
+      AND (child:Function OR child:Class)
+      ${projectFilter}
+    RETURN child.name as name,
+           labels(child)[0] as type,
+           child.id as id,
+           COALESCE(child.isExported, false) as isExported,
+           COALESCE(child.startLine, 0) as startLine,
+           COALESCE(child.endLine, 0) as endLine
+    ORDER BY child.startLine ASC
+    `,
+        { filePath, projectId },
+    );
+}
+
 /** Chemin le plus court entre deux entites avec detail des noeuds et relations */
 export interface PathStep {
     nodeName: string;

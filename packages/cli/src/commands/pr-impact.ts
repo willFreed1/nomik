@@ -1,9 +1,9 @@
 import { Command } from 'commander';
 import path from 'node:path';
 import { execSync } from 'node:child_process';
-import { loadConfigFromEnv, validateConfig, createLogger, setLogger } from '@nomik/core';
+import { loadConfigFromEnv, validateConfig, createLogger, setLogger, type GraphNode } from '@nomik/core';
 import { createParserEngine, getGitDiff, isSupportedFile } from '@nomik/parser';
-import { createGraphService } from '@nomik/graph';
+import { createGraphService, type FileSymbol } from '@nomik/graph';
 import { readProjectConfig } from '../utils/project-config.js';
 
 /** Auto-detect the default branch (master or main) */
@@ -29,15 +29,19 @@ function detectDefaultBranch(): string {
 // Workflow:
 //   1. git diff <base> → list of changed files + changed line ranges
 //   2. Re-parse changed files → find which functions/classes were modified
-//   3. Query graph for each changed symbol → blast radius (callers, dependents)
-//   4. Aggregate and print risk report
+//   3. Compare old graph symbols vs new parse → detect renames/deletions
+//   4. Query graph for each changed/disappeared symbol → blast radius
+//   5. Aggregate and print risk report
 // ────────────────────────────────────────────────────────────────────────
 
-interface ChangedSymbol {
+export type ChangeKind = 'disappeared' | 'modified' | 'added';
+
+export interface ChangedSymbol {
     name: string;
     type: 'function' | 'class';
     filePath: string;
     id: string;
+    changeKind: ChangeKind;
 }
 
 interface ImpactEntry {
@@ -46,6 +50,83 @@ interface ImpactEntry {
     filePath: string;
     depth: number;
     relationship: string;
+}
+
+/**
+ * Compare old symbols from the graph with new symbols from re-parsing.
+ * Returns categorized changes: disappeared (rename/delete), modified, added.
+ */
+export function diffFileSymbols(
+    oldSymbols: FileSymbol[],
+    newNodes: GraphNode[],
+    changedLines: Set<number>,
+    filePath: string,
+): ChangedSymbol[] {
+    const result: ChangedSymbol[] = [];
+
+    const oldByName = new Map<string, FileSymbol>();
+    for (const s of oldSymbols) oldByName.set(s.name, s);
+
+    const newFuncsClasses = newNodes.filter(
+        (n): n is Extract<GraphNode, { type: 'function' | 'class' }> =>
+            n.type === 'function' || n.type === 'class',
+    );
+    const newByName = new Map<string, (typeof newFuncsClasses)[number]>();
+    for (const n of newFuncsClasses) newByName.set(n.name, n);
+
+    // Disappeared: in old graph but NOT in new parse → rename or deletion
+    for (const [name, old] of oldByName) {
+        if (!newByName.has(name)) {
+            result.push({
+                name,
+                type: old.type === 'Function' ? 'function' : 'class',
+                filePath,
+                id: old.id,
+                changeKind: 'disappeared',
+            });
+        }
+    }
+
+    // Modified: exists in both old and new, and overlaps changed lines
+    for (const [name, newNode] of newByName) {
+        const old = oldByName.get(name);
+        if (!old) continue;
+        if (newNode.startLine > 0 && newNode.endLine > 0) {
+            for (let l = newNode.startLine; l <= newNode.endLine; l++) {
+                if (changedLines.has(l)) {
+                    result.push({
+                        name,
+                        type: newNode.type,
+                        filePath,
+                        id: old.id,
+                        changeKind: 'modified',
+                    });
+                    break;
+                }
+            }
+        }
+    }
+
+    // Added: in new parse but NOT in old graph, and overlaps changed lines
+    for (const [name, newNode] of newByName) {
+        if (oldByName.has(name)) continue;
+        if (newNode.startLine > 0 && newNode.endLine > 0) {
+            for (let l = newNode.startLine; l <= newNode.endLine; l++) {
+                if (changedLines.has(l)) {
+                    result.push({
+                        name,
+                        type: newNode.type,
+                        filePath,
+                        id: newNode.id,
+                        changeKind: 'added',
+                    });
+                    break;
+                }
+            }
+        }
+    }
+
+    return result;
 }
 
 export const prImpactCommand = new Command('pr-impact')
@@ -66,57 +147,91 @@ export const prImpactCommand = new Command('pr-impact')
             return;
         }
 
-        // Filter to supported source files only
-        const sourceFiles = diff.files.filter(f => f.status !== 'deleted' && isSupportedFile(f.filePath));
+        // Separate deleted files from changed files
+        const deletedFiles = diff.files.filter(f => f.status === 'deleted' && isSupportedFile(f.filePath));
+        const changedFiles = diff.files.filter(f => f.status !== 'deleted' && isSupportedFile(f.filePath));
+        const totalParseable = changedFiles.length + deletedFiles.length;
 
         console.log(`\n🔍 PR Impact Analysis (base: ${base})`);
         console.log(`   ${diff.totalChangedFiles} files changed, ${diff.totalChangedLines} lines modified`);
-        console.log(`   ${sourceFiles.length} parseable source files\n`);
+        console.log(`   ${totalParseable} parseable source files${deletedFiles.length > 0 ? ` (${deletedFiles.length} deleted)` : ''}\n`);
 
-        if (sourceFiles.length === 0) {
+        if (totalParseable === 0) {
             console.log('  No parseable source files changed.\n');
             return;
         }
 
         // ── Step 2: Re-parse changed files ──
         const parser = createParserEngine();
-        const filePaths = sourceFiles.map(f => f.filePath);
-        const results = await parser.parseFiles(filePaths);
+        const filePaths = changedFiles.map(f => f.filePath);
+        const results = filePaths.length > 0 ? await parser.parseFiles(filePaths) : [];
 
-        // Find which functions/classes overlap with changed lines
-        const changedSymbols: ChangedSymbol[] = [];
-        for (const result of results) {
-            const diffFile = sourceFiles.find(f => path.resolve(f.filePath) === result.file.path);
-            if (!diffFile) continue;
-            const changedLineSet = new Set(diffFile.changedLines);
+        // ── Step 3: Connect to Neo4j for graph comparison ──
+        const envConfig = loadConfigFromEnv();
+        const config = validateConfig({ ...envConfig, target: { root: '.' } });
+        const graph = createGraphService(config.graph);
+        const projectId = readProjectConfig()?.projectId;
+        const depth = parseInt(opts.depth, 10);
 
-            for (const node of result.nodes) {
-                if (node.type !== 'function' && node.type !== 'class') continue;
+        let graphAvailable = false;
+        try {
+            await graph.connect();
+            graphAvailable = true;
+        } catch {
+            // Graph not available — fall back to parse-only mode
+        }
 
-                // FunctionNode/ClassNode use startLine/endLine
-                const sl = 'startLine' in node ? (node as any).startLine as number : undefined;
-                const el = 'endLine' in node ? (node as any).endLine as number : undefined;
+        // ── Step 4: Diff old graph symbols vs new parse per file ──
+        const allSymbols: ChangedSymbol[] = [];
 
-                if (sl && el) {
-                    for (let l = sl; l <= el; l++) {
-                        if (changedLineSet.has(l)) {
-                            changedSymbols.push({
-                                name: node.name,
-                                type: node.type as 'function' | 'class',
-                                filePath: result.file.path,
-                                id: node.id,
-                            });
-                            break;
+        if (graphAvailable) {
+            // Changed files: compare graph symbols vs new parse
+            for (const result of results) {
+                const diffFile = changedFiles.find(f => path.resolve(f.filePath) === result.file.path);
+                if (!diffFile) continue;
+                const changedLineSet = new Set(diffFile.changedLines);
+                const oldSymbols = await graph.getFileSymbols(result.file.path, projectId);
+                const fileChanges = diffFileSymbols(oldSymbols, result.nodes, changedLineSet, result.file.path);
+                allSymbols.push(...fileChanges);
+            }
+
+            // Deleted files: all graph symbols are disappeared
+            for (const delFile of deletedFiles) {
+                const absPath = path.resolve(delFile.filePath);
+                const oldSymbols = await graph.getFileSymbols(absPath, projectId);
+                for (const old of oldSymbols) {
+                    allSymbols.push({
+                        name: old.name,
+                        type: old.type === 'Function' ? 'function' : 'class',
+                        filePath: absPath,
+                        id: old.id,
+                        changeKind: 'disappeared',
+                    });
+                }
+            }
+        } else {
+            // No graph — fall back to parse-only (no rename/deletion detection)
+            for (const result of results) {
+                const diffFile = changedFiles.find(f => path.resolve(f.filePath) === result.file.path);
+                if (!diffFile) continue;
+                const changedLineSet = new Set(diffFile.changedLines);
+                for (const node of result.nodes) {
+                    if (node.type !== 'function' && node.type !== 'class') continue;
+                    const sl = 'startLine' in node ? (node as any).startLine as number : undefined;
+                    const el = 'endLine' in node ? (node as any).endLine as number : undefined;
+                    if (sl && el) {
+                        for (let l = sl; l <= el; l++) {
+                            if (changedLineSet.has(l)) {
+                                allSymbols.push({
+                                    name: node.name,
+                                    type: node.type as 'function' | 'class',
+                                    filePath: result.file.path,
+                                    id: node.id,
+                                    changeKind: 'modified',
+                                });
+                                break;
+                            }
                         }
-                    }
-                } else if (sl && changedLineSet.size > 0) {
-                    if (changedLineSet.has(sl)) {
-                        changedSymbols.push({
-                            name: node.name,
-                            type: node.type as 'function' | 'class',
-                            filePath: result.file.path,
-                            id: node.id,
-                        });
                     }
                 }
             }
@@ -124,81 +239,132 @@ export const prImpactCommand = new Command('pr-impact')
 
         // Deduplicate by name+filePath
         const seen = new Set<string>();
-        const uniqueSymbols = changedSymbols.filter(s => {
+        const uniqueSymbols = allSymbols.filter(s => {
             const key = `${s.name}:${s.filePath}`;
             if (seen.has(key)) return false;
             seen.add(key);
             return true;
         });
 
-        console.log(`   ${uniqueSymbols.length} changed symbols detected:\n`);
+        // Print detected changes summary
+        const disappeared = uniqueSymbols.filter(s => s.changeKind === 'disappeared');
+        const modified = uniqueSymbols.filter(s => s.changeKind === 'modified');
+        const added = uniqueSymbols.filter(s => s.changeKind === 'added');
+
+        console.log(`   ${uniqueSymbols.length} changed symbols detected:`);
+        if (disappeared.length > 0) console.log(`     💀 ${disappeared.length} removed/renamed`);
+        if (modified.length > 0) console.log(`     ⚡ ${modified.length} modified`);
+        if (added.length > 0) console.log(`     ✨ ${added.length} added`);
+        console.log('');
+
         for (const s of uniqueSymbols) {
             const relPath = path.relative(process.cwd(), s.filePath);
-            console.log(`     ${s.type === 'function' ? '⚡' : '🏗️'}  ${s.name}  (${relPath})`);
+            const icon = s.changeKind === 'disappeared' ? '💀' : s.changeKind === 'added' ? '✨' : s.type === 'function' ? '⚡' : '🏗️';
+            console.log(`     ${icon}  ${s.name}  (${relPath})`);
         }
 
         if (uniqueSymbols.length === 0) {
             console.log('  No function/class changes detected in diff.\n');
+            if (graphAvailable) await graph.disconnect();
             return;
         }
 
-        // ── Step 3: Query graph for blast radius ──
-        const envConfig = loadConfigFromEnv();
-        const config = validateConfig({ ...envConfig, target: { root: '.' } });
-        const graph = createGraphService(config.graph);
-        const projectId = readProjectConfig()?.projectId;
-        const depth = parseInt(opts.depth, 10);
-
-        try {
-            await graph.connect();
-        } catch {
+        // ── Step 5: Query graph for blast radius ──
+        if (!graphAvailable) {
             console.log('\n  ⚠️  Cannot connect to Neo4j. Showing diff-only analysis (no graph traversal).\n');
-            printSummary(uniqueSymbols, [], opts.json);
+            printSummary(uniqueSymbols, opts.json);
             return;
         }
 
         const allImpacts = new Map<string, { symbol: ChangedSymbol; impacts: ImpactEntry[] }>();
-        let totalImpacted = 0;
 
         for (const symbol of uniqueSymbols) {
+            const key = `${symbol.name}:${symbol.filePath}`;
+            if (symbol.changeKind === 'added') {
+                // New symbols have no callers in the graph yet
+                allImpacts.set(key, { symbol, impacts: [] });
+                continue;
+            }
             try {
-                const impacts = await graph.getImpact(symbol.name, depth, projectId);
-                allImpacts.set(symbol.name, { symbol, impacts });
-                totalImpacted += impacts.length;
+                // Use ID for precision (avoids name collisions across files)
+                const impacts = await graph.getImpact(symbol.id, depth, projectId);
+                allImpacts.set(key, { symbol, impacts });
             } catch {
-                allImpacts.set(symbol.name, { symbol, impacts: [] });
+                allImpacts.set(key, { symbol, impacts: [] });
             }
         }
 
         await graph.disconnect();
 
-        // ── Step 4: Risk report ──
-        printReport(uniqueSymbols, allImpacts, totalImpacted, opts.json);
+        // ── Step 6: Risk report ──
+        printReport(uniqueSymbols, allImpacts, opts.json);
     });
+
+/** Classify impacts: real impact vs transitive file-import noise
+ *  - CALLS/HANDLES/TRIGGERS/LISTENS_TO/EMITS at any depth → real impact
+ *  - DEPENDS_ON at depth 1 → real impact (direct importers of your file)
+ *  - DEPENDS_ON at depth 2+ → transitive noise (imports of imports)
+ */
+const ALWAYS_DIRECT = new Set(['CALLS', 'HANDLES', 'TRIGGERS', 'LISTENS_TO', 'EMITS']);
+
+export function classifyImpacts(impacts: ImpactEntry[]): { direct: ImpactEntry[]; transitive: ImpactEntry[] } {
+    const direct = impacts.filter(i => ALWAYS_DIRECT.has(i.relationship) || (i.relationship === 'DEPENDS_ON' && i.depth <= 1));
+    const transitive = impacts.filter(i => !ALWAYS_DIRECT.has(i.relationship) && !(i.relationship === 'DEPENDS_ON' && i.depth <= 1));
+    return { direct, transitive };
+}
 
 function printReport(
     symbols: ChangedSymbol[],
     allImpacts: Map<string, { symbol: ChangedSymbol; impacts: ImpactEntry[] }>,
-    totalImpacted: number,
     json?: boolean,
 ): void {
+    let totalDirectCallers = 0;
+    let disappearedWithCallers = 0;
+    const symbolStats: Array<{
+        name: string;
+        type: string;
+        filePath: string;
+        changeKind: ChangeKind;
+        directCount: number;
+        transitiveCount: number;
+        direct: ImpactEntry[];
+        transitive: ImpactEntry[];
+    }> = [];
+
+    for (const [_key, { symbol, impacts }] of allImpacts) {
+        const { direct, transitive } = classifyImpacts(impacts);
+        totalDirectCallers += direct.length;
+        if (symbol.changeKind === 'disappeared' && direct.length > 0) {
+            disappearedWithCallers += direct.length;
+        }
+        symbolStats.push({
+            name: symbol.name,
+            type: symbol.type,
+            filePath: symbol.filePath,
+            changeKind: symbol.changeKind,
+            directCount: direct.length,
+            transitiveCount: transitive.length,
+            direct,
+            transitive,
+        });
+    }
+
+    const risk = getRiskLevel(totalDirectCallers, symbols.length, disappearedWithCallers);
+
     if (json) {
         const data = {
             changedSymbols: symbols.length,
-            totalImpacted,
-            riskLevel: getRiskLevel(totalImpacted, symbols.length),
-            symbols: [...allImpacts.entries()].map(([name, { symbol, impacts }]) => ({
-                name,
-                type: symbol.type,
-                filePath: path.relative(process.cwd(), symbol.filePath),
-                impactCount: impacts.length,
-                impacts: impacts.map(i => ({
-                    name: i.name,
-                    type: i.type,
-                    filePath: i.filePath,
-                    depth: i.depth,
-                    relationship: i.relationship,
-                })),
+            directCallers: totalDirectCallers,
+            disappearedWithCallers,
+            riskLevel: risk,
+            symbols: symbolStats.map(s => ({
+                name: s.name,
+                type: s.type,
+                changeKind: s.changeKind,
+                filePath: path.relative(process.cwd(), s.filePath),
+                directCallers: s.directCount,
+                transitiveImports: s.transitiveCount,
+                callers: s.direct.map(i => ({ name: i.name, type: i.type, filePath: i.filePath, depth: i.depth, relationship: i.relationship })),
             })),
         };
         console.log(JSON.stringify(data, null, 2));
@@ -209,46 +375,43 @@ function printReport(
     console.log('  📊 PR IMPACT REPORT');
     console.log('═'.repeat(60));
 
-    const risk = getRiskLevel(totalImpacted, symbols.length);
     const riskEmoji = risk === 'HIGH' ? '🔴' : risk === 'MEDIUM' ? '🟡' : '🟢';
-    console.log(`\n  Risk Level: ${riskEmoji} ${risk}`);
-    console.log(`  Changed Symbols: ${symbols.length}`);
-    console.log(`  Total Impacted: ${totalImpacted}`);
+    const verdict = risk === 'LOW' ? 'Safe to merge' : risk === 'MEDIUM' ? 'Review recommended' : 'Careful review needed';
+    console.log(`\n  ${riskEmoji} ${risk} — ${verdict}`);
+    console.log(`  Changed: ${symbols.length} symbols | Direct callers: ${totalDirectCallers}${disappearedWithCallers > 0 ? ` (${disappearedWithCallers} from removed symbols)` : ''}`);
 
-    for (const [name, { symbol, impacts }] of allImpacts) {
-        console.log(`\n  ─── ${symbol.type === 'function' ? '⚡' : '🏗️'} ${name} (${impacts.length} dependents) ───`);
-        const relPath = path.relative(process.cwd(), symbol.filePath);
+    for (const s of symbolStats) {
+        const icon = s.changeKind === 'disappeared' ? '💀' : s.changeKind === 'added' ? '✨' : s.type === 'function' ? '⚡' : '🏗️';
+        const relPath = path.relative(process.cwd(), s.filePath);
+        const kindLabel = s.changeKind === 'disappeared' ? ' [REMOVED]' : s.changeKind === 'added' ? ' [NEW]' : '';
+        console.log(`\n  ─── ${icon} ${s.name}${kindLabel} ───`);
         console.log(`      file: ${relPath}`);
 
-        if (impacts.length === 0) {
-            console.log('      (no dependents in graph)');
-            continue;
-        }
-
-        // Group by depth
-        const byDepth = new Map<number, ImpactEntry[]>();
-        for (const i of impacts) {
-            const arr = byDepth.get(i.depth) ?? [];
-            arr.push(i);
-            byDepth.set(i.depth, arr);
-        }
-
-        for (const [d, entries] of [...byDepth.entries()].sort((a, b) => a[0] - b[0])) {
-            console.log(`      depth ${d}:`);
-            for (const e of entries.slice(0, 10)) {
+        if (s.changeKind === 'added') {
+            console.log('      ✨ New symbol — no callers yet');
+        } else if (s.directCount === 0) {
+            console.log('      ✅ No direct callers affected');
+        } else {
+            const severity = s.changeKind === 'disappeared' ? ' 🚨 BREAKING' : '';
+            console.log(`      ${s.directCount} direct caller(s):${severity}`);
+            for (const e of s.direct.slice(0, 15)) {
                 const eRelPath = e.filePath ? path.relative(process.cwd(), e.filePath) : '';
-                console.log(`        ${e.relationship.padEnd(12)} ${e.type.padEnd(10)} ${e.name}  ${eRelPath ? `(${eRelPath})` : ''}`);
+                console.log(`        ${e.relationship.padEnd(12)} ${e.name}  ${eRelPath ? `(${eRelPath})` : ''}`);
             }
-            if (entries.length > 10) {
-                console.log(`        ... and ${entries.length - 10} more`);
+            if (s.direct.length > 15) {
+                console.log(`        ... and ${s.direct.length - 15} more`);
             }
+        }
+
+        if (s.transitiveCount > 0) {
+            console.log(`      ${s.transitiveCount} transitive imports (file-level)`);
         }
     }
 
     console.log('\n' + '═'.repeat(60) + '\n');
 }
 
-function printSummary(symbols: ChangedSymbol[], _impacts: ImpactEntry[], json?: boolean): void {
+function printSummary(symbols: ChangedSymbol[], json?: boolean): void {
     if (json) {
         console.log(JSON.stringify({ changedSymbols: symbols.length, graphAvailable: false }, null, 2));
         return;
@@ -256,9 +419,11 @@ function printSummary(symbols: ChangedSymbol[], _impacts: ImpactEntry[], json?: 
     console.log(`  Changed ${symbols.length} symbols. Run "nomik scan" first to enable graph-based impact analysis.\n`);
 }
 
-function getRiskLevel(totalImpacted: number, changedSymbols: number): 'LOW' | 'MEDIUM' | 'HIGH' {
-    const avgImpact = changedSymbols > 0 ? totalImpacted / changedSymbols : 0;
-    if (totalImpacted > 20 || avgImpact > 10) return 'HIGH';
-    if (totalImpacted > 5 || avgImpact > 3) return 'MEDIUM';
+export function getRiskLevel(directCallers: number, changedSymbols: number, disappearedWithCallers: number = 0): 'LOW' | 'MEDIUM' | 'HIGH' {
+    // Disappeared symbols with callers = guaranteed breakage → automatic HIGH
+    if (disappearedWithCallers > 0) return 'HIGH';
+    const avgCallers = changedSymbols > 0 ? directCallers / changedSymbols : 0;
+    if (directCallers > 15 || avgCallers > 5) return 'HIGH';
+    if (directCallers > 5 || avgCallers > 2) return 'MEDIUM';
     return 'LOW';
 }

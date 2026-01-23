@@ -2,7 +2,7 @@ import { defineConfig } from '@nomik/core';
 
 export default defineConfig({
   target: {
-    root: './src',
+    root: './packages',
     include: ['**/*.ts', '**/*.tsx', '**/*.js', '**/*.jsx', '**/*.md', '**/*.py', '**/*.rs', '**/*.sql', '**/*.cs'],
     exclude: ['**/node_modules/**', '**/dist/**', '**/*.test.*', '**/*.spec.*', '**/*.d.ts', '**/__pycache__/**', '**/target/**', '**/.venv/**'],
   },
