@@ -36,9 +36,11 @@ function detectDefaultBranch(): string {
 
 export type ChangeKind = 'disappeared' | 'modified' | 'added';
 
+export type SymbolType = 'function' | 'class' | 'variable' | 'route';
+
 export interface ChangedSymbol {
     name: string;
-    type: 'function' | 'class';
+    type: SymbolType;
     filePath: string;
     id: string;
     changeKind: ChangeKind;
@@ -52,9 +54,66 @@ interface ImpactEntry {
     relationship: string;
 }
 
+/** Map graph label to lowercase symbol type */
+function graphTypeToSymbolType(graphType: string): SymbolType {
+    const map: Record<string, SymbolType> = { Function: 'function', Class: 'class', Variable: 'variable', Route: 'route' };
+    return map[graphType] ?? 'function';
+}
+
+/** Icon for each symbol type */
+function symbolIcon(type: SymbolType): string {
+    switch (type) {
+        case 'function': return '⚡';
+        case 'class': return '🏗️';
+        case 'variable': return '📦';
+        case 'route': return '🌐';
+    }
+}
+
+/** Tracked node types for pr-impact diff */
+const TRACKED_TYPES = new Set(['function', 'class', 'variable', 'route']);
+
+interface TrackedNewNode {
+    id: string;
+    name: string;
+    type: SymbolType;
+    startLine: number;
+    endLine: number;
+}
+
+/** Extract tracked nodes from parse results, normalizing line info */
+function extractTrackedNodes(nodes: GraphNode[]): TrackedNewNode[] {
+    const result: TrackedNewNode[] = [];
+    for (const n of nodes) {
+        if (!TRACKED_TYPES.has(n.type)) continue;
+        let nodeName: string;
+        let sl = 0;
+        let el = 0;
+        switch (n.type) {
+            case 'function':
+                nodeName = n.name; sl = n.startLine; el = n.endLine;
+                break;
+            case 'class':
+                nodeName = n.name; sl = n.startLine; el = n.endLine;
+                break;
+            case 'variable':
+                nodeName = n.name; sl = el = n.line;
+                break;
+            case 'route':
+                nodeName = `${n.method} ${n.path}`; sl = 0; el = 0;
+                break;
+            default:
+                continue;
+        }
+        result.push({ id: n.id, name: nodeName, type: n.type as SymbolType, startLine: sl, endLine: el });
+    }
+    return result;
+}
+
 /**
  * Compare old symbols from the graph with new symbols from re-parsing.
  * Returns categorized changes: disappeared (rename/delete), modified, added.
+ * Handles functions, classes, variables, and routes.
  */
 export function diffFileSymbols(
     oldSymbols: FileSymbol[],
@@ -67,19 +126,16 @@ export function diffFileSymbols(
     const oldByName = new Map<string, FileSymbol>();
     for (const s of oldSymbols) oldByName.set(s.name, s);
 
-    const newFuncsClasses = newNodes.filter(
-        (n): n is Extract<GraphNode, { type: 'function' | 'class' }> =>
-            n.type === 'function' || n.type === 'class',
-    );
-    const newByName = new Map<string, (typeof newFuncsClasses)[number]>();
-    for (const n of newFuncsClasses) newByName.set(n.name, n);
+    const tracked = extractTrackedNodes(newNodes);
+    const newByName = new Map<string, TrackedNewNode>();
+    for (const n of tracked) newByName.set(n.name, n);
 
     // Disappeared: in old graph but NOT in new parse → rename or deletion
     for (const [name, old] of oldByName) {
         if (!newByName.has(name)) {
             result.push({
                 name,
-                type: old.type === 'Function' ? 'function' : 'class',
+                type: graphTypeToSymbolType(old.type),
                 filePath,
                 id: old.id,
                 changeKind: 'disappeared',
@@ -202,12 +258,27 @@ export const prImpactCommand = new Command('pr-impact')
                 for (const old of oldSymbols) {
                     allSymbols.push({
                         name: old.name,
-                        type: old.type === 'Function' ? 'function' : 'class',
+                        type: graphTypeToSymbolType(old.type),
                         filePath: absPath,
                         id: old.id,
                         changeKind: 'disappeared',
                     });
                 }
+            }
+
+            // Stale-graph warning: if graph returned 0 old symbols but parse found tracked nodes
+            let staleWarningFiles = 0;
+            for (const result of results) {
+                const diffFile = changedFiles.find(f => path.resolve(f.filePath) === result.file.path);
+                if (!diffFile) continue;
+                const oldSymbols = await graph.getFileSymbols(result.file.path, projectId);
+                const parsedTracked = extractTrackedNodes(result.nodes);
+                if (oldSymbols.length === 0 && parsedTracked.length > 0) {
+                    staleWarningFiles++;
+                }
+            }
+            if (staleWarningFiles > 0) {
+                console.log(`  ⚠️  ${staleWarningFiles} file(s) have no graph data but contain symbols. Run "nomik scan" to update the graph for accurate rename/deletion detection.\n`);
             }
         } else {
             // No graph — fall back to parse-only (no rename/deletion detection)
@@ -215,18 +286,16 @@ export const prImpactCommand = new Command('pr-impact')
                 const diffFile = changedFiles.find(f => path.resolve(f.filePath) === result.file.path);
                 if (!diffFile) continue;
                 const changedLineSet = new Set(diffFile.changedLines);
-                for (const node of result.nodes) {
-                    if (node.type !== 'function' && node.type !== 'class') continue;
-                    const sl = 'startLine' in node ? (node as any).startLine as number : undefined;
-                    const el = 'endLine' in node ? (node as any).endLine as number : undefined;
-                    if (sl && el) {
-                        for (let l = sl; l <= el; l++) {
+                const tracked = extractTrackedNodes(result.nodes);
+                for (const tn of tracked) {
+                    if (tn.startLine > 0 && tn.endLine > 0) {
+                        for (let l = tn.startLine; l <= tn.endLine; l++) {
                             if (changedLineSet.has(l)) {
                                 allSymbols.push({
-                                    name: node.name,
-                                    type: node.type as 'function' | 'class',
+                                    name: tn.name,
+                                    type: tn.type,
                                     filePath: result.file.path,
-                                    id: node.id,
+                                    id: tn.id,
                                     changeKind: 'modified',
                                 });
                                 break;
@@ -259,12 +328,12 @@ export const prImpactCommand = new Command('pr-impact')
 
         for (const s of uniqueSymbols) {
             const relPath = path.relative(process.cwd(), s.filePath);
-            const icon = s.changeKind === 'disappeared' ? '💀' : s.changeKind === 'added' ? '✨' : s.type === 'function' ? '⚡' : '🏗️';
+            const icon = s.changeKind === 'disappeared' ? '💀' : s.changeKind === 'added' ? '✨' : symbolIcon(s.type);
             console.log(`     ${icon}  ${s.name}  (${relPath})`);
         }
 
         if (uniqueSymbols.length === 0) {
-            console.log('  No function/class changes detected in diff.\n');
+            console.log('  No symbol changes detected in diff.\n');
             if (graphAvailable) await graph.disconnect();
             return;
         }
@@ -381,7 +450,7 @@ function printReport(
     console.log(`  Changed: ${symbols.length} symbols | Direct callers: ${totalDirectCallers}${disappearedWithCallers > 0 ? ` (${disappearedWithCallers} from removed symbols)` : ''}`);
 
     for (const s of symbolStats) {
-        const icon = s.changeKind === 'disappeared' ? '💀' : s.changeKind === 'added' ? '✨' : s.type === 'function' ? '⚡' : '🏗️';
+        const icon = s.changeKind === 'disappeared' ? '💀' : s.changeKind === 'added' ? '✨' : symbolIcon(s.type as SymbolType);
         const relPath = path.relative(process.cwd(), s.filePath);
         const kindLabel = s.changeKind === 'disappeared' ? ' [REMOVED]' : s.changeKind === 'added' ? ' [NEW]' : '';
         console.log(`\n  ─── ${icon} ${s.name}${kindLabel} ───`);

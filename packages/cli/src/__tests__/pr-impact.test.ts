@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { diffFileSymbols, classifyImpacts, getRiskLevel, type ChangedSymbol, type ChangeKind } from '../commands/pr-impact.js';
 import type { FileSymbol } from '@nomik/graph';
-import type { GraphNode, FunctionNode, ClassNode } from '@nomik/core';
+import type { GraphNode, FunctionNode, ClassNode, VariableNode, RouteNode } from '@nomik/core';
 
 // ── Helpers ──
 
@@ -39,7 +39,31 @@ function makeCls(name: string, startLine: number, endLine: number, id?: string):
     };
 }
 
-function makeOldSymbol(name: string, type: 'Function' | 'Class' = 'Function', id?: string): FileSymbol {
+function makeVar(name: string, line: number, id?: string): VariableNode {
+    return {
+        id: id ?? `var-${name}`,
+        type: 'variable',
+        name,
+        filePath: '/test/file.ts',
+        line,
+        kind: 'const',
+        isExported: true,
+    };
+}
+
+function makeRoute(method: RouteNode['method'], routePath: string, handlerName: string, id?: string): RouteNode {
+    return {
+        id: id ?? `route-${method}-${routePath}`,
+        type: 'route',
+        method,
+        path: routePath,
+        handlerName,
+        filePath: '/test/file.ts',
+        middleware: [],
+    };
+}
+
+function makeOldSymbol(name: string, type: 'Function' | 'Class' | 'Variable' | 'Route' = 'Function', id?: string): FileSymbol {
     return {
         name,
         type,
@@ -200,26 +224,169 @@ describe('diffFileSymbols', () => {
         expect(result[0].id).toBe('graph-id-123');
     });
 
-    it('filters out non-function/class nodes from new parse', () => {
+    it('tracks variables alongside functions', () => {
         const oldSymbols: FileSymbol[] = [];
         const newNodes: GraphNode[] = [
-            {
-                id: 'var-1',
-                type: 'variable',
-                name: 'MY_CONST',
-                filePath: '/test/file.ts',
-                line: 1,
-                kind: 'const',
-                isExported: true,
-            },
+            makeVar('MY_CONST', 1),
             makeFn('realFunc', 5, 10),
         ];
         const changedLines = new Set([1, 5]);
 
         const result = diffFileSymbols(oldSymbols, newNodes, changedLines, filePath);
 
+        expect(result).toHaveLength(2);
+        const names = result.map(r => r.name);
+        expect(names).toContain('MY_CONST');
+        expect(names).toContain('realFunc');
+    });
+
+    it('detects variable rename (old const removed, new const added)', () => {
+        const oldSymbols: FileSymbol[] = [
+            makeOldSymbol('API_URL', 'Variable'),
+        ];
+        const newNodes: GraphNode[] = [
+            makeVar('BASE_URL', 3),
+        ];
+        const changedLines = new Set([3]);
+
+        const result = diffFileSymbols(oldSymbols, newNodes, changedLines, filePath);
+
+        const disappeared = result.filter(s => s.changeKind === 'disappeared');
+        const added = result.filter(s => s.changeKind === 'added');
+
+        expect(disappeared).toHaveLength(1);
+        expect(disappeared[0].name).toBe('API_URL');
+        expect(disappeared[0].type).toBe('variable');
+
+        expect(added).toHaveLength(1);
+        expect(added[0].name).toBe('BASE_URL');
+        expect(added[0].type).toBe('variable');
+    });
+
+    it('detects variable deletion', () => {
+        const oldSymbols: FileSymbol[] = [
+            makeOldSymbol('DEPRECATED_FLAG', 'Variable'),
+        ];
+        const newNodes: GraphNode[] = [];
+        const changedLines = new Set<number>();
+
+        const result = diffFileSymbols(oldSymbols, newNodes, changedLines, filePath);
+
         expect(result).toHaveLength(1);
-        expect(result[0].name).toBe('realFunc');
+        expect(result[0].changeKind).toBe('disappeared');
+        expect(result[0].name).toBe('DEPRECATED_FLAG');
+        expect(result[0].type).toBe('variable');
+    });
+
+    it('detects modified variable (same name, changed line)', () => {
+        const oldSymbols: FileSymbol[] = [
+            makeOldSymbol('CONFIG', 'Variable'),
+        ];
+        const newNodes: GraphNode[] = [
+            makeVar('CONFIG', 5),
+        ];
+        const changedLines = new Set([5]);
+
+        const result = diffFileSymbols(oldSymbols, newNodes, changedLines, filePath);
+
+        expect(result).toHaveLength(1);
+        expect(result[0].changeKind).toBe('modified');
+        expect(result[0].name).toBe('CONFIG');
+        expect(result[0].type).toBe('variable');
+    });
+
+    it('detects route path change (old route disappeared, new route added)', () => {
+        const oldSymbols: FileSymbol[] = [
+            makeOldSymbol('GET /users', 'Route'),
+        ];
+        const newNodes: GraphNode[] = [
+            makeRoute('GET', '/api/users', 'getUsers'),
+        ];
+        // Routes have no line info, so changed lines won't match — only disappeared detection works
+        const changedLines = new Set([1]);
+
+        const result = diffFileSymbols(oldSymbols, newNodes, changedLines, filePath);
+
+        const disappeared = result.filter(s => s.changeKind === 'disappeared');
+        expect(disappeared).toHaveLength(1);
+        expect(disappeared[0].name).toBe('GET /users');
+        expect(disappeared[0].type).toBe('route');
+    });
+
+    it('detects route deletion', () => {
+        const oldSymbols: FileSymbol[] = [
+            makeOldSymbol('DELETE /users/:id', 'Route'),
+        ];
+        const newNodes: GraphNode[] = [];
+        const changedLines = new Set<number>();
+
+        const result = diffFileSymbols(oldSymbols, newNodes, changedLines, filePath);
+
+        expect(result).toHaveLength(1);
+        expect(result[0].changeKind).toBe('disappeared');
+        expect(result[0].name).toBe('DELETE /users/:id');
+        expect(result[0].type).toBe('route');
+    });
+
+    it('handles mixed scenario: function + variable + route changes', () => {
+        const oldSymbols: FileSymbol[] = [
+            makeOldSymbol('helperFunc'),
+            makeOldSymbol('OLD_CONFIG', 'Variable'),
+            makeOldSymbol('POST /submit', 'Route'),
+        ];
+        const newNodes: GraphNode[] = [
+            makeFn('helperFunc', 1, 20),
+            makeVar('NEW_CONFIG', 25),
+            makeRoute('POST', '/api/submit', 'handleSubmit'),
+        ];
+        const changedLines = new Set([10, 25]);
+
+        const result = diffFileSymbols(oldSymbols, newNodes, changedLines, filePath);
+
+        const disappeared = result.filter(s => s.changeKind === 'disappeared');
+        const modified = result.filter(s => s.changeKind === 'modified');
+        const added = result.filter(s => s.changeKind === 'added');
+
+        // OLD_CONFIG disappeared, POST /submit disappeared
+        expect(disappeared).toHaveLength(2);
+        expect(disappeared.map(d => d.name).sort()).toEqual(['OLD_CONFIG', 'POST /submit']);
+
+        // helperFunc modified (lines 1-20 overlap changed line 10)
+        expect(modified).toHaveLength(1);
+        expect(modified[0].name).toBe('helperFunc');
+
+        // NEW_CONFIG added (line 25 overlaps), POST /api/submit NOT added (routes have no line info = sl 0)
+        expect(added).toHaveLength(1);
+        expect(added[0].name).toBe('NEW_CONFIG');
+    });
+
+    it('filters out non-tracked node types (file, module, db_table, etc.)', () => {
+        const oldSymbols: FileSymbol[] = [];
+        const newNodes: GraphNode[] = [
+            {
+                id: 'file-1',
+                type: 'file',
+                path: '/test/file.ts',
+                language: 'typescript',
+                hash: 'abc',
+                size: 100,
+                lastParsed: '2026-01-01',
+            },
+            {
+                id: 'mod-1',
+                type: 'module',
+                name: 'lodash',
+                path: 'lodash',
+                moduleType: 'external',
+            },
+            makeFn('trackedFunc', 5, 10),
+        ];
+        const changedLines = new Set([1, 5]);
+
+        const result = diffFileSymbols(oldSymbols, newNodes, changedLines, filePath);
+
+        expect(result).toHaveLength(1);
+        expect(result[0].name).toBe('trackedFunc');
     });
 });
 

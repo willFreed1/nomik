@@ -154,7 +154,9 @@ The current project is stored in `.nomik/project.json`.
 
 ### `nomik pr-impact`
 
-PR blast-radius analyzer. Parses git diff against a base branch, re-parses changed files to identify modified functions/classes, then queries the knowledge graph to find all downstream dependents. Outputs a risk report.
+PR blast-radius analyzer. Uses a **graph-vs-parse diff** to detect renamed, deleted, modified, and newly added symbols — then queries the knowledge graph to find all downstream dependents. Outputs a risk report.
+
+**Tracked symbol types**: functions, classes, variables (exported consts), and routes (API endpoints).
 
 ```bash
 # Auto-detects default branch (master or main)
@@ -172,39 +174,70 @@ nomik pr-impact --json
 
 **Workflow**:
 1. `git diff <base>` → list of changed files + changed line ranges
-2. Re-parse changed source files → detect which functions/classes were modified
-3. Query Neo4j graph for each changed symbol → blast radius (callers, dependents)
-4. Aggregate into risk report: `LOW` / `MEDIUM` / `HIGH`
+2. For each changed file: fetch **old symbols** from the graph, re-parse to get **new symbols**, diff to categorize:
+   - 💀 **Disappeared** — symbol in graph but not in new parse (rename or deletion) → guaranteed breaking if it has callers
+   - ⚡ **Modified** — same name in both, body overlaps changed lines
+   - ✨ **Added** — new symbol not in graph yet
+3. For **deleted files**: all graph symbols for that file are marked disappeared
+4. Query Neo4j by **symbol ID** (not name) for each non-added symbol → blast radius
+5. Aggregate into risk report: `LOW` / `MEDIUM` / `HIGH`
+   - Any disappeared symbol with callers → automatic `HIGH` (guaranteed breakage)
+
+**Tracked changes include**:
+- **Functions** — renames, signature changes, body modifications, deletions
+- **Classes** — renames, restructuring, deletions
+- **Variables** — exported `const` renames/deletions (e.g. `export const API_URL` → `BASE_URL`)
+- **Routes** — API endpoint path changes (e.g. `GET /users` → `GET /api/users`), handler renames, deletions
+
+**Stale graph warning**: If changed files have no graph data but contain symbols, `pr-impact` warns you to run `nomik scan` first.
 
 **Output example**:
 ```
 🔍 PR Impact Analysis (base: main)
-   5 files changed, 42 lines modified
-   3 parseable source files
+   3 files changed, 18 lines modified
+   2 parseable source files
 
-   2 changed symbols detected:
+   3 changed symbols detected:
+     💀 1 removed/renamed
+     ⚡ 1 modified
+     ✨ 1 added
 
-     ⚡  parseFile  (packages/parser/src/parser.ts)
-     ⚡  extractEnvVars  (packages/parser/src/extractors/env-vars.ts)
+     💀  isFunctionLike  (packages/parser/src/extractors/functions.ts)
+     ⚡  extractFunctions  (packages/parser/src/extractors/functions.ts)
+     ✨  isFunctionLikes  (packages/parser/src/extractors/functions.ts)
 
 ════════════════════════════════════════════════════════════
   📊 PR IMPACT REPORT
 ════════════════════════════════════════════════════════════
 
-  Risk Level: 🟡 MEDIUM
-  Changed Symbols: 2
-  Total Impacted: 8
+  🔴 HIGH — Careful review needed
+  Changed: 3 symbols | Direct callers: 1 (1 from removed symbols)
 
-  ─── ⚡ parseFile (6 dependents) ───
-      file: packages/parser/src/parser.ts
-      depth 1:
-        CALLS        Function   scanCommand  (packages/cli/src/commands/scan.ts)
-        CALLS        Function   watchHandler (packages/watcher/src/handler.ts)
-      depth 2:
-        DEPENDS_ON   File       scan.ts  (packages/cli/src/commands/scan.ts)
+  ─── 💀 isFunctionLike [REMOVED] ───
+      file: packages/parser/src/extractors/functions.ts
+      1 direct caller(s): 🚨 BREAKING
+        CALLS        extractFunctions  (packages/parser/src/extractors/functions.ts)
+
+  ─── ⚡ extractFunctions ───
+      file: packages/parser/src/extractors/functions.ts
+      ✅ No direct callers affected
+
+  ─── ✨ isFunctionLikes [NEW] ───
+      file: packages/parser/src/extractors/functions.ts
+      ✨ New symbol — no callers yet
 ```
 
-> **Note**: Works without Neo4j — falls back to diff-only analysis (shows changed symbols but no graph traversal).
+**Symbol icons**:
+| Icon | Meaning |
+|------|---------|
+| 💀 | Removed/renamed symbol |
+| ⚡ | Modified function |
+| 🏗️ | Modified class |
+| 📦 | Modified variable |
+| 🌐 | Modified route |
+| ✨ | New symbol |
+
+> **Note**: Requires a recent `nomik scan` — the graph must be up-to-date for rename/deletion detection to work. Falls back to parse-only mode (no rename detection) if Neo4j is unavailable.
 
 ---
 

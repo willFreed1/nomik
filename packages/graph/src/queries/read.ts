@@ -56,10 +56,10 @@ export async function impactAnalysis(
     }));
 }
 
-/** Return all functions and classes contained in a file, as known by the graph */
+/** Return all functions, classes, variables, and routes contained in a file, as known by the graph */
 export interface FileSymbol {
     name: string;
-    type: 'Function' | 'Class';
+    type: 'Function' | 'Class' | 'Variable' | 'Route';
     id: string;
     isExported: boolean;
     startLine: number;
@@ -76,15 +76,15 @@ export async function getFileSymbols(
         `
     MATCH (f:File)-[:CONTAINS]->(child)
     WHERE f.path = $filePath
-      AND (child:Function OR child:Class)
+      AND (child:Function OR child:Class OR child:Variable OR child:Route)
       ${projectFilter}
-    RETURN child.name as name,
+    RETURN COALESCE(child.name, child.handlerName, child.path) as name,
            labels(child)[0] as type,
            child.id as id,
            COALESCE(child.isExported, false) as isExported,
-           COALESCE(child.startLine, 0) as startLine,
-           COALESCE(child.endLine, 0) as endLine
-    ORDER BY child.startLine ASC
+           COALESCE(child.startLine, child.line, 0) as startLine,
+           COALESCE(child.endLine, child.line, 0) as endLine
+    ORDER BY startLine ASC
     `,
         { filePath, projectId },
     );
