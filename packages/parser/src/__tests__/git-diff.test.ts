@@ -1,7 +1,57 @@
 import { describe, it, expect } from 'vitest';
-import { findChangedFunctions, type FunctionLineRange } from '../git-diff';
+import { getGitDiff, findChangedFunctions, type FunctionLineRange } from '../git-diff';
+import { execSync } from 'node:child_process';
 
 describe('git-diff', () => {
+    describe('getGitDiff — direct mode (--since)', () => {
+        it('returns changes when diffing against HEAD~1 with direct=true', () => {
+            // Skip if repo has < 2 commits
+            let commitCount: number;
+            try {
+                commitCount = parseInt(execSync('git rev-list --count HEAD', { encoding: 'utf-8' }).trim(), 10);
+            } catch {
+                return; // Not a git repo, skip
+            }
+            if (commitCount < 2) return;
+
+            const result = getGitDiff('HEAD~1', undefined, true);
+            expect(result.totalChangedFiles).toBeGreaterThan(0);
+            expect(result.files.length).toBe(result.totalChangedFiles);
+            // Every file should have a valid status
+            for (const f of result.files) {
+                expect(['added', 'modified', 'deleted', 'renamed']).toContain(f.status);
+            }
+        });
+
+        it('direct=true produces same result as direct=false for HEAD~1 (linear history)', () => {
+            let commitCount: number;
+            try {
+                commitCount = parseInt(execSync('git rev-list --count HEAD', { encoding: 'utf-8' }).trim(), 10);
+            } catch {
+                return;
+            }
+            if (commitCount < 2) return;
+
+            // On a linear history, merge-base(HEAD~1, HEAD) === HEAD~1, so both should be identical
+            const direct = getGitDiff('HEAD~1', undefined, true);
+            const viaMergeBase = getGitDiff('HEAD~1', undefined, false);
+            expect(direct.totalChangedFiles).toBe(viaMergeBase.totalChangedFiles);
+            expect(direct.files.map(f => f.filePath).sort()).toEqual(viaMergeBase.files.map(f => f.filePath).sort());
+        });
+
+        it('returns baseBranch reflecting the ref passed in', () => {
+            // Use a commit SHA to verify baseBranch is set correctly
+            let sha: string;
+            try {
+                sha = execSync('git rev-parse HEAD', { encoding: 'utf-8' }).trim();
+            } catch {
+                return;
+            }
+            const result = getGitDiff(sha, undefined, true);
+            expect(result.baseBranch).toBe(sha);
+        });
+    });
+
     describe('findChangedFunctions', () => {
         const functions: FunctionLineRange[] = [
             { name: 'foo', id: 'id-foo', startLine: 1, endLine: 10 },

@@ -165,12 +165,24 @@ nomik pr-impact
 # Diff against a specific branch
 nomik pr-impact --base develop
 
+# Diff since a specific commit (no merge-base, direct diff)
+nomik pr-impact --since abc1234
+nomik pr-impact --since HEAD~3
+
 # Limit graph traversal depth
 nomik pr-impact --base main --depth 5
 
 # JSON output (for CI/CD pipelines)
 nomik pr-impact --json
 ```
+
+**Flags**:
+| Flag | Short | Description |
+|------|-------|-------------|
+| `--base <branch>` | `-b` | Base branch to diff against (auto-detects master/main) |
+| `--since <commit>` | `-s` | Diff since a specific commit SHA (direct diff, skips merge-base) |
+| `--depth <n>` | | Maximum graph traversal depth (default: 3) |
+| `--json` | `-j` | Output raw JSON (for CI/CD pipelines) |
 
 **Workflow**:
 1. `git diff <base>` → list of changed files + changed line ranges
@@ -238,6 +250,81 @@ nomik pr-impact --json
 | ✨ | New symbol |
 
 > **Note**: Requires a recent `nomik scan` — the graph must be up-to-date for rename/deletion detection to work. Falls back to parse-only mode (no rename detection) if Neo4j is unavailable.
+
+#### CI/CD Integration
+
+Use `--json` to integrate `pr-impact` into your CI pipeline and block merges on high-risk PRs.
+
+**GitHub Actions**:
+```yaml
+name: PR Impact Check
+on: [pull_request]
+jobs:
+  impact:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # Full history for git diff
+      - uses: pnpm/action-setup@v2
+      - run: pnpm install
+      - run: pnpm build
+      - name: Start Neo4j
+        run: docker compose up -d neo4j && sleep 5
+      - run: pnpm nomik scan .
+      - name: Run PR Impact
+        run: |
+          RESULT=$(pnpm nomik pr-impact --base ${{ github.event.pull_request.base.ref }} --json)
+          RISK=$(echo "$RESULT" | jq -r '.riskLevel')
+          echo "$RESULT" | jq .
+          if [ "$RISK" = "HIGH" ]; then
+            echo "::error::PR Impact is HIGH — review required"
+            exit 1
+          fi
+```
+
+**GitLab CI**:
+```yaml
+pr-impact:
+  stage: test
+  script:
+    - pnpm install && pnpm build
+    - docker compose up -d neo4j && sleep 5
+    - pnpm nomik scan .
+    - |
+      RESULT=$(pnpm nomik pr-impact --base $CI_MERGE_REQUEST_TARGET_BRANCH_NAME --json)
+      RISK=$(echo "$RESULT" | jq -r '.riskLevel')
+      echo "$RESULT" | jq .
+      if [ "$RISK" = "HIGH" ]; then
+        echo "PR Impact is HIGH — review required"
+        exit 1
+      fi
+  only:
+    - merge_requests
+```
+
+**JSON output schema** (from `--json`):
+```json
+{
+  "changedSymbols": 3,
+  "directCallers": 8,
+  "disappearedWithCallers": 1,
+  "riskLevel": "HIGH",
+  "symbols": [
+    {
+      "name": "isFunctionLike",
+      "type": "function",
+      "changeKind": "disappeared",
+      "filePath": "packages/parser/src/extractors/functions.ts",
+      "directCallers": 1,
+      "transitiveImports": 89,
+      "callers": [
+        { "name": "extractFunctions", "type": "Function", "filePath": "...", "depth": 1, "relationship": "CALLS" }
+      ]
+    }
+  ]
+}
+```
 
 ---
 

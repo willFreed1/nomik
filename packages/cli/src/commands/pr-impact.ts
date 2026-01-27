@@ -188,18 +188,23 @@ export function diffFileSymbols(
 export const prImpactCommand = new Command('pr-impact')
     .description('Analyze the blast radius of a PR (git diff → graph traversal → risk report)')
     .option('-b, --base <branch>', 'Base branch to diff against (auto-detects master/main)')
+    .option('-s, --since <commit>', 'Diff since a specific commit SHA (direct diff, no merge-base)')
     .option('--depth <n>', 'Maximum traversal depth', '3')
     .option('-j, --json', 'Output raw JSON')
-    .action(async (opts: { base?: string; depth: string; json?: boolean }) => {
+    .action(async (opts: { base?: string; since?: string; depth: string; json?: boolean }) => {
         const logger = createLogger({ level: 'info', pretty: true });
         setLogger(logger);
 
         // ── Step 1: Git diff ──
-        const base = opts.base ?? detectDefaultBranch();
-        const diff = getGitDiff(base);
+        // --since takes precedence: direct diff against commit (no merge-base)
+        // --base: diff against branch (uses merge-base for diverged branches)
+        const isDirect = !!opts.since;
+        const ref = opts.since ?? opts.base ?? detectDefaultBranch();
+        const diffLabel = isDirect ? `commit ${ref.slice(0, 8)}` : ref;
+        const diff = getGitDiff(ref, undefined, isDirect);
 
         if (diff.files.length === 0) {
-            console.log(`\n  No changes found against ${base}\n`);
+            console.log(`\n  No changes found against ${diffLabel}\n`);
             return;
         }
 
@@ -208,7 +213,7 @@ export const prImpactCommand = new Command('pr-impact')
         const changedFiles = diff.files.filter(f => f.status !== 'deleted' && isSupportedFile(f.filePath));
         const totalParseable = changedFiles.length + deletedFiles.length;
 
-        console.log(`\n🔍 PR Impact Analysis (base: ${base})`);
+        console.log(`\n🔍 PR Impact Analysis (${isDirect ? 'since' : 'base'}: ${diffLabel})`);
         console.log(`   ${diff.totalChangedFiles} files changed, ${diff.totalChangedLines} lines modified`);
         console.log(`   ${totalParseable} parseable source files${deletedFiles.length > 0 ? ` (${deletedFiles.length} deleted)` : ''}\n`);
 

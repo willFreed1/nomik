@@ -21,17 +21,26 @@ export interface DiffSummary {
 /**
  * Parse git diff between current HEAD and a base branch/commit.
  * Returns structured info about changed files and line ranges.
+ *
+ * @param base - Branch name or commit SHA to diff against
+ * @param cwd - Working directory for git commands
+ * @param direct - If true, skip merge-base resolution and diff directly against the ref.
+ *                 Use this for `--since <commit>` mode where you want exact commit-to-HEAD diff.
  */
-export function getGitDiff(base: string = 'main', cwd?: string): DiffSummary {
+export function getGitDiff(base: string = 'main', cwd?: string, direct?: boolean): DiffSummary {
     const opts: { encoding: 'utf-8'; stdio: ['pipe', 'pipe', 'pipe']; cwd?: string } = { encoding: 'utf-8', stdio: ['pipe', 'pipe', 'pipe'], cwd };
 
-    // Get merge-base to handle diverged branches
+    // Get merge-base to handle diverged branches (skip for direct/commit mode)
     let mergeBase: string;
-    try {
-        mergeBase = execSync(`git merge-base ${base} HEAD`, opts).trim();
-    } catch {
-        // If merge-base fails (e.g., no common ancestor), fall back to direct diff
+    if (direct) {
         mergeBase = base;
+    } else {
+        try {
+            mergeBase = execSync(`git merge-base ${base} HEAD`, opts).trim();
+        } catch {
+            // If merge-base fails (e.g., no common ancestor), fall back to direct diff
+            mergeBase = base;
+        }
     }
 
     // Get list of changed files with status
