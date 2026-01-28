@@ -2,6 +2,7 @@ import Parser from 'tree-sitter';
 import type { ExternalAPINode, CallsExternalEdge, GraphNode, GraphEdge } from '@nomik/core';
 import type { ImportInfo } from './imports.js';
 import { createNodeId } from '../utils.js';
+import { extractFirstStringArg, findEnclosingFunctionName } from './ast-utils.js';
 
 // ────────────────────────────────────────────────────────────────────────
 // External API Call Detection — FULLY DYNAMIC, import-aware
@@ -159,42 +160,6 @@ function parseAPICall(
     return null;
 }
 
-// ────────────────────────────────────────────────────────────────────────
-// AST helpers
-// ────────────────────────────────────────────────────────────────────────
-
-function extractFirstStringArg(callNode: Parser.SyntaxNode): string | null {
-    const args = callNode.childForFieldName('arguments');
-    if (!args) return null;
-    for (const child of args.children) {
-        if (child.type === 'string' || child.type === 'template_string') {
-            const text = child.text;
-            if (text.startsWith("'") || text.startsWith('"')) return text.slice(1, -1);
-            if (text.startsWith('`')) return text.slice(1, -1);
-            return text;
-        }
-    }
-    return null;
-}
-
-function findEnclosingFunctionName(node: Parser.SyntaxNode): string | null {
-    let current: Parser.SyntaxNode | null = node.parent;
-    while (current) {
-        if (current.type === 'function_declaration' || current.type === 'method_definition') {
-            const nameNode = current.childForFieldName('name');
-            if (nameNode) return nameNode.text;
-        }
-        if (current.type === 'variable_declarator') {
-            const nameNode = current.childForFieldName('name');
-            const valueNode = current.childForFieldName('value');
-            if (nameNode && valueNode && (valueNode.type === 'arrow_function' || valueNode.type === 'function')) {
-                return nameNode.text;
-            }
-        }
-        current = current.parent;
-    }
-    return null;
-}
 
 // ────────────────────────────────────────────────────────────────────────
 // Node & Edge creation from extracted API calls

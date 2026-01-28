@@ -1,5 +1,6 @@
 import type Parser from 'tree-sitter';
 import { isModuleScopeVariableDeclarator } from './functions.js';
+import { isModuleScopeObjectLiteral, resolveFunctionName } from './ast-utils.js';
 
 export interface CallInfo {
     callerName: string;
@@ -39,7 +40,7 @@ export function extractCalls(tree: Parser.Tree, _filePath: string): CallInfo[] {
         let paramNames = currentParamNames;
 
         if (isFunctionLike(node) && isTrackedFunctionScope(node)) {
-            const name = resolveFuncName(node);
+            const name = resolveFunctionName(node);
             if (name) funcName = name;
             paramNames = extractFunctionParamNames(node);
         }
@@ -359,34 +360,6 @@ function isTrackedFunctionScope(node: Parser.SyntaxNode): boolean {
         if (!isModuleScopeVariableDeclarator(node.parent)) return false;
     }
     return true;
-}
-
-function isModuleScopeObjectLiteral(node: Parser.SyntaxNode | null | undefined): boolean {
-    if (!node || node.type !== 'object') return false;
-    const declarator = node.parent;
-    if (!declarator || declarator.type !== 'variable_declarator') return false;
-    const declaration = declarator.parent;
-    if (!declaration) return false;
-    if (declaration.type !== 'lexical_declaration' && declaration.type !== 'variable_declaration') return false;
-    const container = declaration.parent;
-    if (!container) return false;
-    return container.type === 'program' || container.type === 'export_statement';
-}
-
-function resolveFuncName(node: Parser.SyntaxNode): string | null {
-    const nameNode = node.childForFieldName('name');
-    if (nameNode) return nameNode.text;
-
-    if (node.type === 'arrow_function' || node.type === 'function') {
-        const parent = node.parent;
-        if (parent?.type === 'variable_declarator') {
-            return parent.childForFieldName('name')?.text ?? null;
-        }
-        if (parent?.type === 'pair') {
-            return parent.childForFieldName('key')?.text ?? null;
-        }
-    }
-    return null;
 }
 
 function extractFunctionParamNames(node: Parser.SyntaxNode): Set<string> {

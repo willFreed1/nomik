@@ -6,6 +6,12 @@
         "noEmit": true
     },
     "include": [
-        "nomik.config.ts"
+        "nomik.config.ts",
+        "packages/*/src/**/*.ts"
+    ],
+    "exclude": [
+        "node_modules",
+        "dist",
+        "**/dist/**"
     ]
 }

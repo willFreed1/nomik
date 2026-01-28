@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { diffFileSymbols, classifyImpacts, getRiskLevel, type ChangedSymbol, type ChangeKind } from '../commands/pr-impact.js';
+import { diffFileSymbols, classifyImpacts, getRiskLevel } from '../commands/pr-impact.js';
 import type { FileSymbol } from '@nomik/graph';
 import type { GraphNode, FunctionNode, ClassNode, VariableNode, RouteNode } from '@nomik/core';
 
@@ -94,11 +94,11 @@ describe('diffFileSymbols', () => {
         const added = result.filter(s => s.changeKind === 'added');
 
         expect(disappeared).toHaveLength(1);
-        expect(disappeared[0].name).toBe('isFunctionLike');
-        expect(disappeared[0].id).toBe('old-isFunctionLike');
+        expect(disappeared[0]!.name).toBe('isFunctionLike');
+        expect(disappeared[0]!.id).toBe('old-isFunctionLike');
 
         expect(added).toHaveLength(1);
-        expect(added[0].name).toBe('isFunctionLikes');
+        expect(added[0]!.name).toBe('isFunctionLikes');
     });
 
     it('detects modified symbol (body changed, name same)', () => {
@@ -113,9 +113,9 @@ describe('diffFileSymbols', () => {
         const result = diffFileSymbols(oldSymbols, newNodes, changedLines, filePath);
 
         expect(result).toHaveLength(1);
-        expect(result[0].changeKind).toBe('modified');
-        expect(result[0].name).toBe('parseFile');
-        expect(result[0].id).toBe('old-parseFile');
+        expect(result[0]!.changeKind).toBe('modified');
+        expect(result[0]!.name).toBe('parseFile');
+        expect(result[0]!.id).toBe('old-parseFile');
     });
 
     it('ignores symbol in both old and new if no changed lines overlap', () => {
@@ -141,8 +141,8 @@ describe('diffFileSymbols', () => {
         const result = diffFileSymbols(oldSymbols, newNodes, changedLines, filePath);
 
         expect(result).toHaveLength(1);
-        expect(result[0].changeKind).toBe('added');
-        expect(result[0].name).toBe('brandNewFunc');
+        expect(result[0]!.changeKind).toBe('added');
+        expect(result[0]!.name).toBe('brandNewFunc');
     });
 
     it('handles deleted symbol (old function entirely removed)', () => {
@@ -155,8 +155,8 @@ describe('diffFileSymbols', () => {
         const result = diffFileSymbols(oldSymbols, newNodes, changedLines, filePath);
 
         expect(result).toHaveLength(1);
-        expect(result[0].changeKind).toBe('disappeared');
-        expect(result[0].name).toBe('removedFunc');
+        expect(result[0]!.changeKind).toBe('disappeared');
+        expect(result[0]!.name).toBe('removedFunc');
     });
 
     it('handles class rename', () => {
@@ -174,12 +174,12 @@ describe('diffFileSymbols', () => {
         const added = result.filter(s => s.changeKind === 'added');
 
         expect(disappeared).toHaveLength(1);
-        expect(disappeared[0].name).toBe('OldService');
-        expect(disappeared[0].type).toBe('class');
+        expect(disappeared[0]!.name).toBe('OldService');
+        expect(disappeared[0]!.type).toBe('class');
 
         expect(added).toHaveLength(1);
-        expect(added[0].name).toBe('NewService');
-        expect(added[0].type).toBe('class');
+        expect(added[0]!.name).toBe('NewService');
+        expect(added[0]!.type).toBe('class');
     });
 
     it('handles mixed scenario: one renamed, one modified, one added', () => {
@@ -200,13 +200,13 @@ describe('diffFileSymbols', () => {
         const added = result.filter(s => s.changeKind === 'added');
 
         expect(disappeared).toHaveLength(1);
-        expect(disappeared[0].name).toBe('funcB');
+        expect(disappeared[0]!.name).toBe('funcB');
 
         expect(modified).toHaveLength(1);
-        expect(modified[0].name).toBe('funcA');
+        expect(modified[0]!.name).toBe('funcA');
 
         expect(added).toHaveLength(1);
-        expect(added[0].name).toBe('funcC');
+        expect(added[0]!.name).toBe('funcC');
     });
 
     it('uses old symbol ID for modified symbols (graph lookup precision)', () => {
@@ -221,7 +221,7 @@ describe('diffFileSymbols', () => {
         const result = diffFileSymbols(oldSymbols, newNodes, changedLines, filePath);
 
         expect(result).toHaveLength(1);
-        expect(result[0].id).toBe('graph-id-123');
+        expect(result[0]!.id).toBe('graph-id-123');
     });
 
     it('tracks variables alongside functions', () => {
@@ -255,12 +255,12 @@ describe('diffFileSymbols', () => {
         const added = result.filter(s => s.changeKind === 'added');
 
         expect(disappeared).toHaveLength(1);
-        expect(disappeared[0].name).toBe('API_URL');
-        expect(disappeared[0].type).toBe('variable');
+        expect(disappeared[0]!.name).toBe('API_URL');
+        expect(disappeared[0]!.type).toBe('variable');
 
         expect(added).toHaveLength(1);
-        expect(added[0].name).toBe('BASE_URL');
-        expect(added[0].type).toBe('variable');
+        expect(added[0]!.name).toBe('BASE_URL');
+        expect(added[0]!.type).toBe('variable');
     });
 
     it('detects variable deletion', () => {
@@ -273,9 +273,9 @@ describe('diffFileSymbols', () => {
         const result = diffFileSymbols(oldSymbols, newNodes, changedLines, filePath);
 
         expect(result).toHaveLength(1);
-        expect(result[0].changeKind).toBe('disappeared');
-        expect(result[0].name).toBe('DEPRECATED_FLAG');
-        expect(result[0].type).toBe('variable');
+        expect(result[0]!.changeKind).toBe('disappeared');
+        expect(result[0]!.name).toBe('DEPRECATED_FLAG');
+        expect(result[0]!.type).toBe('variable');
     });
 
     it('detects modified variable (same name, changed line)', () => {
@@ -290,9 +290,9 @@ describe('diffFileSymbols', () => {
         const result = diffFileSymbols(oldSymbols, newNodes, changedLines, filePath);
 
         expect(result).toHaveLength(1);
-        expect(result[0].changeKind).toBe('modified');
-        expect(result[0].name).toBe('CONFIG');
-        expect(result[0].type).toBe('variable');
+        expect(result[0]!.changeKind).toBe('modified');
+        expect(result[0]!.name).toBe('CONFIG');
+        expect(result[0]!.type).toBe('variable');
     });
 
     it('detects route path change (old route disappeared, new route added)', () => {
@@ -309,8 +309,8 @@ describe('diffFileSymbols', () => {
 
         const disappeared = result.filter(s => s.changeKind === 'disappeared');
         expect(disappeared).toHaveLength(1);
-        expect(disappeared[0].name).toBe('GET /users');
-        expect(disappeared[0].type).toBe('route');
+        expect(disappeared[0]!.name).toBe('GET /users');
+        expect(disappeared[0]!.type).toBe('route');
     });
 
     it('detects route deletion', () => {
@@ -323,9 +323,9 @@ describe('diffFileSymbols', () => {
         const result = diffFileSymbols(oldSymbols, newNodes, changedLines, filePath);
 
         expect(result).toHaveLength(1);
-        expect(result[0].changeKind).toBe('disappeared');
-        expect(result[0].name).toBe('DELETE /users/:id');
-        expect(result[0].type).toBe('route');
+        expect(result[0]!.changeKind).toBe('disappeared');
+        expect(result[0]!.name).toBe('DELETE /users/:id');
+        expect(result[0]!.type).toBe('route');
     });
 
     it('handles mixed scenario: function + variable + route changes', () => {
@@ -353,11 +353,11 @@ describe('diffFileSymbols', () => {
 
         // helperFunc modified (lines 1-20 overlap changed line 10)
         expect(modified).toHaveLength(1);
-        expect(modified[0].name).toBe('helperFunc');
+        expect(modified[0]!.name).toBe('helperFunc');
 
         // NEW_CONFIG added (line 25 overlaps), POST /api/submit NOT added (routes have no line info = sl 0)
         expect(added).toHaveLength(1);
-        expect(added[0].name).toBe('NEW_CONFIG');
+        expect(added[0]!.name).toBe('NEW_CONFIG');
     });
 
     it('filters out non-tracked node types (file, module, db_table, etc.)', () => {
@@ -386,7 +386,7 @@ describe('diffFileSymbols', () => {
         const result = diffFileSymbols(oldSymbols, newNodes, changedLines, filePath);
 
         expect(result).toHaveLength(1);
-        expect(result[0].name).toBe('trackedFunc');
+        expect(result[0]!.name).toBe('trackedFunc');
     });
 });
 
@@ -409,9 +409,9 @@ describe('classifyImpacts', () => {
         ];
         const { direct, transitive } = classifyImpacts(impacts);
         expect(direct).toHaveLength(1);
-        expect(direct[0].name).toBe('importer');
+        expect(direct[0]!.name).toBe('importer');
         expect(transitive).toHaveLength(1);
-        expect(transitive[0].name).toBe('transitiveImporter');
+        expect(transitive[0]!.name).toBe('transitiveImporter');
     });
 
     it('classifies HANDLES/TRIGGERS/LISTENS_TO/EMITS as direct', () => {

@@ -1,6 +1,7 @@
 import type Parser from 'tree-sitter';
 import type { FunctionNode, ParameterInfo } from '@nomik/core';
 import { createNodeId, createBodyHash } from '../utils';
+import { isModuleScopeObjectLiteral, resolveFunctionName, extractDecorators } from './ast-utils.js';
 
 export function extractFunctions(tree: Parser.Tree, filePath: string): FunctionNode[] {
     const results: FunctionNode[] = [];
@@ -64,18 +65,6 @@ function isFunctionLike(node: Parser.SyntaxNode): boolean {
     return true;
 }
 
-function isModuleScopeObjectLiteral(node: Parser.SyntaxNode | null | undefined): boolean {
-    if (!node || node.type !== 'object') return false;
-    const declarator = node.parent;
-    if (!declarator || declarator.type !== 'variable_declarator') return false;
-    const declaration = declarator.parent;
-    if (!declaration) return false;
-    if (declaration.type !== 'lexical_declaration' && declaration.type !== 'variable_declaration') return false;
-    const container = declaration.parent;
-    if (!container) return false;
-    return container.type === 'program' || container.type === 'export_statement';
-}
-
 export function isModuleScopeVariableDeclarator(node: Parser.SyntaxNode | null | undefined): boolean {
     if (!node || node.type !== 'variable_declarator') return false;
     const declaration = node.parent;
@@ -115,23 +104,6 @@ function buildFunctionNode(node: Parser.SyntaxNode, filePath: string): FunctionN
         confidence: 1.0,
         bodyHash,
     };
-}
-
-function resolveFunctionName(node: Parser.SyntaxNode): string | null {
-    const nameNode = node.childForFieldName('name');
-    if (nameNode) return nameNode.text;
-
-    if (node.type === 'arrow_function' || node.type === 'function') {
-        const parent = node.parent;
-        if (parent?.type === 'variable_declarator') {
-            return parent.childForFieldName('name')?.text ?? null;
-        }
-        if (parent?.type === 'pair') {
-            return parent.childForFieldName('key')?.text ?? null;
-        }
-    }
-
-    return null;
 }
 
 function extractParameters(node: Parser.SyntaxNode): ParameterInfo[] {
@@ -192,16 +164,3 @@ function isNodeExported(node: Parser.SyntaxNode): boolean {
     return false;
 }
 
-function extractDecorators(node: Parser.SyntaxNode): string[] {
-    const decorators: string[] = [];
-    const parent = node.parent;
-    if (!parent) return decorators;
-
-    for (const child of parent.children) {
-        if (child === node) break;
-        if (child.type === 'decorator') {
-            decorators.push(child.text.replace(/^@/, ''));
-        }
-    }
-    return decorators;
-}

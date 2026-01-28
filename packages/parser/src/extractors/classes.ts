@@ -1,6 +1,7 @@
 import type Parser from 'tree-sitter';
 import type { ClassNode } from '@nomik/core';
 import { createNodeId, createBodyHash } from '../utils';
+import { extractDecorators } from './ast-utils.js';
 
 /** Extrait les classes, interfaces, types et enums comme noeuds Class */
 export function extractClasses(tree: Parser.Tree, filePath: string): ClassNode[] {
@@ -43,7 +44,7 @@ function buildClassNode(node: Parser.SyntaxNode, filePath: string): ClassNode | 
     const interfaces = extractInterfaces(node);
     const methods = extractMethodNames(node);
     const properties = extractPropertyNames(node);
-    const decorators = extractClassDecorators(node);
+    const decorators = extractDecorators(node);
     const isExported = node.parent?.type === 'export_statement';
     const isAbstract = node.type === 'abstract_class_declaration';
     const body = node.childForFieldName('body');
@@ -190,19 +191,6 @@ function extractPropertyNames(node: Parser.SyntaxNode): string[] {
         .filter((c: Parser.SyntaxNode) => c.type === 'public_field_definition' || c.type === 'property_definition')
         .map((c: Parser.SyntaxNode) => c.childForFieldName('name')?.text)
         .filter((n: string | undefined): n is string => n !== undefined);
-}
-
-function extractClassDecorators(node: Parser.SyntaxNode): string[] {
-    const decorators: string[] = [];
-    const parent = node.parent;
-    if (!parent) return decorators;
-    for (const child of parent.children) {
-        if (child === node) break;
-        if (child.type === 'decorator') {
-            decorators.push(child.text.replace(/^@/, ''));
-        }
-    }
-    return decorators;
 }
 
 function findChild(node: Parser.SyntaxNode, type: string): Parser.SyntaxNode | null {

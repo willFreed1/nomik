@@ -68,6 +68,7 @@ nomik/
 │   │   │   │   ├── registry.ts      # Automatic language detection
 │   │   │   │   └── index.ts
 │   │   │   ├── extractors/
+│   │   │   │   ├── ast-utils.ts      # Shared AST helpers (deduped)
 │   │   │   │   ├── functions.ts      # Function/method extraction
 │   │   │   │   ├── classes.ts        # Class/interface extraction
 │   │   │   │   ├── imports.ts        # Import/require extraction
