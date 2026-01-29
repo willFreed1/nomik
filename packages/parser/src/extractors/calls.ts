@@ -174,6 +174,57 @@ export function extractCalls(tree: Parser.Tree, _filePath: string): CallInfo[] {
             }
         }
 
+        // Bug 2: await import() + destructuring: const { foo } = await import('./module')
+        if (node.type === 'variable_declarator') {
+            const nameNode = node.childForFieldName('name');
+            const valueNode = node.childForFieldName('value');
+            if (nameNode?.type === 'object_pattern' && valueNode?.type === 'await_expression') {
+                const awaitChild = valueNode.namedChildren[0];
+                if (awaitChild?.type === 'call_expression') {
+                    const importFn = awaitChild.childForFieldName('function');
+                    if (importFn?.text === 'import') {
+                        const names = extractObjectPatternIdentifiers(nameNode);
+                        const caller = funcName ?? '__file__';
+                        for (const name of names) {
+                            if (!name || NOISE.has(name)) continue;
+                            push({
+                                callerName: caller,
+                                calleeName: name,
+                                line: nameNode.startPosition.row + 1,
+                                column: nameNode.startPosition.column,
+                                isMethodCall: false,
+                                isConstructor: false,
+                            });
+                        }
+                    }
+                }
+            }
+        }
+
+        // Bug 3: JSX element usage — <Foo /> or <Foo prop={...}>
+        // Only PascalCase names — lowercase = native HTML element (div, span, etc.)
+        if (node.type === 'jsx_self_closing_element' || node.type === 'jsx_opening_element') {
+            const nameNode = node.childForFieldName('name') ?? node.namedChildren[0];
+            if (nameNode) {
+                let jsxName: string | undefined;
+                if (nameNode.type === 'member_expression') {
+                    jsxName = nameNode.childForFieldName('property')?.text;
+                } else if (nameNode.type === 'identifier' || nameNode.type === 'jsx_identifier') {
+                    jsxName = nameNode.text;
+                }
+                if (jsxName && /^[A-Z]/.test(jsxName) && !NOISE.has(jsxName)) {
+                    push({
+                        callerName: funcName ?? '__file__',
+                        calleeName: jsxName,
+                        line: nameNode.startPosition.row + 1,
+                        column: nameNode.startPosition.column,
+                        isMethodCall: false,
+                        isConstructor: false,
+                    });
+                }
+            }
+        }
+
         for (const child of node.namedChildren) {
             visit(child, funcName, paramNames);
         }

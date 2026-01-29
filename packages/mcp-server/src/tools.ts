@@ -76,6 +76,7 @@ const TOOLS = {
         inputSchema: {
             type: 'object',
             properties: {
+                project: { type: 'string', description: 'Project name to scope the analysis to. Overrides NOMIK_PROJECT_ID env var.' },
                 includeDeadCode: { type: 'boolean', description: 'Include dead code analysis', default: false },
                 includeGodObjects: { type: 'boolean', description: 'Include god object detection', default: false },
                 godObjectThreshold: { type: 'number', description: 'Dependency count threshold for god objects', default: 15 },
@@ -290,30 +291,31 @@ export async function handleCallTool(graph: GraphService, name: string, args: an
         }
 
         case 'nm_health': {
-            const stats = await graph.getStats(projectId);
+            const effectiveProjectId = args.project ? String(args.project) : projectId;
+            const stats = await graph.getStats(effectiveProjectId);
             const result: any = { ...stats };
 
             if (args.includeDeadCode) {
-                result.deadCode = await graph.getDeadCode(projectId);
+                result.deadCode = await graph.getDeadCode(effectiveProjectId);
             }
             if (args.includeGodObjects) {
                 const threshold = Number(args.godObjectThreshold) || 15;
-                result.godObjects = await graph.getGodObjects(threshold, projectId);
+                result.godObjects = await graph.getGodObjects(threshold, effectiveProjectId);
             }
             if (args.includeGodFiles) {
                 const threshold = Number(args.godFileThreshold) || 10;
-                result.godFiles = await graph.getGodFiles(threshold, projectId);
+                result.godFiles = await graph.getGodFiles(threshold, effectiveProjectId);
             }
             if (args.includeDuplicates) {
-                result.duplicates = await graph.getDuplicates(projectId);
+                result.duplicates = await graph.getDuplicates(effectiveProjectId);
             }
 
-            const edgeFilter = projectId ? '{projectId: $projectId}' : '';
+            const edgeFilter = effectiveProjectId ? '{projectId: $projectId}' : '';
             const edgeCounts = await graph.executeQuery<{ type: string; count: number }>(
                 `MATCH ()-[r ${edgeFilter}]->()
                  RETURN type(r) as type, count(r) as count
                  ORDER BY count DESC`,
-                { projectId }
+                { projectId: effectiveProjectId }
             );
             result.edgeTypes = edgeCounts;
 

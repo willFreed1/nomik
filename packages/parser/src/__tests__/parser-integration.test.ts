@@ -964,5 +964,204 @@ export function handleNewMessage(msg: any) {
             fs.rmSync(tmpDir, { recursive: true, force: true });
         }
     });
-});
 
+    it('resolves namespace-imported callback references (import * as X, router.get(path, X.method))', async () => {
+        const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'nomik-parser-'));
+        try {
+            const controllerPath = path.join(tmpDir, 'controllers', 'userController.ts');
+            const routesPath = path.join(tmpDir, 'routes', 'userRoutes.ts');
+
+            writeFile(controllerPath, `
+export async function getProfile(req: any, res: any) {
+  res.json({ id: 1 });
+}
+export async function deleteProfile(req: any, res: any) {
+  res.json({ deleted: true });
+}
+`);
+            writeFile(routesPath, `
+import * as userController from '../controllers/userController';
+const router = { get: (..._args: any[]) => {}, delete: (..._args: any[]) => {} };
+router.get('/profile', userController.getProfile);
+router.delete('/profile', userController.deleteProfile);
+`);
+
+            const engine = createParserEngine();
+            const results = await engine.parseFiles([controllerPath, routesPath]);
+
+            const controllerResult = results.find(r => r.file.path === path.resolve(controllerPath));
+            const routesResult = results.find(r => r.file.path === path.resolve(routesPath));
+            expect(controllerResult).toBeDefined();
+            expect(routesResult).toBeDefined();
+
+            const getProfileFn = controllerResult!.nodes.find(
+                n => n.type === 'function' && n.name === 'getProfile',
+            );
+            const deleteProfileFn = controllerResult!.nodes.find(
+                n => n.type === 'function' && n.name === 'deleteProfile',
+            );
+            expect(getProfileFn).toBeDefined();
+            expect(deleteProfileFn).toBeDefined();
+
+            // CALLS edge from routes file → getProfile via namespace callback
+            const callGetProfile = routesResult!.edges.find(
+                e => e.type === 'CALLS' && e.targetId === getProfileFn!.id,
+            );
+            expect(callGetProfile).toBeDefined();
+
+            // CALLS edge from routes file → deleteProfile via namespace callback
+            const callDeleteProfile = routesResult!.edges.find(
+                e => e.type === 'CALLS' && e.targetId === deleteProfileFn!.id,
+            );
+            expect(callDeleteProfile).toBeDefined();
+        } finally {
+            fs.rmSync(tmpDir, { recursive: true, force: true });
+        }
+    });
+
+    it('resolves await import() destructured function as CALLS edge', async () => {
+        const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'nomik-parser-'));
+        try {
+            const socketPath = path.join(tmpDir, 'lib', 'socket.ts');
+            const servicePath = path.join(tmpDir, 'services', 'conversationService.ts');
+
+            writeFile(socketPath, `
+export async function createConversation(recipientId: string, msg: string) {
+  return { id: '1' };
+}
+`);
+            writeFile(servicePath, `
+export const startConversation = async (recipientId: string, msg: string) => {
+  const { createConversation: wsCreate } = await import('../lib/socket');
+  const result = await wsCreate(recipientId, msg);
+  return result;
+};
+`);
+
+            const engine = createParserEngine();
+            const results = await engine.parseFiles([socketPath, servicePath]);
+
+            const socketResult = results.find(r => r.file.path === path.resolve(socketPath));
+            const serviceResult = results.find(r => r.file.path === path.resolve(servicePath));
+            expect(socketResult).toBeDefined();
+            expect(serviceResult).toBeDefined();
+
+            const createFn = socketResult!.nodes.find(
+                n => n.type === 'function' && n.name === 'createConversation',
+            );
+            const startFn = serviceResult!.nodes.find(
+                n => n.type === 'function' && n.name === 'startConversation',
+            );
+            expect(createFn).toBeDefined();
+            expect(startFn).toBeDefined();
+
+            // The await import destructuring should emit a call with calleeName 'wsCreate'
+            // which is the local alias for createConversation
+            const callInfo = serviceResult!.calls.find(
+                c => c.calleeName === 'wsCreate',
+            );
+            expect(callInfo).toBeDefined();
+        } finally {
+            fs.rmSync(tmpDir, { recursive: true, force: true });
+        }
+    });
+
+    it('tracks JSX <Component /> usage as CALLS edges', async () => {
+        const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'nomik-parser-'));
+        try {
+            const componentPath = path.join(tmpDir, 'utils', 'mapReactUtils.tsx');
+            const pagePath = path.join(tmpDir, 'components', 'ListingsMap.tsx');
+
+            writeFile(componentPath, `
+export const MapListingPopup: React.FC<any> = ({ listing }) => {
+  return listing.title;
+};
+export const DrawingModeHandler: React.FC<any> = ({ isDrawing }) => {
+  return isDrawing;
+};
+`);
+            writeFile(pagePath, `
+import { MapListingPopup, DrawingModeHandler } from '../utils/mapReactUtils';
+export function ListingsMap() {
+  return (
+    <div>
+      <MapListingPopup listing={{}} />
+      <DrawingModeHandler isDrawing={false} />
+    </div>
+  );
+}
+`);
+
+            const engine = createParserEngine();
+            const results = await engine.parseFiles([componentPath, pagePath]);
+
+            const componentResult = results.find(r => r.file.path === path.resolve(componentPath));
+            const pageResult = results.find(r => r.file.path === path.resolve(pagePath));
+            expect(componentResult).toBeDefined();
+            expect(pageResult).toBeDefined();
+
+            // JSX call infos should be extracted for PascalCase components
+            const jsxCalls = pageResult!.calls.filter(
+                c => c.calleeName === 'MapListingPopup' || c.calleeName === 'DrawingModeHandler',
+            );
+            expect(jsxCalls.length).toBeGreaterThanOrEqual(2);
+
+            // Verify they are attributed to the ListingsMap function
+            const listingsMapCalls = jsxCalls.filter(c => c.callerName === 'ListingsMap');
+            expect(listingsMapCalls.length).toBeGreaterThanOrEqual(2);
+        } finally {
+            fs.rmSync(tmpDir, { recursive: true, force: true });
+        }
+    });
+
+    it('tracks calls from export default function pages (Next.js pattern)', async () => {
+        const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'nomik-parser-'));
+        try {
+            const servicePath = path.join(tmpDir, 'services', 'listingService.ts');
+            const pagePath = path.join(tmpDir, 'app', 'page.tsx');
+
+            writeFile(servicePath, `
+export async function getFeaturedListings(limit: number) {
+  return [];
+}
+`);
+            writeFile(pagePath, `
+import { getFeaturedListings } from '../services/listingService';
+export default async function Home() {
+  const listings = await getFeaturedListings(8);
+  return listings;
+}
+`);
+
+            const engine = createParserEngine();
+            const results = await engine.parseFiles([servicePath, pagePath]);
+
+            const serviceResult = results.find(r => r.file.path === path.resolve(servicePath));
+            const pageResult = results.find(r => r.file.path === path.resolve(pagePath));
+            expect(serviceResult).toBeDefined();
+            expect(pageResult).toBeDefined();
+
+            const featuredFn = serviceResult!.nodes.find(
+                n => n.type === 'function' && n.name === 'getFeaturedListings',
+            );
+            const homeFn = pageResult!.nodes.find(
+                n => n.type === 'function' && n.name === 'Home',
+            );
+            expect(featuredFn).toBeDefined();
+            expect(homeFn).toBeDefined();
+
+            // Home must be exported
+            expect((homeFn as any).isExported).toBe(true);
+
+            // CALLS edge: Home → getFeaturedListings
+            const callEdge = pageResult!.edges.find(
+                e => e.type === 'CALLS' &&
+                    e.sourceId === homeFn!.id &&
+                    e.targetId === featuredFn!.id,
+            );
+            expect(callEdge).toBeDefined();
+        } finally {
+            fs.rmSync(tmpDir, { recursive: true, force: true });
+        }
+    });
+});
