@@ -1164,4 +1164,153 @@ export default async function Home() {
             fs.rmSync(tmpDir, { recursive: true, force: true });
         }
     });
+
+    it('FileNode includes lineCount property (not byte size)', async () => {
+        const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'nomik-parser-'));
+        try {
+            const filePath = path.join(tmpDir, 'counter.ts');
+            writeFile(filePath, `export function count() {
+  const a = 1;
+  const b = 2;
+  return a + b;
+}
+`);
+            const engine = createParserEngine();
+            const results = await engine.parseFiles([filePath]);
+            const result = results[0]!;
+
+            const fileNode = result.file;
+            expect(fileNode.lineCount).toBeDefined();
+            expect(fileNode.lineCount).toBe(6); // 5 code lines + 1 trailing newline
+            // lineCount must NOT equal byte size
+            expect(fileNode.lineCount).not.toBe(fileNode.size);
+        } finally {
+            fs.rmSync(tmpDir, { recursive: true, force: true });
+        }
+    });
+
+    it('extracts Supabase .from().insert().select() as INSERT not SELECT', async () => {
+        const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'nomik-parser-'));
+        try {
+            const filePath = path.join(tmpDir, 'messageService.ts');
+            writeFile(filePath, `
+import { supabaseAdmin } from '../config/supabase';
+
+export async function createMessage(conversationId: string, content: string) {
+  const { data, error } = await supabaseAdmin
+    .from('messages')
+    .insert({ conversation_id: conversationId, content })
+    .select();
+  return data;
+}
+
+export async function getMessages(conversationId: string) {
+  const { data } = await supabaseAdmin
+    .from('messages')
+    .select('*')
+    .eq('conversation_id', conversationId);
+  return data;
+}
+`);
+            const engine = createParserEngine();
+            const results = await engine.parseFiles([filePath]);
+            const result = results[0]!;
+
+            // Should find db_table nodes for 'messages'
+            const dbTableNodes = result.nodes.filter(n => n.type === 'db_table');
+            expect(dbTableNodes.length).toBeGreaterThanOrEqual(1);
+            expect(dbTableNodes.some(n => (n as any).name === 'messages')).toBe(true);
+
+            // Should have WRITES_TO edge (INSERT), not just READS_FROM
+            const writesTo = result.edges.filter(e => e.type === 'WRITES_TO');
+            expect(writesTo.length).toBeGreaterThanOrEqual(1);
+
+            // Should also have READS_FROM edge for the select-only query
+            const readsFrom = result.edges.filter(e => e.type === 'READS_FROM');
+            expect(readsFrom.length).toBeGreaterThanOrEqual(1);
+        } finally {
+            fs.rmSync(tmpDir, { recursive: true, force: true });
+        }
+    });
+
+    it('resolves route handler names for identifier, member_expression, and call_expression patterns', async () => {
+        const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'nomik-parser-'));
+        try {
+            const filePath = path.join(tmpDir, 'routes.ts');
+            writeFile(filePath, `
+const router = { get: (..._a: any[]) => {}, post: (..._a: any[]) => {}, delete: (..._a: any[]) => {} };
+
+function getUsers(_req: any, _res: any) {}
+const ctrl = { deleteUser: (_req: any, _res: any) => {} };
+
+router.get('/users', getUsers);
+router.delete('/users/:id', ctrl.deleteUser);
+router.post('/users', (_req: any, _res: any) => {});
+`);
+            const engine = createParserEngine();
+            const results = await engine.parseFiles([filePath]);
+            const result = results[0]!;
+
+            const routes = result.nodes.filter(n => n.type === 'route');
+            expect(routes.length).toBe(3);
+
+            const getRoute = routes.find((r: any) => r.method === 'GET');
+            expect((getRoute as any).handlerName).toBe('getUsers');
+
+            const deleteRoute = routes.find((r: any) => r.method === 'DELETE');
+            expect((deleteRoute as any).handlerName).toBe('ctrl.deleteUser');
+
+            // Inline anonymous handler should fallback to 'anonymous'
+            const postRoute = routes.find((r: any) => r.method === 'POST');
+            expect((postRoute as any).handlerName).toBe('anonymous');
+        } finally {
+            fs.rmSync(tmpDir, { recursive: true, force: true });
+        }
+    });
+
+    it('bodyHash differs for functions with different bodies even if same structure', async () => {
+        const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'nomik-parser-'));
+        try {
+            const filePath = path.join(tmpDir, 'utils.ts');
+            writeFile(filePath, `
+export function add(a: number, b: number) {
+  return a + b;
+}
+
+export function subtract(a: number, b: number) {
+  return a - b;
+}
+
+export function redirectA() {
+  return redirect('/a');
+}
+
+export function redirectB() {
+  return redirect('/b');
+}
+`);
+            const engine = createParserEngine();
+            const results = await engine.parseFiles([filePath]);
+            const result = results[0]!;
+
+            const fns = result.nodes.filter(n => n.type === 'function') as any[];
+            const add = fns.find(f => f.name === 'add');
+            const sub = fns.find(f => f.name === 'subtract');
+            const redA = fns.find(f => f.name === 'redirectA');
+            const redB = fns.find(f => f.name === 'redirectB');
+
+            expect(add).toBeDefined();
+            expect(sub).toBeDefined();
+
+            // Different bodies should have different hashes
+            expect(add.bodyHash).not.toBe(sub.bodyHash);
+
+            // Similar one-liner redirects have different bodies (different strings)
+            expect(redA).toBeDefined();
+            expect(redB).toBeDefined();
+            expect(redA.bodyHash).not.toBe(redB.bodyHash);
+        } finally {
+            fs.rmSync(tmpDir, { recursive: true, force: true });
+        }
+    });
 });

@@ -24,6 +24,7 @@ export function parseMarkdown(filePath: string, content: string): {
         language: 'markdown',
         hash,
         size: Buffer.byteLength(content, 'utf-8'),
+        lineCount: content.split('\n').length,
         lastParsed: new Date().toISOString(),
     };
 

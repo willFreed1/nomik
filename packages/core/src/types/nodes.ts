@@ -5,6 +5,7 @@ export interface FileNode {
     language: string;
     hash: string;
     size: number;
+    lineCount: number;
     lastParsed: string;
 }
 

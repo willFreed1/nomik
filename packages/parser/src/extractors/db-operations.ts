@@ -191,10 +191,12 @@ function parseDBOperation(
 
     // ── Pattern 2b: Supabase-style via call_expression obj ──
     // supabase.from('users').select() — obj is call_expression `supabase.from('users')`
+    // Also handles chained writes: supabase.from('users').insert({}).select()
     if (obj.type === 'call_expression') {
         const fromTable = extractFromChain(obj);
         if (fromTable) {
-            const operation = classifyQBMethod(methodName);
+            // Walk the chain to find the best operation (write > read)
+            const operation = classifyChainOperation(callNode) ?? classifyQBMethod(methodName);
             if (operation) {
                 return {
                     callerName: findEnclosingFunctionName(callNode) ?? '__file__',
@@ -342,6 +344,32 @@ function classifyQBMethod(method: string): DBOperationInfo['operation'] | null {
     if (QB_UPDATE_METHODS.has(method)) return 'UPDATE';
     if (QB_DELETE_METHODS.has(method)) return 'DELETE';
     return null;
+}
+
+/** Walk the method chain from outer call inward, return the first write operation if any.
+ *  For: supabase.from('table').insert({}).select() → returns 'INSERT' (not 'SELECT')
+ */
+function classifyChainOperation(callNode: Parser.SyntaxNode): DBOperationInfo['operation'] | null {
+    let writeOp: DBOperationInfo['operation'] | null = null;
+    let readOp: DBOperationInfo['operation'] | null = null;
+    let current: Parser.SyntaxNode | null = callNode;
+    while (current && current.type === 'call_expression') {
+        const fn = current.childForFieldName('function');
+        if (!fn || fn.type !== 'member_expression') break;
+        const prop = fn.childForFieldName('property');
+        if (!prop) break;
+        const method = prop.text;
+        if (method === 'from') break;
+        const op = classifyQBMethod(method);
+        if (op && (op === 'INSERT' || op === 'UPDATE' || op === 'DELETE')) {
+            writeOp = op;
+        } else if (op && !readOp) {
+            readOp = op;
+        }
+        // Descend into the object (inner call)
+        current = fn.childForFieldName('object') ?? null;
+    }
+    return writeOp ?? readOp;
 }
 
 function extractFromChain(node: Parser.SyntaxNode): string | null {

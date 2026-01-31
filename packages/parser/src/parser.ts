@@ -102,6 +102,7 @@ export function createParserEngine(): ParserEngine {
                 language,
                 hash: createFileHash(content),
                 size: Buffer.byteLength(content, 'utf-8'),
+                lineCount: content.split('\n').length,
                 lastParsed: new Date().toISOString(),
             };
             const tables = language === 'sql'
@@ -126,6 +127,7 @@ export function createParserEngine(): ParserEngine {
             language,
             hash,
             size: Buffer.byteLength(content, 'utf-8'),
+            lineCount: content.split('\n').length,
             lastParsed: new Date().toISOString(),
         };
 

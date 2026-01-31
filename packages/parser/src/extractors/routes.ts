@@ -102,7 +102,21 @@ function resolveHandlerName(node: Parser.SyntaxNode | undefined): string | null 
     if (node.type === 'identifier') return node.text;
     if (node.type === 'member_expression') return node.text;
     if (node.type === 'arrow_function' || node.type === 'function') {
-        return node.childForFieldName('name')?.text ?? null;
+        // Named function expression: function myHandler(req, res) { ... }
+        const name = node.childForFieldName('name')?.text;
+        if (name) return name;
+        // Check if this arrow/function is assigned to a variable: const handler = async (req, res) => {}
+        const parent = node.parent;
+        if (parent?.type === 'variable_declarator') {
+            return parent.childForFieldName('name')?.text ?? null;
+        }
+        return null;
+    }
+    // Async wrapper: the node might be an await_expression wrapping a call
+    if (node.type === 'call_expression') {
+        const fn = node.childForFieldName('function');
+        if (fn?.type === 'identifier') return fn.text;
+        if (fn?.type === 'member_expression') return fn.text;
     }
     return null;
 }

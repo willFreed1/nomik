@@ -18,6 +18,7 @@ const TOOLS = {
             properties: {
                 query: { type: 'string', description: 'Search term (name of symbol)' },
                 limit: { type: 'number', description: 'Max results', default: 10 },
+                project: { type: 'string', description: 'Project name to scope the search to. Overrides NOMIK_PROJECT_ID env var.' },
             },
             required: ['query'],
         },
@@ -31,6 +32,7 @@ const TOOLS = {
                 table: { type: 'string', description: 'Table name (e.g. users)' },
                 column: { type: 'string', description: 'Optional column name (e.g. email)' },
                 limit: { type: 'number', description: 'Max result rows per reads/writes list', default: 100 },
+                project: { type: 'string', description: 'Project name to scope the analysis to. Overrides NOMIK_PROJECT_ID env var.' },
             },
             required: ['table'],
         },
@@ -43,6 +45,7 @@ const TOOLS = {
             properties: {
                 symbolId: { type: 'string', description: 'The unique ID of the node (from search)' },
                 depth: { type: 'number', description: 'Traversal depth', default: 3 },
+                project: { type: 'string', description: 'Project name to scope the analysis to. Overrides NOMIK_PROJECT_ID env var.' },
             },
             required: ['symbolId'],
         },
@@ -55,6 +58,7 @@ const TOOLS = {
             properties: {
                 from: { type: 'string', description: 'Source symbol name' },
                 to: { type: 'string', description: 'Target symbol name' },
+                project: { type: 'string', description: 'Project name to scope the trace to. Overrides NOMIK_PROJECT_ID env var.' },
             },
             required: ['from', 'to'],
         },
@@ -66,6 +70,7 @@ const TOOLS = {
             type: 'object',
             properties: {
                 name: { type: 'string', description: 'Name of the file (path) or function/class name' },
+                project: { type: 'string', description: 'Project name to scope the context to. Overrides NOMIK_PROJECT_ID env var.' },
             },
             required: ['name'],
         },
@@ -94,6 +99,7 @@ const TOOLS = {
             properties: {
                 from: { type: 'string', description: 'Source node name' },
                 to: { type: 'string', description: 'Target node name' },
+                project: { type: 'string', description: 'Project name to scope the path search to. Overrides NOMIK_PROJECT_ID env var.' },
             },
             required: ['from', 'to'],
         },
@@ -106,6 +112,7 @@ const TOOLS = {
             properties: {
                 since: { type: 'string', description: 'ISO date string (e.g. 2026-02-05T00:00:00Z). Default: 24h ago' },
                 limit: { type: 'number', description: 'Max results', default: 30 },
+                project: { type: 'string', description: 'Project name to scope the changes to. Overrides NOMIK_PROJECT_ID env var.' },
             },
         },
     },
@@ -134,12 +141,17 @@ function extractNodeData(record: any): Record<string, unknown> {
 
 export async function handleCallTool(graph: GraphService, name: string, args: any) {
     const projectId = getProjectId();
+    /** Resolve effective project: explicit arg > env var */
+    const eid = (a: any) => a.project ? String(a.project) : projectId;
 
     switch (name) {
         case 'nm_search': {
+            const effectiveProjectId = eid(args);
             const query = String(args.query ?? '');
             const limit = Number(args.limit) || 10;
-            const projectFilter = projectId ? 'AND n.projectId = $projectId' : '';
+            const projectFilter = effectiveProjectId ? 'AND n.projectId = $projectId' : '';
+            // Normalize path separators for cross-platform search
+            const queryAlt = query.includes('/') ? query.replace(/\//g, '\\') : query.includes('\\') ? query.replace(/\\\\/g, '/') : null;
 
             const results = await graph.executeQuery<{ n: any }>(
                 `MATCH (n)
@@ -149,12 +161,13 @@ export async function handleCallTool(graph: GraphService, name: string, args: an
                      OR (n.name IS NOT NULL AND toLower(n.name) CONTAINS toLower($query))
                      OR (n.path IS NOT NULL AND toLower(n.path) CONTAINS toLower($query))
                      OR (n.id IS NOT NULL AND n.id CONTAINS $query)
+                     ${queryAlt ? 'OR (n.path IS NOT NULL AND toLower(n.path) CONTAINS toLower($queryAlt))' : ''}
                    )
                    ${projectFilter}
                  RETURN n
                  ORDER BY CASE WHEN n.name IS NOT NULL THEN n.name ELSE n.path END
                  LIMIT toInteger($limit)`,
-                { query, limit, labels: KNOWN_LABELS, projectId }
+                { query, queryAlt, limit, labels: KNOWN_LABELS, projectId: effectiveProjectId }
             );
 
             const nodes = results.map(extractNodeData);
@@ -162,31 +175,37 @@ export async function handleCallTool(graph: GraphService, name: string, args: an
         }
 
         case 'nm_impact': {
+            const effectiveProjectId = eid(args);
             const symId = String(args.symbolId);
             const depth = Number(args.depth) || 3;
-            const impacts = await graph.getImpact(symId, depth, projectId);
+            const impacts = await graph.getImpact(symId, depth, effectiveProjectId);
             return [{ type: 'text', text: JSON.stringify(impacts, null, 2) }];
         }
 
         case 'nm_trace': {
+            const effectiveProjectId = eid(args);
             const from = String(args.from);
             const to = String(args.to);
-            const paths = await graph.getDependencyChain(from, to, projectId);
+            const paths = await graph.getDependencyChain(from, to, effectiveProjectId);
             return [{ type: 'text', text: JSON.stringify(paths, null, 2) }];
         }
 
         case 'nm_context': {
+            const effectiveProjectId = eid(args);
             const target = String(args.name);
-            const projectFilter = projectId ? 'AND n.projectId = $projectId' : '';
+            const projectFilter = effectiveProjectId ? 'AND n.projectId = $projectId' : '';
             const preferFile = /\.[a-zA-Z0-9]+$/.test(target);
+            // Normalize path separators for cross-platform lookup
+            const targetAlt = target.includes('/') ? target.replace(/\//g, '\\') : target.includes('\\') ? target.replace(/\\\\/g, '/') : null;
             const nodeResults = await graph.executeQuery<any>(
                 `MATCH (n)
-                 WHERE (n.name = $target OR n.path = $target OR n.path CONTAINS $target) ${projectFilter}
+                 WHERE (n.name = $target OR n.path = $target OR n.path CONTAINS $target
+                        ${targetAlt ? 'OR n.path = $targetAlt OR n.path CONTAINS $targetAlt' : ''}) ${projectFilter}
                  WITH n,
                       CASE
-                        WHEN n.path = $target THEN 3
+                        WHEN n.path = $target OR n.path = $targetAlt THEN 3
                         WHEN n.name = $target THEN 2
-                        WHEN n.path CONTAINS $target THEN 1
+                        WHEN n.path CONTAINS $target OR ($targetAlt IS NOT NULL AND n.path CONTAINS $targetAlt) THEN 1
                         ELSE 0
                       END as rank
                  RETURN n
@@ -194,7 +213,7 @@ export async function handleCallTool(graph: GraphService, name: string, args: an
                           CASE WHEN $preferFile AND 'File' IN labels(n) THEN 1 ELSE 0 END DESC,
                           size(COALESCE(n.path, n.name, '')) ASC
                  LIMIT 1`,
-                { target, projectId, preferFile }
+                { target, targetAlt, projectId: effectiveProjectId, preferFile }
             );
 
             if (nodeResults.length === 0) {
@@ -323,20 +342,22 @@ export async function handleCallTool(graph: GraphService, name: string, args: an
         }
 
         case 'nm_db_impact': {
+            const effectiveProjectId = eid(args);
             const table = String(args.table ?? '').trim();
             const column = args.column ? String(args.column).trim() : undefined;
             const limit = Number(args.limit) || 100;
             if (!table) {
                 return [{ type: 'text', text: JSON.stringify({ error: 'table is required' }) }];
             }
-            const impact = await graph.getDBImpact(table, column, limit, projectId);
+            const impact = await graph.getDBImpact(table, column, limit, effectiveProjectId);
             return [{ type: 'text', text: JSON.stringify(impact, null, 2) }];
         }
 
         case 'nm_path': {
+            const effectiveProjectId = eid(args);
             const from = String(args.from);
             const to = String(args.to);
-            const detailed = await graph.getDetailedPath(from, to, projectId);
+            const detailed = await graph.getDetailedPath(from, to, effectiveProjectId);
             if (detailed.length === 0) {
                 return [{ type: 'text', text: JSON.stringify({ error: 'No path found', from, to }) }];
             }
@@ -344,9 +365,10 @@ export async function handleCallTool(graph: GraphService, name: string, args: an
         }
 
         case 'nm_changes': {
+            const effectiveProjectId = eid(args);
             const since = args.since ?? new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
             const limit = Number(args.limit) || 30;
-            const changes = await graph.getRecentChanges(since, limit, projectId);
+            const changes = await graph.getRecentChanges(since, limit, effectiveProjectId);
             return [{ type: 'text', text: JSON.stringify(changes, null, 2) }];
         }
 

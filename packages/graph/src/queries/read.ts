@@ -347,7 +347,7 @@ export async function findGodFiles(
     WHERE functionCount > $threshold
     RETURN f.path as filePath,
            functionCount,
-           COALESCE(f.size, 0) as totalLines
+           COALESCE(f.lineCount, 0) as totalLines
     ORDER BY functionCount DESC
     `,
         { threshold, projectId },
@@ -366,6 +366,7 @@ export async function findDuplicates(
         `
     MATCH (f:Function)
     WHERE f.bodyHash IS NOT NULL ${projectFilter}
+      AND (f.endLine - f.startLine) >= 3
     WITH f.bodyHash as bodyHash, collect({name: f.name, filePath: f.filePath}) as funcs, count(*) as cnt
     WHERE cnt > 1
     RETURN bodyHash, cnt as count, funcs as functions

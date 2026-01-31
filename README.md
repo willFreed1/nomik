@@ -63,7 +63,7 @@ Once connected, your AI assistant gets these tools automatically:
 
 ### Database Operations (dynamic, import-aware)
 - **Prisma**: `prisma.user.findMany()` → detects table + read/write operation
-- **Supabase**: `supabase.from('users').select()` → detects table from `.from()` chain
+- **Supabase**: `supabase.from('users').select()` / `.insert().select()` → detects table + correct write operation from chained calls
 - **Knex/query-builders**: `knex('users').select()` → detects table from function call
 - **TypeORM**: `dataSource.getRepository(User).find()` / `repo.update(...)` / `dataSource.manager.insert(User, ...)`
 - **SQL + EF + Django/Alembic migrations**: `.sql`, C# EF, and Python migration files parsed into schema graph (`DBTable` + `DBColumn`)
@@ -73,7 +73,8 @@ Once connected, your AI assistant gets these tools automatically:
 ### Codebase Health
 - **Dead code detection** — functions never called (excludes constructors, class methods, React components, barrel exports)
 - **God object detection** — functions with excessive cross-file coupling (configurable threshold)
-- **God file detection** — files with too many functions (configurable threshold)
+- **God file detection** — files with too many functions, with accurate line counts (configurable threshold)
+- **Duplicate code detection** — functions with identical body hash (excludes trivial <3-line stubs)
 
 ## CLI Commands
 
@@ -152,7 +153,7 @@ nomik/
 | Monorepo | Turborepo + pnpm workspaces |
 | 3D Viz | Three.js (3d-force-graph) |
 | 2D Viz | Cytoscape.js |
-| Tests | Vitest — 174 tests across 17 test files |
+| Tests | Vitest — 209 tests across 18 test files |
 | Project Isolation | `projectId` on all nodes/edges, `.nomik/project.json` |
 | JSONC Parsing | `jsonc-parser` (VS Code's parser) for tsconfig/jsconfig |
 
@@ -176,7 +177,7 @@ pnpm install
 docker compose up -d
 pnpm build
 
-# Run all tests (174 tests, 17 files)
+# Run all tests (209 tests, 18 files)
 pnpm test
 
 # Dev mode
