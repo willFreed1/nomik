@@ -27,7 +27,7 @@ The monorepo is divided into strictly scoped packages:
 
 ### 1. [CLI](./cli/README.md) (`@nomik-ai/cli`)
 Command-line interface.
-- **Commands**: `init`, `scan`, `status`, `impact`, `watch`, `serve`, `query`, `recent`, `setup-cursor`, `project` (list/create/switch/delete/info).
+- **Commands**: `init`, `scan`, `status`, `impact`, `watch`, `serve`, `query`, `recent`, `setup-cursor`, `setup-windsurf`, `project` (list/create/switch/delete/info), `pr-impact`.
 - **Isolation**: Reads `.nomik/project.json` to scope operations per project.
 
 ### 2. [Core](./core/README.md) (`@nomik/core`)
@@ -48,9 +48,9 @@ Persistence and query layer.
 
 ### 5. [MCP Server](./mcp-server/README.md) (`@nomik/mcp-server`)
 AI interface via Model Context Protocol.
-- **Tools** (8): `nm_search`, `nm_impact`, `nm_trace`, `nm_context`, `nm_health`, `nm_path`, `nm_changes`, `nm_projects`.
+- **Tools** (9): `nm_search`, `nm_impact`, `nm_trace`, `nm_context`, `nm_health`, `nm_db_impact`, `nm_path`, `nm_changes`, `nm_projects`.
 - **Resources**: `nomik://stats`.
-- **Isolation**: Reads `NOMIK_PROJECT_ID` from the environment to scope all requests.
+- **Isolation**: Reads `NOMIK_PROJECT_ID` from the environment to scope all requests. Every tool also accepts an explicit `project` parameter to override the env var.
 
 ### 6. [Visualization](./viz/README.md) (`@nomik/viz`)
 Interactive graph exploration dashboard.

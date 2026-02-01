@@ -340,6 +340,7 @@ Search for nodes by name, path, or pattern. Supports wildcards.
 |---|---|---|---|
 | `query` | string | yes | Search term (symbol name) |
 | `limit` | number | no | Max number of results (default: 10) |
+| `project` | string | no | Project name to scope the search to. Overrides `NOMIK_PROJECT_ID` env var. |
 
 **Cursor prompt examples**:
 - "Find all auth-related functions"
@@ -356,6 +357,7 @@ Downstream impact analysis. Returns dependent nodes with **actual depth** and **
 |---|---|---|---|
 | `symbolId` | string | yes | ID or name of the source node |
 | `depth` | number | no | Traversal depth (default: 3) |
+| `project` | string | no | Project name to scope the analysis to. Overrides `NOMIK_PROJECT_ID` env var. |
 
 **Cursor prompt examples**:
 - "What breaks if I change parseFile?"
@@ -379,6 +381,7 @@ Complete dependency chain between two symbols. Returns the shortest path as a li
 |---|---|---|---|
 | `from` | string | yes | Source symbol name |
 | `to` | string | yes | Target symbol name |
+| `project` | string | no | Project name to scope the trace to. Overrides `NOMIK_PROJECT_ID` env var. |
 
 **Cursor prompt examples**:
 - "Show the dependency chain from scanCommand to neo4j"
@@ -394,6 +397,7 @@ Shortest path between two entities with **full detail**: node types and relation
 |---|---|---|---|
 | `from` | string | yes | Source node name |
 | `to` | string | yes | Target node name |
+| `project` | string | no | Project name to scope the path search to. Overrides `NOMIK_PROJECT_ID` env var. |
 
 > **Difference from `nm_trace`**: `nm_path` returns node types and relationship types at each step. `nm_trace` returns only names.
 
@@ -425,6 +429,7 @@ Rich context for a file or function: what it contains, what it calls, who calls 
 | Parameter | Type | Required | Description |
 |---|---|---|---|
 | `name` | string | yes | File name (path) or function/class name |
+| `project` | string | no | Project name to scope the context to. Overrides `NOMIK_PROJECT_ID` env var. |
 
 **Cursor prompt examples**:
 - "Give me context for graph.service.ts"
@@ -438,12 +443,13 @@ Graph health metrics: counts, dead code, god objects, god files, duplicate code,
 
 | Parameter | Type | Required | Description |
 |---|---|---|---|
+| `project` | string | no | Project name to scope the analysis to. Overrides `NOMIK_PROJECT_ID` env var. |
 | `includeDeadCode` | boolean | no | Include dead code list (default: false) |
 | `includeGodObjects` | boolean | no | Include god objects list (default: false) |
 | `godObjectThreshold` | number | no | Cross-file coupling threshold for god objects (default: 15) |
-| `includeGodFiles` | boolean | no | Include god files list — files with too many functions (default: false) |
+| `includeGodFiles` | boolean | no | Include god files list — files with too many functions (default: false). Reports accurate `totalLines` (actual line count, not byte size). |
 | `godFileThreshold` | number | no | Functions per file threshold for god files (default: 10) |
-| `includeDuplicates` | boolean | no | Include duplicate code detection — functions with identical bodyHash (default: false) |
+| `includeDuplicates` | boolean | no | Include duplicate code detection — functions with identical bodyHash (default: false). Excludes trivial stubs (<3 lines). |
 
 **Cursor prompt examples**:
 - "Are there any dead code or god objects?"
@@ -460,6 +466,7 @@ Analyzes DB impact for a table (and optionally a column): who reads, who writes,
 | `table` | string | yes | Table name (e.g., `users`) |
 | `column` | string | no | Column name (e.g., `email`) |
 | `limit` | number | no | Max rows per readers/writers list (default: 100) |
+| `project` | string | no | Project name to scope the analysis to. Overrides `NOMIK_PROJECT_ID` env var. |
 
 **Cursor prompt examples**:
 - "Who reads table users?"
@@ -475,6 +482,7 @@ Recently modified nodes (by `updatedAt`).
 |---|---|---|---|
 | `since` | string | no | ISO date (default: 24h) |
 | `limit` | number | no | Max results (default: 30) |
+| `project` | string | no | Project name to scope the changes to. Overrides `NOMIK_PROJECT_ID` env var. |
 
 **Cursor prompt examples**:
 - "What changed in the last hour?"

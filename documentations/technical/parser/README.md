@@ -69,7 +69,7 @@ src/
 | Routes | `routes.ts` | `RouteNode` (method, path, handler, middleware) |
 | Calls | `calls.ts` | `CallInfo` (callerName, calleeName, line, column) — supports `obj.method()` member expressions, anonymous callbacks (`__file__`), callback arguments (`arr.map(fn)`), shorthand property references (`{ someFunc }`) |
 | API Calls | `api-calls.ts` | `APICallInfo` — **dynamic, import-aware** detection of HTTP clients (axios, ky, got, fetch, etc.) + URL heuristic for any `x.get('/api/...')` pattern. Creates `ExternalAPINode` + `CALLS_EXTERNAL` edges |
-| DB Operations | `db-operations.ts` | `DBOperationInfo` — **dynamic, import-aware** detection of Prisma, Supabase, Knex patterns. Receiver names resolved from imports (`@prisma/client`, `@supabase/supabase-js`, `knex`). Creates `DBTableNode` + `READS_FROM`/`WRITES_TO` edges |
+| DB Operations | `db-operations.ts` | `DBOperationInfo` — **dynamic, import-aware** detection of Prisma, Supabase, Knex patterns. Receiver names resolved from imports (`@prisma/client`, `@supabase/supabase-js`, `knex`). **Chain-aware classification**: `.from().insert().select()` correctly classified as INSERT (walks chain inside-out, write ops take priority). Creates `DBTableNode` + `READS_FROM`/`WRITES_TO` edges |
 
 ### Python (`src/extractors/python.ts`)
 
@@ -101,11 +101,12 @@ Cross-file resolution logic, extracted from `parser.ts` for modularity:
 
 ## Produced types
 
+- `FileNode`: id, path, language, hash, **size** (bytes), **lineCount** (actual line count), lastParsed
 - `FunctionNode`: id, name, filePath, startLine, endLine, params (`ParameterInfo[]`), returnType, isAsync, isExported, isGenerator, decorators, confidence, **bodyHash?** (SHA-256 whitespace-normalized, 16-char hex)
 - `ClassNode`: id, name, filePath, startLine, endLine, isExported, isAbstract, superClass, interfaces, decorators, methods, properties, **bodyHash?** (SHA-256 whitespace-normalized, 16-char hex)
 - `ImportInfo`: source, specifiers, isDefault, isDynamic, isTypeOnly, line
 - `CallInfo`: callerName, calleeName, line, column, isMethodCall, isConstructor
-- `RouteNode`: id, method, path, handlerName, filePath, middleware
+- `RouteNode`: id, method, path, **handlerName** (resolved from identifier, member_expression, variable_declarator, or call_expression), filePath, middleware
 - `APICallInfo`: callerName, receiverName, method (HTTP verb), endpoint, line
 - `DBOperationInfo`: callerName, tableName, operation (SELECT/INSERT/UPDATE/DELETE), receiverName, line
 
@@ -124,11 +125,14 @@ Discovers supported files in a directory via `glob`, respects include/exclude pa
 
 ## Tests
 
-**137 tests across 13 files** (parser: 87 tests in 8 files)
+**172 tests across 14 files** (parser: 122 tests in 9 files)
 
-- `parser-integration.test.ts`: 16 tests (cross-file calls, alias imports, name collisions, controller→service delegation, namespace imports, dynamic imports)
+- `parser-integration.test.ts`: **26 tests** (cross-file calls, alias imports, name collisions, controller→service delegation, namespace imports, dynamic imports, **lineCount**, **Supabase chain classification**, **route handler names**, **bodyHash uniqueness**)
 - `api-calls.test.ts`: 17 tests (fetch, $fetch, axios.get/post, URL heuristic, unknown receiver, buildHttpClientIdentifiers, buildAPINodesAndEdges)
-- `db-operations.test.ts`: 21 tests (Prisma CRUD, Supabase .from(), Knex fn(), structural match, buildDBClientIdentifiers, buildDBNodesAndEdges)
+- `db-operations.test.ts`: 24 tests (Prisma CRUD, Supabase .from(), Knex fn(), structural match, buildDBClientIdentifiers, buildDBNodesAndEdges)
+- `db-schema.test.ts`: 9 tests (SQL, C# EF, Django, Alembic migration schema extraction)
+- `env-vars.test.ts`: 9 tests (process.env, Python os.environ, defaults, required)
+- `events.test.ts`: 7 tests (emit, on, once, subscribe, Python signals)
 - `python.test.ts`: 8 tests (functions, classes, imports, calls)
 - `rust.test.ts`: 8 tests (functions, structs, enums, traits, imports, calls)
 - `markdown.test.ts`: 7 tests (sections, edges, empty file, levels)

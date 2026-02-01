@@ -1,6 +1,6 @@
 # NOMIK — MVP Roadmap & Milestones
 
-> Last refresh: **2026-02-17**
+> Last refresh: **2026-02-18**
 
 ## Phase 1: Foundation (Weeks 1-4) — "First Heartbeat"
 
@@ -91,6 +91,10 @@
 | API extractor tests (17 tests) | HIGH | **DONE** |
 | DB extractor tests (24 tests) + schema parser tests (3) | HIGH | **DONE** |
 | Dead code audit + parser hardening (144 tests, 14 files) | HIGH | **DONE** |
+| PR Impact Analyzer (`nomik pr-impact`) | HIGH | **DONE** |
+| Env var tracking (`EnvVarNode` + `USES_ENV` edges) | HIGH | **DONE** |
+| Event/message bus tracking (`EventNode` + `EMITS`/`LISTENS_TO` edges) | HIGH | **DONE** |
+| Audit accuracy fixes: lineCount, MCP project isolation, DB chain classification, route handler names, duplicate FP filter | HIGH | **DONE** |
 
 ### Planned Roadmap (Q1–Q3 2026)
 
@@ -99,7 +103,7 @@
 | **Q1 2026** | Database Tracking (SQL/Prisma/TypeORM/EF migrations) | 🔥 CRITICAL | **Done** | Prisma/Supabase/Knex + TypeORM detection, SQL/C# migration parser, `DBTable` + `DBColumn` nodes, `nm_db_impact` tool |
 | **Q2 2026** | C# / .NET Language Support | HIGH | Not started | Opens Fortune 500 (banks, insurance, government) |
 | **Q2 2026** | Go Language Support | HIGH | Not started | Cloud/infra visibility (K8s operators, microservices) |
-| **Q2–Q3 2026** | PR Impact Analyzer | HIGH | Not started | Production safety, GitHub Actions integration |
+| **Q2–2026** | PR Impact Analyzer | HIGH | **Done** | `nomik pr-impact --base <branch>`, git diff → changed symbol detection → graph blast-radius traversal → risk report (LOW/MEDIUM/HIGH). JSON output, CI/CD integration. |
 | **Q3–Q4 2026** | Logic Intent Parser | MEDIUM | Not started | Proprietary moat — business logic understanding |
 
 ### Enterprise Backlog

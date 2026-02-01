@@ -96,12 +96,13 @@ If NOMIK disappears after disabling it in Windsurf:
 | `nm_impact` | Impact analysis: what breaks if we modify this symbol? | "What's the impact of changing `processPayment()`?" |
 | `nm_trace` | Complete dependency chain between two symbols | "Show me everything that depends on `UserService`" |
 | `nm_context` | Rich context for a file or function (calls, calledBy, imports, contains) | "Give me context for `auth.middleware.ts`" |
-| `nm_health` | Graph health metrics (dead code, god objects, counts) | "Are there any God Objects or dependency cycles?" |
+| `nm_health` | Graph health metrics (dead code, god objects, god files, duplicates, counts) | "Are there any God Objects or dependency cycles?" |
+| `nm_db_impact` | DB table/column read-write analysis | "Who writes to the messages table?" |
 | `nm_path` | Shortest path between two code entities | "How does `LoginButton` connect to `users` DB table?" |
 | `nm_changes` | Recently modified nodes | "What changed in the last hour?" |
 | `nm_projects` | List all projects in the graph | "What projects does NOMIK track?" |
 
-> **Note**: All queries are automatically filtered by `projectId` via the `NOMIK_PROJECT_ID` environment variable. This ensures isolation between projects.
+> **Note**: All queries are automatically filtered by `projectId` via the `NOMIK_PROJECT_ID` environment variable. Every tool also accepts an explicit `project` parameter that overrides the env var — useful when working across multiple projects in the same session.
 
 ### Example: What Cursor Sees
 
@@ -121,7 +122,7 @@ When you ask Cursor: *"What happens if I modify the payment processing function?
   }
 }
 
-// NOMIK response (liste plate, profondeur et relation reelles)
+// NOMIK response (flat list with actual depth and relationship type)
 [
   {
     "name": "POST /api/checkout",
@@ -147,7 +148,7 @@ When you ask Cursor: *"What happens if I modify the payment processing function?
 ]
 ```
 
-> Les champs `depth` et `relationship` refletent la traversee APOC reelle (profondeur dans le graphe et type d'edge entrant).
+> The `depth` and `relationship` fields reflect the actual APOC traversal (graph depth and incoming edge type).
 
 ## Setup in Claude Desktop
 
@@ -169,7 +170,7 @@ When you ask Cursor: *"What happens if I modify the payment processing function?
 }
 ```
 
-> **Note** : La commande `nomik` globale sera disponible apres publication sur npm. En attendant, utilisez le chemin `node packages/mcp-server/dist/index.js`.
+> **Note**: The global `nomik` command will be available after npm publish. In the meantime, use the path `node packages/mcp-server/dist/index.js`.
 
 ## MCP Transport Options
 

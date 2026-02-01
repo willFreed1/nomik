@@ -37,7 +37,7 @@
 
 | Label | Main properties | Description |
 |-------|-----------------|-------------|
-| `File` | `id`, `type='file'`, `path`, `language`, `hash`, `size`, `lastParsed`, `projectId` | Source file |
+| `File` | `id`, `type='file'`, `path`, `language`, `hash`, `size`, `lineCount`, `lastParsed`, `projectId` | Source file |
 | `Function` | `id`, `type='function'`, `name`, `filePath`, `startLine`, `endLine`, `params`, `returnType?`, `isAsync`, `isExported`, `isGenerator`, `decorators[]`, `confidence`, `bodyHash?`, `projectId` | Function or method |
 | `Class` | `id`, `type='class'`, `name`, `filePath`, `startLine`, `endLine`, `isExported`, `isAbstract`, `superClass?`, `interfaces[]`, `decorators[]`, `methods[]`, `properties[]`, `bodyHash?`, `projectId` | Class or interface |
 | `Variable` | `id`, `type='variable'`, `name`, `filePath`, `line`, `kind` (const/let/var), `isExported`, `valueType?`, `projectId` | Top-level variable or constant |
@@ -82,7 +82,7 @@ All edges have a `projectId` property for multi-project isolation.
 ```cypher
 // Create a payment subgraph (with projectId)
 CREATE (f:File {id: 'file:src/services/payment.ts', path: 'src/services/payment.ts',
-                 language: 'typescript', hash: 'abc123', size: 2048, lastParsed: datetime(),
+                 language: 'typescript', hash: 'abc123', size: 2048, lineCount: 87, lastParsed: datetime(),
                  projectId: 'my-api'})
 CREATE (fn:Function {id: 'fn:payment:processPayment', name: 'processPayment',
                      filePath: 'src/services/payment.ts', startLine: 42, endLine: 87,
@@ -150,12 +150,15 @@ ORDER BY depCount DESC
 
 ```cypher
 // Files with too many functions (threshold default: 10)
+// totalLines uses f.lineCount (actual line count, not byte size)
 MATCH (f:File)-[:CONTAINS]->(fn:Function)
 WHERE f.projectId = $projectId
-WITH f, count(fn) as funcCount
-WHERE funcCount > $threshold
-RETURN f.path as filePath, funcCount
-ORDER BY funcCount DESC
+WITH f, count(fn) as functionCount
+WHERE functionCount > $threshold
+RETURN f.path as filePath,
+       functionCount,
+       COALESCE(f.lineCount, 0) as totalLines
+ORDER BY functionCount DESC
 ```
 
 ### Dead code detection
@@ -188,8 +191,10 @@ ORDER BY f.filePath
 
 ```cypher
 // Functions with identical bodyHash (copy-paste detection)
+// Excludes trivial stubs (<3 lines) to avoid false positives on one-liner wrappers
 MATCH (f:Function)
 WHERE f.bodyHash IS NOT NULL AND f.projectId = $projectId
+  AND (f.endLine - f.startLine) >= 3
 WITH f.bodyHash as bodyHash, collect({name: f.name, filePath: f.filePath}) as funcs, count(*) as cnt
 WHERE cnt > 1
 RETURN bodyHash, cnt as count, funcs as functions

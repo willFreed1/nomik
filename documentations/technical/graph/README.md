@@ -28,6 +28,9 @@ Persistence layer managing interactions with Neo4j Community Edition.
 - `findDependencyChain(driver, from, to, projectId?)`: Shortest path
 - `findDeadCode(driver, projectId?)`: Functions never called — excludes constructors, class methods (called via `obj.method()`), React components, barrel re-exports
 - `findGodObjects(driver, threshold, projectId?)`: Functions with unexpected cross-file coupling (excludes intra-file dispatch and calls to directly imported files). Default threshold: 15
+- `findGodFiles(driver, threshold, projectId?)`: Files with too many functions. Returns `filePath`, `functionCount`, `totalLines` (uses `f.lineCount` — actual line count, not byte size). Default threshold: 10
+- `findDuplicates(driver, projectId?)`: Functions with identical `bodyHash`. Excludes trivial stubs (<3 lines) to reduce false positives on one-liner wrappers
+- `findDBImpact(driver, table, column?, limit, projectId?)`: Who reads/writes a DB table or column
 - `graphStats(driver, projectId?)`: Counts (nodes, edges, files, functions, classes, routes)
 - `recentChanges(driver, since, limit, projectId?)`: Nodes modified since a date
 

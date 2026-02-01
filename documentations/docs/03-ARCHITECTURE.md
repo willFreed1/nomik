@@ -21,7 +21,8 @@
 │                                                              │
 │  ┌──────────────────────────────────────────────────────┐   │
 │  │  CLI  (nomik init/scan/status/impact/watch/serve/     │   │
-│  │        query/recent/setup-cursor/project)             │   │
+│  │        query/recent/setup-cursor/setup-windsurf/      │   │
+│  │        project/pr-impact)                             │   │
 │  └──────────────────────────────────────────────────────┘   │
 └──────────────────────────────────────────────────────────────┘
 ```
@@ -132,9 +133,10 @@ nomik/
 │   ├── mcp-server/              # MCP protocol server
 │   │   ├── src/
 │   │   │   ├── tools.ts              # 9 tools: nm_search, nm_db_impact,
-│   │   │   │                          # nm_impact, nm_trace,
-│   │   │   │                          # nm_context, nm_health,
-│   │   │   │                          # nm_path, nm_changes, nm_projects
+│   │   │   │                          # nm_impact, nm_trace, nm_context,
+│   │   │   │                          # nm_health, nm_path, nm_changes,
+│   │   │   │                          # nm_projects. All tools accept
+│   │   │   │                          # explicit `project` param.
 │   │   │   ├── resources.ts           # MCP resources
 │   │   │   └── index.ts
 │   │   ├── package.json
@@ -171,6 +173,8 @@ nomik/
 │       │   │   ├── query.ts           # nomik query — Cypher query
 │       │   │   ├── recent.ts          # nomik recent — recent changes
 │       │   │   ├── setup-cursor.ts    # nomik setup-cursor
+│       │   │   ├── setup-windsurf.ts  # nomik setup-windsurf
+│       │   │   ├── pr-impact.ts       # nomik pr-impact — blast radius
 │       │   │   └── project.ts         # nomik project list/create/
 │       │   │                          # switch/delete/info
 │       │   ├── utils/
