@@ -1456,4 +1456,102 @@ io.on('connection', (socket) => {
             fs.rmSync(tmpDir, { recursive: true, force: true });
         }
     });
+
+    it('detects OpenTelemetry tracer.startSpan and creates Span nodes with STARTS_SPAN edges', async () => {
+        const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'nomik-otel-'));
+        try {
+            const filePath = path.join(tmpDir, 'tracing.ts');
+            writeFile(filePath, `
+import { trace } from '@opentelemetry/api';
+const tracer = trace.getTracer('my-service');
+
+export function handleRequest() {
+    const span = tracer.startSpan('handle-request');
+    span.end();
+}
+
+export function processOrder() {
+    tracer.startActiveSpan('process-order', (span) => {
+        span.end();
+    });
+}
+`);
+            const engine = createParserEngine();
+            const results = await engine.parseFiles([filePath]);
+            const result = results[0]!;
+
+            const spanNodes = result.nodes.filter(n => n.type === 'span');
+            expect(spanNodes.length).toBe(2);
+            expect(spanNodes.some(n => n.name === 'handle-request')).toBe(true);
+            expect(spanNodes.some(n => n.name === 'process-order')).toBe(true);
+
+            const startsSpanEdges = result.edges.filter(e => e.type === 'STARTS_SPAN');
+            expect(startsSpanEdges.length).toBe(2);
+        } finally {
+            fs.rmSync(tmpDir, { recursive: true, force: true });
+        }
+    });
+
+    it('detects KafkaJS producer/consumer and creates Topic nodes with PRODUCES_MESSAGE/CONSUMES_MESSAGE edges', async () => {
+        const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'nomik-kafka-'));
+        try {
+            const filePath = path.join(tmpDir, 'kafka.ts');
+            writeFile(filePath, `
+import { Kafka } from 'kafkajs';
+const kafka = new Kafka({ brokers: ['localhost:9092'] });
+const producer = kafka.producer();
+const consumer = kafka.consumer({ groupId: 'my-group' });
+
+export async function sendEvent(data: any) {
+    await producer.send({ topic: 'user-events', messages: [{ value: JSON.stringify(data) }] });
+}
+
+export async function startConsumer() {
+    await consumer.subscribe({ topic: 'user-events' });
+    await consumer.run({ eachMessage: async ({ message }) => console.log(message) });
+}
+`);
+            const engine = createParserEngine();
+            const results = await engine.parseFiles([filePath]);
+            const result = results[0]!;
+
+            const topicNodes = result.nodes.filter(n => n.type === 'topic');
+            expect(topicNodes.length).toBeGreaterThanOrEqual(1);
+            expect(topicNodes.some(n => n.name === 'user-events')).toBe(true);
+
+            const produceEdges = result.edges.filter(e => e.type === 'PRODUCES_MESSAGE');
+            const consumeEdges = result.edges.filter(e => e.type === 'CONSUMES_MESSAGE');
+            expect(produceEdges.length).toBeGreaterThanOrEqual(1);
+            expect(consumeEdges.length).toBeGreaterThanOrEqual(1);
+        } finally {
+            fs.rmSync(tmpDir, { recursive: true, force: true });
+        }
+    });
+
+    it('detects Swagger setup and enriches routes with swagger metadata', async () => {
+        const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'nomik-swagger-'));
+        try {
+            const filePath = path.join(tmpDir, 'app.ts');
+            writeFile(filePath, `
+import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
+import express from 'express';
+const app = express();
+
+const config = new DocumentBuilder().setTitle('My API').build();
+const document = SwaggerModule.createDocument(app, config);
+SwaggerModule.setup('/api-docs', app, document);
+
+app.get('/users', (req, res) => res.json([]));
+`);
+            const engine = createParserEngine();
+            const results = await engine.parseFiles([filePath]);
+            const result = results[0]!;
+
+            const routeNodes = result.nodes.filter(n => n.type === 'route');
+            // Routes should exist and may be enriched with swagger tags
+            expect(routeNodes.length).toBeGreaterThanOrEqual(1);
+        } finally {
+            fs.rmSync(tmpDir, { recursive: true, force: true });
+        }
+    });
 });

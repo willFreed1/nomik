@@ -10,3 +10,7 @@ export type { CallInfo } from './calls';
 export { extractRedisOperations, buildRedisNodesAndEdges, buildRedisClientIdentifiers } from './redis';
 export { extractQueueOperations, buildQueueNodesAndEdges, buildQueueClientIdentifiers } from './queue';
 export { extractMetrics, buildMetricNodesAndEdges, buildMetricsClientIdentifiers } from './metrics';
+export { extractSpans, buildSpanNodesAndEdges, buildTracingClientIdentifiers } from './tracing';
+export { extractMessageOps, buildMessageNodesAndEdges, buildBrokerClientIdentifiers } from './messaging';
+export { buildSwaggerClientIdentifiers, extractSwaggerSetups, enrichRoutesWithSwagger } from './swagger';
+export { extractAlertRules, extractGrafanaPanels, extractScrapeConfigs, buildInfraConfigNodes } from './infra-config';

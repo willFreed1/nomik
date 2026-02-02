@@ -50,6 +50,8 @@
 | `EnvVar` | `id`, `type='env_var'`, `name`, `required`, `defaultValue?`, `projectId` | Environment variable |
 | `QueueJob` | `id`, `type='queue_job'`, `name`, `queueName`, `filePath`, `jobKind` (producer/consumer), `projectId` | Job queue task (Bull/BullMQ/Bee-Queue) |
 | `Metric` | `id`, `type='metric'`, `name`, `metricType` (counter/gauge/histogram/summary), `help?`, `filePath`, `projectId` | Prometheus/OpenTelemetry metric |
+| `Span` | `id`, `type='span'`, `name`, `spanKind?` (server/client/producer/consumer/internal), `attributes?[]`, `filePath`, `projectId` | OpenTelemetry tracing span |
+| `Topic` | `id`, `type='topic'`, `name`, `broker` (kafka/rabbitmq/nats/sqs/sns/pubsub), `topicKind` (producer/consumer), `filePath`, `projectId` | Message broker topic/queue |
 
 ---
 
@@ -79,6 +81,9 @@ All edges have a `projectId` property for multi-project isolation.
 | `PRODUCES_JOB` | Function → QueueJob | `jobName?` | Function enqueues a job |
 | `CONSUMES_JOB` | Function → QueueJob | `jobName?` | Function processes a job |
 | `USES_METRIC` | Function → Metric | `operation` (inc/dec/set/observe/startTimer/define) | Function uses a Prometheus metric |
+| `STARTS_SPAN` | Function → Span | `spanName?` | Function starts an OpenTelemetry span |
+| `PRODUCES_MESSAGE` | Function → Topic | `topicName?` | Function publishes to a message broker topic |
+| `CONSUMES_MESSAGE` | Function → Topic | `topicName?` | Function consumes from a message broker topic |
 
 ---
 

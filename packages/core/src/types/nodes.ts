@@ -146,6 +146,24 @@ export interface MetricNode {
     filePath: string;
 }
 
+export interface SpanNode {
+    id: string;
+    type: 'span';
+    name: string;
+    spanKind?: 'server' | 'client' | 'producer' | 'consumer' | 'internal';
+    attributes?: string[];
+    filePath: string;
+}
+
+export interface TopicNode {
+    id: string;
+    type: 'topic';
+    name: string;
+    broker: 'kafka' | 'rabbitmq' | 'nats' | 'sqs' | 'sns' | 'pubsub' | 'unknown';
+    topicKind: 'producer' | 'consumer';
+    filePath: string;
+}
+
 /** Project node: isolates data by project in the graph */
 export interface ProjectNode {
     id: string;
@@ -177,6 +195,8 @@ export type GraphNode =
     | EventNode
     | EnvVarNode
     | QueueJobNode
-    | MetricNode;
+    | MetricNode
+    | SpanNode
+    | TopicNode;
 
 export type NodeType = GraphNode['type'];

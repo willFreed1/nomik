@@ -91,9 +91,32 @@ Once connected, your AI assistant gets these tools automatically:
 - Namespace detection: `io.of('/namespace').emit('event')`
 - `namespace` and `room` fields on `Event` nodes
 
-### Swagger/OpenAPI Decorator Enrichment
+### Swagger/OpenAPI (decorators + setup detection)
 - Detects `@ApiTags()`, `@ApiOperation()`, `@ApiResponse()` decorators on routes
 - Enriches `Route` nodes with `apiTags`, `apiSummary`, `apiDescription`, `apiResponseStatus`
+- Detects `SwaggerModule.setup()` (NestJS), `swagger-ui-express`, `@fastify/swagger`, `swagger-jsdoc`
+- Enriches routes in files with Swagger setup as `swagger-documented`
+
+### OpenTelemetry Tracing (dynamic, import-aware)
+- Detects `@opentelemetry/api`, `dd-trace`, `@sentry/node` tracing calls
+- Tracks `tracer.startSpan('name')`, `tracer.startActiveSpan('name')`, `Sentry.startTransaction()`
+- Resolves tracer variables: `const tracer = trace.getTracer('service')`
+- Creates `Span` nodes + `STARTS_SPAN` edges
+
+### Message Brokers (dynamic, import-aware)
+- **KafkaJS**: `producer.send({ topic })` → producer, `consumer.subscribe({ topic })` → consumer
+- **amqplib/RabbitMQ**: `channel.sendToQueue()`, `channel.publish()`, `channel.consume()`
+- **NATS**: `nc.publish(subject)`, `nc.subscribe(subject)`
+- **AWS SQS/SNS**: `SendMessageCommand`, `PublishCommand`, `ReceiveMessageCommand`
+- **Google PubSub**: `topic.publish()`, `subscription.on('message')`
+- Two-pass variable resolution for `new Kafka()` → `kafka.producer()` chains
+- Creates `Topic` nodes + `PRODUCES_MESSAGE`/`CONSUMES_MESSAGE` edges
+
+### Prometheus/Grafana Infra Config
+- Parses `prometheus.yml` scrape configs (job names, metrics paths, targets)
+- Parses alert rules (`.rules.yml`): alert names, PromQL expressions, severity
+- Parses Grafana dashboards (`.json`): panel titles, PromQL targets, datasources
+- Extracts metric names from PromQL and creates `Metric` node stubs
 
 ### Codebase Health
 - **Dead code detection** — functions never called (excludes constructors, class methods, React components, barrel exports)

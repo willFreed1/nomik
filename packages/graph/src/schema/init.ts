@@ -19,6 +19,8 @@ const SCHEMA_INIT = [
     'CREATE CONSTRAINT envvar_id IF NOT EXISTS FOR (e:EnvVar) REQUIRE e.id IS UNIQUE',
     'CREATE CONSTRAINT queuejob_id IF NOT EXISTS FOR (q:QueueJob) REQUIRE q.id IS UNIQUE',
     'CREATE CONSTRAINT metric_id IF NOT EXISTS FOR (m:Metric) REQUIRE m.id IS UNIQUE',
+    'CREATE CONSTRAINT span_id IF NOT EXISTS FOR (s:Span) REQUIRE s.id IS UNIQUE',
+    'CREATE CONSTRAINT topic_id IF NOT EXISTS FOR (t:Topic) REQUIRE t.id IS UNIQUE',
     // Search indexes
     'CREATE INDEX file_path IF NOT EXISTS FOR (f:File) ON (f.path)',
     'CREATE INDEX function_name IF NOT EXISTS FOR (f:Function) ON (f.name)',
@@ -36,6 +38,8 @@ const SCHEMA_INIT = [
     'CREATE INDEX dbcolumn_project IF NOT EXISTS FOR (d:DBColumn) ON (d.projectId)',
     'CREATE INDEX queuejob_project IF NOT EXISTS FOR (q:QueueJob) ON (q.projectId)',
     'CREATE INDEX metric_project IF NOT EXISTS FOR (m:Metric) ON (m.projectId)',
+    'CREATE INDEX span_project IF NOT EXISTS FOR (s:Span) ON (s.projectId)',
+    'CREATE INDEX topic_project IF NOT EXISTS FOR (t:Topic) ON (t.projectId)',
 ];
 
 export async function initializeSchema(driver: GraphDriver): Promise<void> {

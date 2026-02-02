@@ -20,6 +20,9 @@ import { extractEvents, extractPythonEvents, buildEventNodesAndEdges } from './e
 import { extractRedisOperations, buildRedisNodesAndEdges, buildRedisClientIdentifiers } from './extractors/redis';
 import { extractQueueOperations, buildQueueNodesAndEdges, buildQueueClientIdentifiers } from './extractors/queue';
 import { extractMetrics, buildMetricNodesAndEdges, buildMetricsClientIdentifiers } from './extractors/metrics';
+import { extractSpans, buildSpanNodesAndEdges, buildTracingClientIdentifiers } from './extractors/tracing';
+import { extractMessageOps, buildMessageNodesAndEdges, buildBrokerClientIdentifiers } from './extractors/messaging';
+import { buildSwaggerClientIdentifiers, extractSwaggerSetups, enrichRoutesWithSwagger } from './extractors/swagger';
 import { extractPythonFunctions, extractPythonClasses, extractPythonImports, extractPythonCalls } from './extractors/python';
 import { extractRustFunctions, extractRustClasses, extractRustImports, extractRustCalls } from './extractors/rust';
 import { createNodeId, createFileHash } from './utils';
@@ -292,7 +295,42 @@ export function createParserEngine(): ParserEngine {
             }
         }
 
-        const nodes: GraphNode[] = [fileNode, ...functions, ...classes, ...variables, ...routes, ...moduleNodes, ...apiNodes, ...dbNodes, ...migrationSchemaNodes, ...envNodes, ...eventNodes, ...redisNodes, ...queueNodes, ...metricNodes];
+        // OpenTelemetry / tracing tracking (TS/JS only)
+        let spanNodes: GraphNode[] = [];
+        let spanEdges: GraphEdge[] = [];
+        if (language !== 'python' && language !== 'rust') {
+            const tracingClientIds = buildTracingClientIdentifiers(imports);
+            const spans = extractSpans(tree, absolutePath, tracingClientIds);
+            if (spans.length > 0) {
+                const spanResult = buildSpanNodesAndEdges(spans, localFuncMap, fileNode.id, absolutePath);
+                spanNodes = spanResult.nodes;
+                spanEdges = spanResult.edges;
+            }
+        }
+
+        // Message broker tracking — Kafka/RabbitMQ/NATS/SQS/SNS (TS/JS only)
+        let messageNodes: GraphNode[] = [];
+        let messageEdges: GraphEdge[] = [];
+        if (language !== 'python' && language !== 'rust') {
+            const { ids: brokerClientIds, brokerMap } = buildBrokerClientIdentifiers(imports);
+            const messageOps = extractMessageOps(tree, absolutePath, brokerClientIds, brokerMap);
+            if (messageOps.length > 0) {
+                const msgResult = buildMessageNodesAndEdges(messageOps, localFuncMap, fileNode.id, absolutePath);
+                messageNodes = msgResult.nodes;
+                messageEdges = msgResult.edges;
+            }
+        }
+
+        // Swagger/OpenAPI setup detection (TS/JS only)
+        if (language !== 'python' && language !== 'rust') {
+            const swaggerClientIds = buildSwaggerClientIdentifiers(imports);
+            const swaggerSetups = extractSwaggerSetups(tree, absolutePath, swaggerClientIds);
+            if (swaggerSetups.length > 0) {
+                enrichRoutesWithSwagger(routes, swaggerSetups);
+            }
+        }
+
+        const nodes: GraphNode[] = [fileNode, ...functions, ...classes, ...variables, ...routes, ...moduleNodes, ...apiNodes, ...dbNodes, ...migrationSchemaNodes, ...envNodes, ...eventNodes, ...redisNodes, ...queueNodes, ...metricNodes, ...spanNodes, ...messageNodes];
 
         const localVarMap = new Map<string, string>();
         for (const v of variables) {
@@ -359,6 +397,8 @@ export function createParserEngine(): ParserEngine {
             ...redisEdges,
             ...queueEdges,
             ...metricEdges,
+            ...spanEdges,
+            ...messageEdges,
             ...exportEdges,
         ];
 

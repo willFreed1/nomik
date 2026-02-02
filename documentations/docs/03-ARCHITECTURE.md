@@ -83,6 +83,10 @@ nomik/
 │   │   │   │   ├── metrics.ts       # Prometheus metrics detection (prom-client)
 │   │   │   │   ├── env-vars.ts      # Environment variable detection
 │   │   │   │   ├── events.ts        # Event/message bus + Socket.io rooms
+│   │   │   │   ├── tracing.ts      # OpenTelemetry span detection (@opentelemetry/api)
+│   │   │   │   ├── messaging.ts    # Message broker detection (Kafka/RabbitMQ/NATS/SQS)
+│   │   │   │   ├── swagger.ts      # Swagger/OpenAPI setup detection
+│   │   │   │   ├── infra-config.ts # Prometheus/Grafana config parsing
 │   │   │   │   ├── db-schema/        # DB migration schema extraction (modular)
 │   │   │   │   │   ├── types.ts      # Shared types (DBSchemaTable, DBSchemaColumn)
 │   │   │   │   │   ├── builder.ts    # Node/edge builder

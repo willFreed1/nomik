@@ -44,6 +44,10 @@ src/
 │   ├── metrics.ts         # Prometheus metrics detection (prom-client, OpenTelemetry)
 │   ├── env-vars.ts        # Environment variable detection (process.env, Python os.environ)
 │   ├── events.ts          # Event/message bus detection (emit/on/subscribe + Socket.io rooms)
+│   ├── tracing.ts         # OpenTelemetry span detection (@opentelemetry/api, dd-trace)
+│   ├── messaging.ts       # Message broker detection (KafkaJS, amqplib, NATS, SQS/SNS)
+│   ├── swagger.ts         # Swagger/OpenAPI setup detection (NestJS, express, fastify)
+│   ├── infra-config.ts    # Prometheus/Grafana config parsing (alerts, dashboards)
 │   ├── python.ts          # Python extractor
 │   ├── rust.ts            # Rust extractor
 │   ├── markdown.ts        # Markdown parser
@@ -80,6 +84,10 @@ src/
 | Metrics | `metrics.ts` | `MetricInfo` + `MetricUsageInfo` — **dynamic, import-aware** detection of `prom-client`/`@opentelemetry/api`. Tracks `new Counter/Gauge/Histogram/Summary()` definitions and `.inc()`/`.observe()`/`.startTimer()` usages (including chained `.labels().inc()`). Creates `MetricNode` + `USES_METRIC` edges |
 | Env Vars | `env-vars.ts` | `EnvVarInfo` — `process.env.VAR` (member+subscript), `??`/`\|\|` default detection, `!` required detection, Python `os.environ`/`os.getenv`. Creates `EnvVarNode` + `USES_ENV` edges |
 | Events | `events.ts` | `EventInfo` — `emitter.emit()`/`.on()`/`.once()`/`.subscribe()` detection, Python `socketio`/Django signals. **Socket.io enhanced**: room/namespace detection (`socket.to('room').emit()`, `io.of('/ns')`, `socket.join()`). Creates `EventNode` + `EMITS`/`LISTENS_TO` edges |
+| Tracing | `tracing.ts` | `SpanInfo` — **dynamic, import-aware** detection of `@opentelemetry/api`/`dd-trace`/`@sentry/node`. Tracks `tracer.startSpan()`/`startActiveSpan()` with tracer variable resolution (`trace.getTracer()` → variable). Creates `SpanNode` + `STARTS_SPAN` edges |
+| Messaging | `messaging.ts` | `MessageOpInfo` — **dynamic, import-aware** detection of `kafkajs`/`amqplib`/`nats`/`@aws-sdk/client-sqs`/`@aws-sdk/client-sns`/`@google-cloud/pubsub`. Tracks `producer.send({topic})`, `consumer.subscribe({topic})`, AWS `SendMessageCommand`. **Two-pass variable resolution** for `new Kafka()` → `kafka.producer()` chains. Creates `TopicNode` + `PRODUCES_MESSAGE`/`CONSUMES_MESSAGE` edges |
+| Swagger Setup | `swagger.ts` | `SwaggerSetupInfo` — detects `SwaggerModule.setup()`/`createDocument()` (NestJS), `swagger-ui-express`, `@fastify/swagger` register, `swagger-jsdoc`. Enriches routes in swagger-enabled files |
+| Infra Config | `infra-config.ts` | `AlertRuleInfo` + `GrafanaPanelInfo` + `ScrapeConfigInfo` — parses Prometheus alert rules (PromQL metric extraction), Grafana dashboard JSON (panel titles + targets), `prometheus.yml` scrape configs. Creates `MetricNode` stubs for referenced metrics |
 
 ### Python (`src/extractors/python.ts`)
 
@@ -126,6 +134,13 @@ Cross-file resolution logic, extracted from `parser.ts` for modularity:
 - `QueueJobNode`: id, name, queueName, filePath, jobKind (producer/consumer)
 - `MetricNode`: id, name, metricType, help, filePath
 - `EventNode`: id, name, eventKind (emit/listen), filePath, **namespace?**, **room?**
+- `SpanNode`: id, name, spanKind? (server/client/producer/consumer/internal), attributes?[], filePath
+- `TopicNode`: id, name, broker (kafka/rabbitmq/nats/sqs/sns/pubsub), topicKind (producer/consumer), filePath
+- `SpanInfo`: callerName, spanName, spanKind?, line
+- `MessageOpInfo`: callerName, topicName, broker, kind (producer/consumer), line
+- `SwaggerSetupInfo`: kind (setup/spec_file/validator), path?, specFile?, callerName, line
+- `AlertRuleInfo`: alertName, expr, severity?, metricNames[], line
+- `GrafanaPanelInfo`: panelTitle, metricNames[], datasource?
 
 ## Cross-file resolution (`src/parser.ts` + `src/resolvers/`)
 
@@ -142,9 +157,9 @@ Discovers supported files in a directory via `glob`, respects include/exclude pa
 
 ## Tests
 
-**213 tests across 18 files** (parser: 139 tests in 11 files)
+**216 tests across 18 files** (parser: 142 tests in 11 files)
 
-- `parser-integration.test.ts`: **30 tests** (cross-file calls, alias imports, name collisions, controller→service delegation, namespace imports, dynamic imports, **lineCount**, **Supabase chain classification**, **route handler names**, **bodyHash uniqueness**, **Redis operations**, **Bull/BullMQ queues**, **Prometheus metrics**, **Socket.io rooms**)
+- `parser-integration.test.ts`: **33 tests** (cross-file calls, alias imports, name collisions, controller→service delegation, namespace imports, dynamic imports, **lineCount**, **Supabase chain classification**, **route handler names**, **bodyHash uniqueness**, **Redis operations**, **Bull/BullMQ queues**, **Prometheus metrics**, **Socket.io rooms**, **OpenTelemetry spans**, **KafkaJS broker**, **Swagger setup**)
 - `api-calls.test.ts`: 17 tests (fetch, $fetch, axios.get/post, URL heuristic, unknown receiver, buildHttpClientIdentifiers, buildAPINodesAndEdges)
 - `db-operations.test.ts`: 24 tests (Prisma CRUD, Supabase .from(), Knex fn(), structural match, buildDBClientIdentifiers, buildDBNodesAndEdges)
 - `db-schema.test.ts`: 9 tests (SQL, C# EF, Django, Alembic migration schema extraction)

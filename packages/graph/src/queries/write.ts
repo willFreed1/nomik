@@ -158,6 +158,8 @@ function nodeTypeToLabel(type: string): string {
         env_var: 'EnvVar',
         queue_job: 'QueueJob',
         metric: 'Metric',
+        span: 'Span',
+        topic: 'Topic',
     };
     return map[type] ?? 'Unknown';
 }

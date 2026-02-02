@@ -14,6 +14,8 @@ export type {
     EnvVarNode,
     QueueJobNode,
     MetricNode,
+    SpanNode,
+    TopicNode,
     ProjectNode,
     ParameterInfo,
 } from './nodes.js';
@@ -39,6 +41,9 @@ export type {
     ProducesJobEdge,
     ConsumesJobEdge,
     UsesMetricEdge,
+    StartsSpanEdge,
+    ProducesMessageEdge,
+    ConsumesMessageEdge,
 } from './edges.js';
 
 export {

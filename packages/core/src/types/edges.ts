@@ -16,7 +16,10 @@ export type EdgeType =
     | 'USES_ENV'
     | 'PRODUCES_JOB'
     | 'CONSUMES_JOB'
-    | 'USES_METRIC';
+    | 'USES_METRIC'
+    | 'STARTS_SPAN'
+    | 'PRODUCES_MESSAGE'
+    | 'CONSUMES_MESSAGE';
 
 export interface BaseEdge {
     id: string;
@@ -117,6 +120,21 @@ export interface UsesMetricEdge extends BaseEdge {
     operation: 'inc' | 'dec' | 'set' | 'observe' | 'startTimer' | 'define';
 }
 
+export interface StartsSpanEdge extends BaseEdge {
+    type: 'STARTS_SPAN';
+    spanName?: string;
+}
+
+export interface ProducesMessageEdge extends BaseEdge {
+    type: 'PRODUCES_MESSAGE';
+    topicName?: string;
+}
+
+export interface ConsumesMessageEdge extends BaseEdge {
+    type: 'CONSUMES_MESSAGE';
+    topicName?: string;
+}
+
 export type GraphEdge =
     | ContainsEdge
     | ImportsEdge
@@ -135,4 +153,7 @@ export type GraphEdge =
     | UsesEnvEdge
     | ProducesJobEdge
     | ConsumesJobEdge
-    | UsesMetricEdge;
+    | UsesMetricEdge
+    | StartsSpanEdge
+    | ProducesMessageEdge
+    | ConsumesMessageEdge;
