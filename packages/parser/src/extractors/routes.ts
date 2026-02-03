@@ -86,6 +86,9 @@ function tryDecoratorRoute(node: Parser.SyntaxNode, filePath: string): RouteNode
     const handlerName = sibling?.childForFieldName('name')?.text ?? 'anonymous';
     const method = methodMatch.toUpperCase() as RouteNode['method'];
 
+    // Collect Swagger/OpenAPI decorators from siblings
+    const swagger = collectSwaggerDecorators(node);
+
     return {
         id: createNodeId('route', filePath, `${method}:${routePath}`),
         type: 'route',
@@ -94,7 +97,115 @@ function tryDecoratorRoute(node: Parser.SyntaxNode, filePath: string): RouteNode
         handlerName,
         filePath,
         middleware: [],
+        ...swagger,
     };
+}
+
+// ────────────────────────────────────────────────────────────────────────
+// Swagger / OpenAPI decorator extraction
+// ────────────────────────────────────────────────────────────────────────
+
+const SWAGGER_DECORATORS: Record<string, string> = {
+    apitags: 'tags',
+    apioperation: 'operation',
+    apiresponse: 'response',
+    apiokresponse: 'response',
+    apicreatedresponse: 'response',
+    apibadrequestresponse: 'response',
+    apinotfoundresponse: 'response',
+    apiunauthorizedresponse: 'response',
+    apiforbiddenresponse: 'response',
+};
+
+interface SwaggerMeta {
+    apiTags?: string[];
+    apiSummary?: string;
+    apiDescription?: string;
+    apiResponseStatus?: number[];
+}
+
+function collectSwaggerDecorators(routeDecoratorNode: Parser.SyntaxNode): SwaggerMeta {
+    const meta: SwaggerMeta = {};
+    const parent = routeDecoratorNode.parent;
+    if (!parent) return meta;
+
+    // Scan all decorator siblings on the same method/class member
+    for (const child of parent.namedChildren) {
+        if (child.type !== 'decorator') continue;
+
+        const expr = child.namedChildren[0];
+        if (!expr || expr.type !== 'call_expression') continue;
+
+        const fn = expr.childForFieldName('function');
+        if (!fn) continue;
+
+        const name = fn.text.toLowerCase();
+        const kind = SWAGGER_DECORATORS[name];
+        if (!kind) continue;
+
+        const args = expr.childForFieldName('arguments');
+        if (!args) continue;
+
+        if (kind === 'tags') {
+            const tags: string[] = [];
+            for (const arg of args.namedChildren) {
+                if (arg.type === 'string' || arg.type === 'template_string') {
+                    tags.push(arg.text.replace(/^['"`]|['"`]$/g, ''));
+                }
+            }
+            if (tags.length > 0) meta.apiTags = tags;
+        }
+
+        if (kind === 'operation') {
+            const firstArg = args.namedChildren[0];
+            if (firstArg?.type === 'object') {
+                for (const prop of firstArg.namedChildren) {
+                    if (prop.type !== 'pair') continue;
+                    const key = prop.childForFieldName('key')?.text?.replace(/^['"`]|['"`]$/g, '');
+                    const val = prop.childForFieldName('value')?.text?.replace(/^['"`]|['"`]$/g, '');
+                    if (key === 'summary' && val) meta.apiSummary = val;
+                    if (key === 'description' && val) meta.apiDescription = val;
+                }
+            }
+        }
+
+        if (kind === 'response') {
+            const firstArg = args.namedChildren[0];
+            if (firstArg?.type === 'object') {
+                for (const prop of firstArg.namedChildren) {
+                    if (prop.type !== 'pair') continue;
+                    const key = prop.childForFieldName('key')?.text?.replace(/^['"`]|['"`]$/g, '');
+                    const val = prop.childForFieldName('value')?.text;
+                    if (key === 'status' && val) {
+                        const num = parseInt(val, 10);
+                        if (!isNaN(num)) {
+                            meta.apiResponseStatus ??= [];
+                            if (!meta.apiResponseStatus.includes(num)) meta.apiResponseStatus.push(num);
+                        }
+                    }
+                }
+            }
+            // @ApiOkResponse() → 200, @ApiCreatedResponse() → 201, etc.
+            const statusFromName = inferStatusFromDecoratorName(fn.text);
+            if (statusFromName) {
+                meta.apiResponseStatus ??= [];
+                if (!meta.apiResponseStatus.includes(statusFromName)) meta.apiResponseStatus.push(statusFromName);
+            }
+        }
+    }
+
+    return meta;
+}
+
+function inferStatusFromDecoratorName(name: string): number | null {
+    const lower = name.toLowerCase();
+    if (lower.includes('okresponse')) return 200;
+    if (lower.includes('createdresponse')) return 201;
+    if (lower.includes('badrequestresponse')) return 400;
+    if (lower.includes('unauthorizedresponse')) return 401;
+    if (lower.includes('forbiddenresponse')) return 403;
+    if (lower.includes('notfoundresponse')) return 404;
+    return null;
 }
 
 function resolveHandlerName(node: Parser.SyntaxNode | undefined): string | null {

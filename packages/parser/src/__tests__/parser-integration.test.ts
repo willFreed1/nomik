@@ -1313,4 +1313,147 @@ export function redirectB() {
             fs.rmSync(tmpDir, { recursive: true, force: true });
         }
     });
+
+    it('detects Redis operations and creates DBTable nodes with READS_FROM/WRITES_TO edges', async () => {
+        const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'nomik-redis-'));
+        try {
+            const filePath = path.join(tmpDir, 'cache.ts');
+            writeFile(filePath, `
+import Redis from 'ioredis';
+const redis = new Redis();
+
+export async function getUser(id: string) {
+    return redis.get(\`user:\${id}\`);
+}
+
+export async function setUser(id: string, data: string) {
+    await redis.set(\`user:\${id}\`, data);
+}
+
+export async function deleteUser(id: string) {
+    await redis.del(\`user:\${id}\`);
+}
+`);
+            const engine = createParserEngine();
+            const results = await engine.parseFiles([filePath]);
+            const result = results[0]!;
+
+            const dbTableNodes = result.nodes.filter(n => n.type === 'db_table');
+            expect(dbTableNodes.length).toBeGreaterThanOrEqual(1);
+            expect(dbTableNodes.some(n => n.name.startsWith('redis:'))).toBe(true);
+
+            const readEdges = result.edges.filter(e => e.type === 'READS_FROM');
+            const writeEdges = result.edges.filter(e => e.type === 'WRITES_TO');
+            expect(readEdges.length).toBeGreaterThanOrEqual(1);
+            expect(writeEdges.length).toBeGreaterThanOrEqual(1);
+        } finally {
+            fs.rmSync(tmpDir, { recursive: true, force: true });
+        }
+    });
+
+    it('detects Bull/BullMQ queue operations and creates QueueJob nodes', async () => {
+        const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'nomik-queue-'));
+        try {
+            const filePath = path.join(tmpDir, 'jobs.ts');
+            writeFile(filePath, `
+import { Queue, Worker } from 'bullmq';
+
+const emailQueue = new Queue('email');
+
+export async function sendWelcomeEmail(userId: string) {
+    await emailQueue.add('welcome', { userId });
+}
+
+const worker = new Worker('email', async (job) => {
+    console.log('Processing', job.name);
+});
+`);
+            const engine = createParserEngine();
+            const results = await engine.parseFiles([filePath]);
+            const result = results[0]!;
+
+            const queueNodes = result.nodes.filter(n => n.type === 'queue_job');
+            expect(queueNodes.length).toBeGreaterThanOrEqual(1);
+
+            const produceEdges = result.edges.filter(e => e.type === 'PRODUCES_JOB');
+            const consumeEdges = result.edges.filter(e => e.type === 'CONSUMES_JOB');
+            expect(produceEdges.length).toBeGreaterThanOrEqual(1);
+            expect(consumeEdges.length).toBeGreaterThanOrEqual(1);
+        } finally {
+            fs.rmSync(tmpDir, { recursive: true, force: true });
+        }
+    });
+
+    it('detects Prometheus prom-client metrics and creates Metric nodes with USES_METRIC edges', async () => {
+        const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'nomik-metrics-'));
+        try {
+            const filePath = path.join(tmpDir, 'metrics.ts');
+            writeFile(filePath, `
+import { Counter, Histogram } from 'prom-client';
+
+const httpRequests = new Counter({
+    name: 'http_requests_total',
+    help: 'Total HTTP requests',
+});
+
+const responseTime = new Histogram({
+    name: 'http_response_duration_seconds',
+    help: 'Response time in seconds',
+});
+
+export function handleRequest() {
+    httpRequests.inc();
+    const end = responseTime.startTimer();
+    end();
+}
+`);
+            const engine = createParserEngine();
+            const results = await engine.parseFiles([filePath]);
+            const result = results[0]!;
+
+            const metricNodes = result.nodes.filter(n => n.type === 'metric');
+            expect(metricNodes.length).toBe(2);
+            expect(metricNodes.some(n => n.name === 'http_requests_total')).toBe(true);
+            expect(metricNodes.some(n => n.name === 'http_response_duration_seconds')).toBe(true);
+
+            const usesMetricEdges = result.edges.filter(e => e.type === 'USES_METRIC');
+            expect(usesMetricEdges.length).toBeGreaterThanOrEqual(2);
+        } finally {
+            fs.rmSync(tmpDir, { recursive: true, force: true });
+        }
+    });
+
+    it('detects Socket.io room join/leave and chained room emit', async () => {
+        const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'nomik-socketio-'));
+        try {
+            const filePath = path.join(tmpDir, 'socket.ts');
+            writeFile(filePath, `
+import { Server } from 'socket.io';
+const io = new Server();
+
+io.on('connection', (socket) => {
+    socket.join('room1');
+    socket.to('room1').emit('hello', { msg: 'hi' });
+    socket.on('chat', (data) => console.log(data));
+});
+`);
+            const engine = createParserEngine();
+            const results = await engine.parseFiles([filePath]);
+            const result = results[0]!;
+
+            const eventNodes = result.nodes.filter(n => n.type === 'event');
+            expect(eventNodes.length).toBeGreaterThanOrEqual(2);
+
+            const joinEvent = eventNodes.find(n => n.name.includes('room:join:room1'));
+            expect(joinEvent).toBeDefined();
+
+            const helloEvent = eventNodes.find(n => n.name === 'hello');
+            expect(helloEvent).toBeDefined();
+            if (helloEvent && 'room' in helloEvent) {
+                expect(helloEvent.room).toBe('room1');
+            }
+        } finally {
+            fs.rmSync(tmpDir, { recursive: true, force: true });
+        }
+    });
 });

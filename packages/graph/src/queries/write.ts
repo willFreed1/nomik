@@ -156,6 +156,8 @@ function nodeTypeToLabel(type: string): string {
         cron_job: 'CronJob',
         event: 'Event',
         env_var: 'EnvVar',
+        queue_job: 'QueueJob',
+        metric: 'Metric',
     };
     return map[type] ?? 'Unknown';
 }

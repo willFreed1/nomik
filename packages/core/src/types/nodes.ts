@@ -70,6 +70,10 @@ export interface RouteNode {
     handlerName: string;
     filePath: string;
     middleware: string[];
+    apiTags?: string[];
+    apiSummary?: string;
+    apiDescription?: string;
+    apiResponseStatus?: number[];
 }
 
 export interface DBTableNode {
@@ -112,6 +116,8 @@ export interface EventNode {
     name: string;
     eventKind: 'emit' | 'listen';
     filePath: string;
+    namespace?: string;
+    room?: string;
 }
 
 export interface EnvVarNode {
@@ -122,7 +128,25 @@ export interface EnvVarNode {
     defaultValue?: string;
 }
 
-/** Noeud projet : isole les donnees par projet dans le graphe */
+export interface QueueJobNode {
+    id: string;
+    type: 'queue_job';
+    name: string;
+    queueName: string;
+    filePath: string;
+    jobKind: 'producer' | 'consumer';
+}
+
+export interface MetricNode {
+    id: string;
+    type: 'metric';
+    name: string;
+    metricType: 'counter' | 'gauge' | 'histogram' | 'summary' | 'unknown';
+    help?: string;
+    filePath: string;
+}
+
+/** Project node: isolates data by project in the graph */
 export interface ProjectNode {
     id: string;
     type: 'project';
@@ -151,6 +175,8 @@ export type GraphNode =
     | ExternalAPINode
     | CronJobNode
     | EventNode
-    | EnvVarNode;
+    | EnvVarNode
+    | QueueJobNode
+    | MetricNode;
 
 export type NodeType = GraphNode['type'];

@@ -163,4 +163,3 @@ function isNodeExported(node: Parser.SyntaxNode): boolean {
     }
     return false;
 }
-

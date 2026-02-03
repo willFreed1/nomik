@@ -42,12 +42,14 @@
 | `Class` | `id`, `type='class'`, `name`, `filePath`, `startLine`, `endLine`, `isExported`, `isAbstract`, `superClass?`, `interfaces[]`, `decorators[]`, `methods[]`, `properties[]`, `bodyHash?`, `projectId` | Class or interface |
 | `Variable` | `id`, `type='variable'`, `name`, `filePath`, `line`, `kind` (const/let/var), `isExported`, `valueType?`, `projectId` | Top-level variable or constant |
 | `Module` | `id`, `type='module'`, `name`, `path`, `moduleType` (file/package/external), `projectId` | Logical module |
-| `Route` | `id`, `type='route'`, `method`, `path`, `handlerName`, `filePath`, `middleware[]`, `projectId` | HTTP endpoint |
+| `Route` | `id`, `type='route'`, `method`, `path`, `handlerName`, `filePath`, `middleware[]`, `apiTags?[]`, `apiSummary?`, `apiDescription?`, `apiResponseStatus?[]`, `projectId` | HTTP endpoint (with optional Swagger/OpenAPI metadata) |
 | `DBTable` | `id`, `type='db_table'`, `name`, `schema?`, `operations[]`, `projectId` | Database table reference |
 | `ExternalAPI` | `id`, `type='external_api'`, `name`, `baseUrl?`, `methods[]`, `projectId` | External API (Stripe, AWS, etc.) |
 | `CronJob` | `id`, `type='cron_job'`, `name`, `schedule`, `handlerName`, `filePath`, `projectId` | Scheduled task |
-| `Event` | `id`, `type='event'`, `name`, `eventKind` (emit/listen), `filePath`, `projectId` | Event bus publish/subscribe |
+| `Event` | `id`, `type='event'`, `name`, `eventKind` (emit/listen), `filePath`, `namespace?`, `room?`, `projectId` | Event bus publish/subscribe (with Socket.io room/namespace) |
 | `EnvVar` | `id`, `type='env_var'`, `name`, `required`, `defaultValue?`, `projectId` | Environment variable |
+| `QueueJob` | `id`, `type='queue_job'`, `name`, `queueName`, `filePath`, `jobKind` (producer/consumer), `projectId` | Job queue task (Bull/BullMQ/Bee-Queue) |
+| `Metric` | `id`, `type='metric'`, `name`, `metricType` (counter/gauge/histogram/summary), `help?`, `filePath`, `projectId` | Prometheus/OpenTelemetry metric |
 
 ---
 
@@ -74,6 +76,9 @@ All edges have a `projectId` property for multi-project isolation.
 | `EMITS` | Function → Event | `payload?` | Event emission |
 | `LISTENS_TO` | Function → Event | `handler` | Event subscription |
 | `USES_ENV` | Function → EnvVar | — | Environment variable usage |
+| `PRODUCES_JOB` | Function → QueueJob | `jobName?` | Function enqueues a job |
+| `CONSUMES_JOB` | Function → QueueJob | `jobName?` | Function processes a job |
+| `USES_METRIC` | Function → Metric | `operation` (inc/dec/set/observe/startTimer/define) | Function uses a Prometheus metric |
 
 ---
 

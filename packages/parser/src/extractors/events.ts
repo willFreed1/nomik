@@ -28,11 +28,16 @@ export interface EventInfo {
     kind: 'emit' | 'listen';
     callerName: string;
     handlerName?: string;
+    namespace?: string;
+    room?: string;
     line: number;
 }
 
 const EMIT_METHODS = new Set(['emit', 'dispatch', 'publish', 'send', 'fire']);
 const LISTEN_METHODS = new Set(['on', 'once', 'addListener', 'addEventListener', 'subscribe', 'handle']);
+const ROOM_METHODS = new Set(['to', 'in']);
+const NAMESPACE_METHOD = 'of';
+const JOIN_METHODS = new Set(['join', 'leave']);
 
 // ────────────────────────────────────────────────────────────────────────
 // Step 1: Extract event emit/listen patterns from tree-sitter AST
@@ -73,6 +78,11 @@ export function extractEvents(tree: Parser.Tree, _filePath: string): EventInfo[]
             const eventInfo = tryEventCallExpression(node, currentFunction);
             if (eventInfo) {
                 results.push(eventInfo);
+            }
+            // Socket.io: socket.join('room') / socket.leave('room')
+            const joinInfo = trySocketJoinLeave(node, currentFunction);
+            if (joinInfo) {
+                results.push(joinInfo);
             }
         }
 
@@ -137,11 +147,74 @@ function tryEventCallExpression(node: Parser.SyntaxNode, callerName: string): Ev
         }
     }
 
+    // Detect Socket.io room/namespace from chained calls:
+    //   socket.to('room').emit('event')  → room = 'room'
+    //   io.of('/ns').emit('event')       → namespace = '/ns'
+    const { namespace, room } = detectSocketChainContext(fn);
+
     return {
         eventName,
         kind: isEmit ? 'emit' : 'listen',
         callerName,
         handlerName,
+        namespace,
+        room,
+        line: node.startPosition.row + 1,
+    };
+}
+
+/** Detect room/namespace from chained Socket.io calls like socket.to('room').emit() */
+function detectSocketChainContext(memberExpr: Parser.SyntaxNode): { namespace?: string; room?: string } {
+    let namespace: string | undefined;
+    let room: string | undefined;
+
+    const obj = memberExpr.childForFieldName('object');
+    if (!obj || obj.type !== 'call_expression') return { namespace, room };
+
+    const innerFn = obj.childForFieldName('function');
+    if (!innerFn || innerFn.type !== 'member_expression') return { namespace, room };
+
+    const innerMethod = innerFn.childForFieldName('property')?.text;
+    if (!innerMethod) return { namespace, room };
+
+    const innerArgs = obj.childForFieldName('arguments');
+    const firstInnerArg = innerArgs?.namedChildren[0];
+    const argText = (firstInnerArg?.type === 'string' || firstInnerArg?.type === 'template_string')
+        ? firstInnerArg.text.replace(/^['"`]|['"`]$/g, '')
+        : undefined;
+
+    if (ROOM_METHODS.has(innerMethod) && argText) {
+        room = argText;
+    }
+    if (innerMethod === NAMESPACE_METHOD && argText) {
+        namespace = argText;
+    }
+
+    return { namespace, room };
+}
+
+/** Detect socket.join('room') / socket.leave('room') */
+function trySocketJoinLeave(node: Parser.SyntaxNode, callerName: string): EventInfo | null {
+    const fn = node.childForFieldName('function');
+    if (!fn || fn.type !== 'member_expression') return null;
+
+    const methodNode = fn.childForFieldName('property');
+    if (!methodNode || !JOIN_METHODS.has(methodNode.text)) return null;
+
+    const args = node.childForFieldName('arguments');
+    if (!args || args.namedChildren.length === 0) return null;
+
+    const firstArg = args.namedChildren[0];
+    if (!firstArg || (firstArg.type !== 'string' && firstArg.type !== 'template_string')) return null;
+
+    const roomName = firstArg.text.replace(/^['"`]|['"`]$/g, '');
+    if (!roomName) return null;
+
+    return {
+        eventName: `room:${methodNode.text}:${roomName}`,
+        kind: methodNode.text === 'join' ? 'listen' : 'emit',
+        callerName,
+        room: roomName,
         line: node.startPosition.row + 1,
     };
 }
@@ -210,6 +283,8 @@ export function buildEventNodesAndEdges(
                 name: ev.eventName,
                 eventKind: ev.kind,
                 filePath,
+                namespace: ev.namespace,
+                room: ev.room,
             };
             nodes.push(eventNode);
         }

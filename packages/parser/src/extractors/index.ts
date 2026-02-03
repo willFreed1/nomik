@@ -7,3 +7,6 @@ export { extractExports } from './exports';
 export type { ExportInfo } from './exports';
 export { extractCalls } from './calls';
 export type { CallInfo } from './calls';
+export { extractRedisOperations, buildRedisNodesAndEdges, buildRedisClientIdentifiers } from './redis';
+export { extractQueueOperations, buildQueueNodesAndEdges, buildQueueClientIdentifiers } from './queue';
+export { extractMetrics, buildMetricNodesAndEdges, buildMetricsClientIdentifiers } from './metrics';

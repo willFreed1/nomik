@@ -12,6 +12,8 @@ export type {
     CronJobNode,
     EventNode,
     EnvVarNode,
+    QueueJobNode,
+    MetricNode,
     ProjectNode,
     ParameterInfo,
 } from './nodes.js';
@@ -34,6 +36,9 @@ export type {
     EmitsEdge,
     ListensToEdge,
     UsesEnvEdge,
+    ProducesJobEdge,
+    ConsumesJobEdge,
+    UsesMetricEdge,
 } from './edges.js';
 
 export {

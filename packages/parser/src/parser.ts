@@ -17,6 +17,9 @@ import { extractAPICalls, buildAPINodesAndEdges, buildHttpClientIdentifiers } fr
 import { extractDBOperations, buildDBNodesAndEdges, buildDBClientIdentifiers } from './extractors/db-operations';
 import { extractEnvVars, extractPythonEnvVars, buildEnvVarNodesAndEdges } from './extractors/env-vars';
 import { extractEvents, extractPythonEvents, buildEventNodesAndEdges } from './extractors/events';
+import { extractRedisOperations, buildRedisNodesAndEdges, buildRedisClientIdentifiers } from './extractors/redis';
+import { extractQueueOperations, buildQueueNodesAndEdges, buildQueueClientIdentifiers } from './extractors/queue';
+import { extractMetrics, buildMetricNodesAndEdges, buildMetricsClientIdentifiers } from './extractors/metrics';
 import { extractPythonFunctions, extractPythonClasses, extractPythonImports, extractPythonCalls } from './extractors/python';
 import { extractRustFunctions, extractRustClasses, extractRustImports, extractRustCalls } from './extractors/rust';
 import { createNodeId, createFileHash } from './utils';
@@ -250,7 +253,46 @@ export function createParserEngine(): ParserEngine {
             }
         }
 
-        const nodes: GraphNode[] = [fileNode, ...functions, ...classes, ...variables, ...routes, ...moduleNodes, ...apiNodes, ...dbNodes, ...migrationSchemaNodes, ...envNodes, ...eventNodes];
+        // Redis tracking (TS/JS only)
+        let redisNodes: GraphNode[] = [];
+        let redisEdges: GraphEdge[] = [];
+        if (language !== 'python' && language !== 'rust') {
+            const redisClientIds = buildRedisClientIdentifiers(imports);
+            const redisOps = extractRedisOperations(tree, absolutePath, redisClientIds);
+            if (redisOps.length > 0) {
+                const redis = buildRedisNodesAndEdges(redisOps, localFuncMap, fileNode.id, absolutePath);
+                redisNodes = redis.nodes;
+                redisEdges = redis.edges;
+            }
+        }
+
+        // Queue job tracking — Bull/BullMQ/Bee-Queue (TS/JS only)
+        let queueNodes: GraphNode[] = [];
+        let queueEdges: GraphEdge[] = [];
+        if (language !== 'python' && language !== 'rust') {
+            const queueClientIds = buildQueueClientIdentifiers(imports);
+            const queueOps = extractQueueOperations(tree, absolutePath, queueClientIds);
+            if (queueOps.length > 0) {
+                const queue = buildQueueNodesAndEdges(queueOps, localFuncMap, fileNode.id, absolutePath);
+                queueNodes = queue.nodes;
+                queueEdges = queue.edges;
+            }
+        }
+
+        // Prometheus / prom-client metrics tracking (TS/JS only)
+        let metricNodes: GraphNode[] = [];
+        let metricEdges: GraphEdge[] = [];
+        if (language !== 'python' && language !== 'rust') {
+            const metricsClientIds = buildMetricsClientIdentifiers(imports);
+            const { definitions, usages } = extractMetrics(tree, absolutePath, metricsClientIds);
+            if (definitions.length > 0 || usages.length > 0) {
+                const metrics = buildMetricNodesAndEdges(definitions, usages, localFuncMap, fileNode.id, absolutePath);
+                metricNodes = metrics.nodes;
+                metricEdges = metrics.edges;
+            }
+        }
+
+        const nodes: GraphNode[] = [fileNode, ...functions, ...classes, ...variables, ...routes, ...moduleNodes, ...apiNodes, ...dbNodes, ...migrationSchemaNodes, ...envNodes, ...eventNodes, ...redisNodes, ...queueNodes, ...metricNodes];
 
         const localVarMap = new Map<string, string>();
         for (const v of variables) {
@@ -314,6 +356,9 @@ export function createParserEngine(): ParserEngine {
             ...migrationSchemaEdges,
             ...envEdges,
             ...eventEdges,
+            ...redisEdges,
+            ...queueEdges,
+            ...metricEdges,
             ...exportEdges,
         ];
 

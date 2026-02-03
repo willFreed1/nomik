@@ -13,7 +13,10 @@ export type EdgeType =
     | 'TRIGGERS'
     | 'EMITS'
     | 'LISTENS_TO'
-    | 'USES_ENV';
+    | 'USES_ENV'
+    | 'PRODUCES_JOB'
+    | 'CONSUMES_JOB'
+    | 'USES_METRIC';
 
 export interface BaseEdge {
     id: string;
@@ -99,6 +102,21 @@ export interface UsesEnvEdge extends BaseEdge {
     type: 'USES_ENV';
 }
 
+export interface ProducesJobEdge extends BaseEdge {
+    type: 'PRODUCES_JOB';
+    jobName?: string;
+}
+
+export interface ConsumesJobEdge extends BaseEdge {
+    type: 'CONSUMES_JOB';
+    jobName?: string;
+}
+
+export interface UsesMetricEdge extends BaseEdge {
+    type: 'USES_METRIC';
+    operation: 'inc' | 'dec' | 'set' | 'observe' | 'startTimer' | 'define';
+}
+
 export type GraphEdge =
     | ContainsEdge
     | ImportsEdge
@@ -114,4 +132,7 @@ export type GraphEdge =
     | TriggersEdge
     | EmitsEdge
     | ListensToEdge
-    | UsesEnvEdge;
+    | UsesEnvEdge
+    | ProducesJobEdge
+    | ConsumesJobEdge
+    | UsesMetricEdge;

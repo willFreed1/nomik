@@ -39,6 +39,11 @@ src/
 │   ├── calls.ts           # CallInfo extraction
 │   ├── api-calls.ts       # External API call detection (dynamic, import-aware)
 │   ├── db-operations.ts   # Database operation detection (dynamic, import-aware)
+│   ├── redis.ts           # Redis operation detection (ioredis, @redis/client, @upstash/redis)
+│   ├── queue.ts           # Job queue detection (Bull/BullMQ/Bee-Queue/Agenda/pg-boss)
+│   ├── metrics.ts         # Prometheus metrics detection (prom-client, OpenTelemetry)
+│   ├── env-vars.ts        # Environment variable detection (process.env, Python os.environ)
+│   ├── events.ts          # Event/message bus detection (emit/on/subscribe + Socket.io rooms)
 │   ├── python.ts          # Python extractor
 │   ├── rust.ts            # Rust extractor
 │   ├── markdown.ts        # Markdown parser
@@ -70,6 +75,11 @@ src/
 | Calls | `calls.ts` | `CallInfo` (callerName, calleeName, line, column) — supports `obj.method()` member expressions, anonymous callbacks (`__file__`), callback arguments (`arr.map(fn)`), shorthand property references (`{ someFunc }`) |
 | API Calls | `api-calls.ts` | `APICallInfo` — **dynamic, import-aware** detection of HTTP clients (axios, ky, got, fetch, etc.) + URL heuristic for any `x.get('/api/...')` pattern. Creates `ExternalAPINode` + `CALLS_EXTERNAL` edges |
 | DB Operations | `db-operations.ts` | `DBOperationInfo` — **dynamic, import-aware** detection of Prisma, Supabase, Knex patterns. Receiver names resolved from imports (`@prisma/client`, `@supabase/supabase-js`, `knex`). **Chain-aware classification**: `.from().insert().select()` correctly classified as INSERT (walks chain inside-out, write ops take priority). Creates `DBTableNode` + `READS_FROM`/`WRITES_TO` edges |
+| Redis | `redis.ts` | `RedisOpInfo` — **dynamic, import-aware** detection of `redis`/`ioredis`/`@redis/client`/`@upstash/redis`. Detects get/set/del/hget/lpush/etc. Includes `resolveRedisInstances()` for `const client = new Redis()` patterns. Creates `DBTableNode` (schema=redis) + `READS_FROM`/`WRITES_TO` edges |
+| Queue Jobs | `queue.ts` | `QueueOpInfo` — **dynamic, import-aware** detection of `bull`/`bullmq`/`bee-queue`/`agenda`/`pg-boss`. Tracks `queue.add()` (producer), `queue.process()`/`new Worker()` (consumer). Creates `QueueJobNode` + `PRODUCES_JOB`/`CONSUMES_JOB` edges |
+| Metrics | `metrics.ts` | `MetricInfo` + `MetricUsageInfo` — **dynamic, import-aware** detection of `prom-client`/`@opentelemetry/api`. Tracks `new Counter/Gauge/Histogram/Summary()` definitions and `.inc()`/`.observe()`/`.startTimer()` usages (including chained `.labels().inc()`). Creates `MetricNode` + `USES_METRIC` edges |
+| Env Vars | `env-vars.ts` | `EnvVarInfo` — `process.env.VAR` (member+subscript), `??`/`\|\|` default detection, `!` required detection, Python `os.environ`/`os.getenv`. Creates `EnvVarNode` + `USES_ENV` edges |
+| Events | `events.ts` | `EventInfo` — `emitter.emit()`/`.on()`/`.once()`/`.subscribe()` detection, Python `socketio`/Django signals. **Socket.io enhanced**: room/namespace detection (`socket.to('room').emit()`, `io.of('/ns')`, `socket.join()`). Creates `EventNode` + `EMITS`/`LISTENS_TO` edges |
 
 ### Python (`src/extractors/python.ts`)
 
@@ -106,9 +116,16 @@ Cross-file resolution logic, extracted from `parser.ts` for modularity:
 - `ClassNode`: id, name, filePath, startLine, endLine, isExported, isAbstract, superClass, interfaces, decorators, methods, properties, **bodyHash?** (SHA-256 whitespace-normalized, 16-char hex)
 - `ImportInfo`: source, specifiers, isDefault, isDynamic, isTypeOnly, line
 - `CallInfo`: callerName, calleeName, line, column, isMethodCall, isConstructor
-- `RouteNode`: id, method, path, **handlerName** (resolved from identifier, member_expression, variable_declarator, or call_expression), filePath, middleware
+- `RouteNode`: id, method, path, **handlerName** (resolved from identifier, member_expression, variable_declarator, or call_expression), filePath, middleware, **apiTags?**, **apiSummary?**, **apiDescription?**, **apiResponseStatus?** (Swagger/OpenAPI decorator enrichment)
 - `APICallInfo`: callerName, receiverName, method (HTTP verb), endpoint, line
 - `DBOperationInfo`: callerName, tableName, operation (SELECT/INSERT/UPDATE/DELETE), receiverName, line
+- `RedisOpInfo`: callerName, command, keyPattern, operation, line
+- `QueueOpInfo`: callerName, queueName, jobName, kind (producer/consumer), line
+- `MetricInfo`: metricName, metricType (counter/gauge/histogram/summary), help, variableName, line
+- `MetricUsageInfo`: variableName, operation (inc/dec/set/observe/startTimer), callerName, line
+- `QueueJobNode`: id, name, queueName, filePath, jobKind (producer/consumer)
+- `MetricNode`: id, name, metricType, help, filePath
+- `EventNode`: id, name, eventKind (emit/listen), filePath, **namespace?**, **room?**
 
 ## Cross-file resolution (`src/parser.ts` + `src/resolvers/`)
 
@@ -125,9 +142,9 @@ Discovers supported files in a directory via `glob`, respects include/exclude pa
 
 ## Tests
 
-**172 tests across 14 files** (parser: 122 tests in 9 files)
+**213 tests across 18 files** (parser: 139 tests in 11 files)
 
-- `parser-integration.test.ts`: **26 tests** (cross-file calls, alias imports, name collisions, controller→service delegation, namespace imports, dynamic imports, **lineCount**, **Supabase chain classification**, **route handler names**, **bodyHash uniqueness**)
+- `parser-integration.test.ts`: **30 tests** (cross-file calls, alias imports, name collisions, controller→service delegation, namespace imports, dynamic imports, **lineCount**, **Supabase chain classification**, **route handler names**, **bodyHash uniqueness**, **Redis operations**, **Bull/BullMQ queues**, **Prometheus metrics**, **Socket.io rooms**)
 - `api-calls.test.ts`: 17 tests (fetch, $fetch, axios.get/post, URL heuristic, unknown receiver, buildHttpClientIdentifiers, buildAPINodesAndEdges)
 - `db-operations.test.ts`: 24 tests (Prisma CRUD, Supabase .from(), Knex fn(), structural match, buildDBClientIdentifiers, buildDBNodesAndEdges)
 - `db-schema.test.ts`: 9 tests (SQL, C# EF, Django, Alembic migration schema extraction)

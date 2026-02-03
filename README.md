@@ -70,6 +70,31 @@ Once connected, your AI assistant gets these tools automatically:
 - Receiver names resolved from **imports** (`@prisma/client`, `@supabase/supabase-js`, `knex`, etc.), not hardcoded
 - Creates `DBTable` + `DBColumn` nodes, `CONTAINS`, `READS_FROM`, and `WRITES_TO` edges
 
+### Redis Operations (dynamic, import-aware)
+- Detects calls through **any** Redis client imported from known npm packages (`redis`, `ioredis`, `@redis/client`, `@upstash/redis`)
+- Resolves `const client = new Redis()` patterns to track instance variables
+- Classifies commands: reads (get, hget, lrange, etc.), writes (set, hset, lpush, etc.), deletes (del, hdel, etc.)
+- Creates `DBTable` nodes (schema=redis) + `READS_FROM`/`WRITES_TO` edges
+
+### Job Queues (dynamic, import-aware)
+- **Bull/BullMQ**: `queue.add('job', data)` → producer, `new Worker('queue', handler)` → consumer
+- **Bee-Queue/Agenda/pg-boss**: similar producer/consumer detection
+- Creates `QueueJob` nodes + `PRODUCES_JOB`/`CONSUMES_JOB` edges
+
+### Prometheus Metrics (dynamic, import-aware)
+- Detects `prom-client` and `@opentelemetry/api` metric definitions (`new Counter/Gauge/Histogram/Summary()`)
+- Tracks metric usage: `.inc()`, `.dec()`, `.set()`, `.observe()`, `.startTimer()` (including chained `.labels().inc()`)
+- Creates `Metric` nodes + `USES_METRIC` edges
+
+### Socket.io Enhanced
+- Room detection: `socket.to('room').emit('event')`, `socket.join('room')`, `socket.leave('room')`
+- Namespace detection: `io.of('/namespace').emit('event')`
+- `namespace` and `room` fields on `Event` nodes
+
+### Swagger/OpenAPI Decorator Enrichment
+- Detects `@ApiTags()`, `@ApiOperation()`, `@ApiResponse()` decorators on routes
+- Enriches `Route` nodes with `apiTags`, `apiSummary`, `apiDescription`, `apiResponseStatus`
+
 ### Codebase Health
 - **Dead code detection** — functions never called (excludes constructors, class methods, React components, barrel exports)
 - **God object detection** — functions with excessive cross-file coupling (configurable threshold)
@@ -100,7 +125,7 @@ nomik project info            # Show current project stats
 
 | Language | Grammar | Extractors |
 |---|---|---|
-| **TypeScript / JavaScript** | `tree-sitter-typescript` | functions, classes, imports, exports, routes, calls, API calls, DB operations |
+| **TypeScript / JavaScript** | `tree-sitter-typescript` | functions, classes, imports, exports, routes, calls, API calls, DB operations, Redis, queues, metrics, env vars, events |
 | **Python** | `tree-sitter-python` | functions, classes, imports, calls |
 | **Rust** | `tree-sitter-rust` | functions, structs/enums/traits, use, calls |
 | **Markdown** | Custom parser (regex) | sections (h1-h6 headings) |
@@ -130,7 +155,7 @@ nomik/
 ├── @nomik/core        — Types (Zod), config, errors, logger (Pino)
 ├── @nomik/parser      — Tree-sitter extraction, modular resolvers, API/DB tracking
 │   ├── extractors/    — functions, classes, imports, exports, routes, calls,
-│   │                    api-calls (dynamic), db-operations (dynamic)
+│   │                    api-calls, db-operations, redis, queue, metrics, events, env-vars
 │   ├── resolvers/     — cross-file, intra-file, route-handling
 │   └── config/        — tsconfig/path alias resolution
 ├── @nomik/graph       — Neo4j driver, read/write queries, cache (TTL 30s), retry
