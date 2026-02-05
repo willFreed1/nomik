@@ -19,3 +19,7 @@ export { buildWSClientIdentifiers, extractWSEvents, buildWSNodesAndEdges } from 
 export { extractDockerfileInfo, extractDockerComposeServices, extractK8sResources, buildDockerNodes } from './docker';
 export { extractGitHubActionsJobs, extractGitLabCIJobs, buildCICDNodes } from './cicd';
 export { extractOpenAPIRoutesFromJSON, extractOpenAPIRoutesFromYAML, buildOpenAPIRouteNodes } from './openapi-spec';
+export { buildFlagClientIdentifiers, extractFeatureFlags, buildFlagNodesAndEdges } from './feature-flags';
+export { extractGraphQLSchema, buildGraphQLNodes } from './graphql-schema';
+export { extractTerraformResources, extractTerraformVariables, extractTerraformModules, extractTerraformOutputs, buildTerraformNodes } from './terraform';
+export { extractDependencies, extractPythonRequirements, buildDependencyNodes } from './dependencies';

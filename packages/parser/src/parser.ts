@@ -25,6 +25,7 @@ import { extractMessageOps, buildMessageNodesAndEdges, buildBrokerClientIdentifi
 import { buildSwaggerClientIdentifiers, extractSwaggerSetups, enrichRoutesWithSwagger } from './extractors/swagger';
 import { buildRPCClientIdentifiers, extractRPCProcedures, buildRPCNodesAndEdges } from './extractors/grpc';
 import { buildWSClientIdentifiers, extractWSEvents, buildWSNodesAndEdges } from './extractors/websocket';
+import { buildFlagClientIdentifiers, extractFeatureFlags, buildFlagNodesAndEdges } from './extractors/feature-flags';
 import { extractPythonFunctions, extractPythonClasses, extractPythonImports, extractPythonCalls } from './extractors/python';
 import { extractRustFunctions, extractRustClasses, extractRustImports, extractRustCalls } from './extractors/rust';
 import { createNodeId, createFileHash } from './utils';
@@ -358,7 +359,20 @@ export function createParserEngine(): ParserEngine {
             }
         }
 
-        const nodes: GraphNode[] = [fileNode, ...functions, ...classes, ...variables, ...routes, ...moduleNodes, ...apiNodes, ...dbNodes, ...migrationSchemaNodes, ...envNodes, ...eventNodes, ...redisNodes, ...queueNodes, ...metricNodes, ...spanNodes, ...messageNodes, ...rpcNodes, ...wsNodes];
+        // Feature flag tracking — LaunchDarkly, Unleash, Flagsmith, Split, GrowthBook (TS/JS only)
+        let flagNodes: GraphNode[] = [];
+        let flagEdges: GraphEdge[] = [];
+        if (language !== 'python' && language !== 'rust') {
+            const { ids: flagClientIds, providerMap: flagProviderMap } = buildFlagClientIdentifiers(imports);
+            const flags = extractFeatureFlags(tree, absolutePath, flagClientIds, flagProviderMap);
+            if (flags.length > 0) {
+                const flagResult = buildFlagNodesAndEdges(flags, localFuncMap, fileNode.id, absolutePath);
+                flagNodes = flagResult.nodes;
+                flagEdges = flagResult.edges;
+            }
+        }
+
+        const nodes: GraphNode[] = [fileNode, ...functions, ...classes, ...variables, ...routes, ...moduleNodes, ...apiNodes, ...dbNodes, ...migrationSchemaNodes, ...envNodes, ...eventNodes, ...redisNodes, ...queueNodes, ...metricNodes, ...spanNodes, ...messageNodes, ...rpcNodes, ...wsNodes, ...flagNodes];
 
         const localVarMap = new Map<string, string>();
         for (const v of variables) {
@@ -429,6 +443,7 @@ export function createParserEngine(): ParserEngine {
             ...messageEdges,
             ...rpcEdges,
             ...wsEdges,
+            ...flagEdges,
             ...exportEdges,
         ];
 

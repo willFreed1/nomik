@@ -92,6 +92,10 @@ nomik/
 │   │   │   │   ├── docker.ts      # Docker/K8s config parsing
 │   │   │   │   ├── cicd.ts        # CI/CD pipeline detection (GitHub Actions, GitLab CI)
 │   │   │   │   ├── openapi-spec.ts # OpenAPI spec file parsing (JSON/YAML)
+│   │   │   │   ├── feature-flags.ts # Feature flag detection (LaunchDarkly, Unleash, etc.)
+│   │   │   │   ├── graphql-schema.ts # GraphQL schema file parsing (.graphql/.gql)
+│   │   │   │   ├── terraform.ts   # Terraform/IaC config parsing (.tf)
+│   │   │   │   ├── dependencies.ts # Dependency tracking (package.json, requirements.txt)
 │   │   │   │   ├── db-schema/        # DB migration schema extraction (modular)
 │   │   │   │   │   ├── types.ts      # Shared types (DBSchemaTable, DBSchemaColumn)
 │   │   │   │   │   ├── builder.ts    # Node/edge builder

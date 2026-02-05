@@ -1693,4 +1693,171 @@ jobs:
         expect(jobs[0]!.platform).toBe('github-actions');
         expect(jobs[0]!.runsOn).toBe('ubuntu-latest');
     });
+
+    it('detects LaunchDarkly feature flag checks and creates EnvVar nodes', async () => {
+        const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'nomik-flags-'));
+        try {
+            const filePath = path.join(tmpDir, 'flags.ts');
+            writeFile(filePath, `
+import { init } from 'launchdarkly-node-server-sdk';
+const ldClient = init('sdk-key');
+
+export async function getFeature() {
+    const darkMode = await ldClient.variation('dark-mode', { key: 'user1' }, false);
+    const newUI = await ldClient.boolVariation('new-ui-v2', { key: 'user1' }, false);
+    return { darkMode, newUI };
+}
+`);
+            const engine = createParserEngine();
+            const results = await engine.parseFiles([filePath]);
+            const result = results[0]!;
+
+            const envNodes = result.nodes.filter(n => n.type === 'env_var');
+            expect(envNodes.length).toBe(2);
+            const names = envNodes.map(n => (n as any).name);
+            expect(names).toContain('dark-mode');
+            expect(names).toContain('new-ui-v2');
+
+            const usesEnvEdges = result.edges.filter(e => e.type === 'USES_ENV');
+            expect(usesEnvEdges.length).toBe(2);
+        } finally {
+            fs.rmSync(tmpDir, { recursive: true, force: true });
+        }
+    });
+
+    it('extracts GraphQL schema types and operations', async () => {
+        const { extractGraphQLSchema, buildGraphQLNodes } = await import('../extractors/graphql-schema');
+
+        const schema = `
+type User {
+    id: ID!
+    name: String!
+    email: String!
+}
+
+input CreateUserInput {
+    name: String!
+    email: String!
+}
+
+type Query {
+    users: [User!]!
+    user(id: ID!): User
+}
+
+type Mutation {
+    createUser(input: CreateUserInput!): User!
+    deleteUser(id: ID!): Boolean!
+}
+
+enum Role {
+    ADMIN
+    USER
+    GUEST
+}
+`;
+        const { types, operations } = extractGraphQLSchema(schema, 'schema.graphql');
+        expect(types.length).toBe(3); // User, CreateUserInput, Role
+        expect(operations.length).toBe(4); // users, user, createUser, deleteUser
+        expect(operations.filter(o => o.kind === 'query').length).toBe(2);
+        expect(operations.filter(o => o.kind === 'mutation').length).toBe(2);
+
+        const { nodes } = buildGraphQLNodes(types, operations, 'schema.graphql');
+        const routeNodes = nodes.filter(n => n.type === 'route');
+        const classNodes = nodes.filter(n => n.type === 'class');
+        expect(routeNodes.length).toBe(4);
+        expect(classNodes.length).toBe(3);
+    });
+
+    it('extracts Terraform resources and variables', async () => {
+        const { extractTerraformResources, extractTerraformVariables, extractTerraformModules } = await import('../extractors/terraform');
+
+        const tfContent = `
+variable "region" {
+    type    = string
+    default = "us-east-1"
+    description = "AWS region"
+}
+
+variable "instance_type" {
+    type = string
+}
+
+resource "aws_instance" "web" {
+    ami           = "ami-12345"
+    instance_type = var.instance_type
+}
+
+resource "aws_s3_bucket" "data" {
+    bucket = "my-data-bucket"
+}
+
+data "aws_ami" "latest" {
+    most_recent = true
+}
+
+module "vpc" {
+    source = "terraform-aws-modules/vpc/aws"
+}
+`;
+        const resources = extractTerraformResources(tfContent, 'main.tf');
+        expect(resources.length).toBe(3); // aws_instance, aws_s3_bucket, data.aws_ami
+        expect(resources[0]!.resourceType).toBe('aws_instance');
+        expect(resources[0]!.name).toBe('web');
+        expect(resources[0]!.provider).toBe('aws');
+
+        const variables = extractTerraformVariables(tfContent, 'main.tf');
+        expect(variables.length).toBe(2);
+        expect(variables[0]!.name).toBe('region');
+        expect(variables[0]!.defaultValue).toBe('us-east-1');
+
+        const modules = extractTerraformModules(tfContent, 'main.tf');
+        expect(modules.length).toBe(1);
+        expect(modules[0]!.name).toBe('vpc');
+        expect(modules[0]!.source).toBe('terraform-aws-modules/vpc/aws');
+    });
+
+    it('extracts dependencies from package.json', async () => {
+        const { extractDependencies } = await import('../extractors/dependencies');
+
+        const pkg = JSON.stringify({
+            dependencies: {
+                'express': '^4.18.0',
+                'lodash': '^4.17.21',
+            },
+            devDependencies: {
+                'vitest': '^1.0.0',
+                'typescript': '^5.3.0',
+            },
+            peerDependencies: {
+                'react': '>=18.0.0',
+            },
+        });
+
+        const deps = extractDependencies(pkg, 'package.json');
+        expect(deps.length).toBe(5);
+        expect(deps.filter(d => d.type === 'production').length).toBe(2);
+        expect(deps.filter(d => d.type === 'dev').length).toBe(2);
+        expect(deps.filter(d => d.type === 'peer').length).toBe(1);
+        expect(deps.find(d => d.name === 'express')?.version).toBe('^4.18.0');
+    });
+
+    it('extracts Python requirements from requirements.txt', async () => {
+        const { extractPythonRequirements } = await import('../extractors/dependencies');
+
+        const reqs = `
+# Core dependencies
+flask==2.3.0
+requests>=2.28.0
+sqlalchemy~=2.0.0
+pydantic
+# Dev
+pytest>=7.0.0
+`;
+        const deps = extractPythonRequirements(reqs, 'requirements.txt');
+        expect(deps.length).toBe(5);
+        expect(deps[0]!.name).toBe('flask');
+        expect(deps[0]!.version).toBe('==2.3.0');
+        expect(deps.find(d => d.name === 'pydantic')?.version).toBe('*');
+    });
 });

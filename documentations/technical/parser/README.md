@@ -98,6 +98,10 @@ src/
 | Docker/K8s | `docker.ts` | `DockerfileInfo` + `DockerServiceInfo` + `K8sResourceInfo` — parses Dockerfile (FROM/EXPOSE/ENTRYPOINT/CMD), docker-compose.yml (services, ports, depends_on), Kubernetes manifests (Deployment/Service/Ingress — labels, images, ports) |
 | CI/CD | `cicd.ts` | `CICDJobInfo` — parses GitHub Actions workflows (jobs, steps, uses, runs-on, triggers) and GitLab CI configs (stages, jobs, scripts). Creates `CronJobNode` for pipeline jobs |
 | OpenAPI Spec | `openapi-spec.ts` | `OpenAPIRouteInfo` — parses `openapi.json`/`swagger.json` (JSON) and `openapi.yaml`/`swagger.yaml` (YAML). Extracts all paths with HTTP methods, operationId, summary, tags. Creates `RouteNode` from spec definitions |
+| Feature Flags | `feature-flags.ts` | `FeatureFlagInfo` — **dynamic, import-aware** detection of `launchdarkly-node-server-sdk`/`unleash-client`/`flagsmith`/`@splitsoftware/splitio`/`@growthbook/growthbook`. Tracks `ldClient.variation()` (LaunchDarkly), `client.isEnabled()` (Unleash), `flagsmith.hasFeature()` (Flagsmith), `client.getTreatment()` (Split.io), `growthbook.isOn()` (GrowthBook). Also detects `process.env.FEATURE_*`/`FF_*`/`FLAG_*`. Variable resolution for `init()` chains. Creates `EnvVarNode` + `USES_ENV` edges |
+| GraphQL Schema | `graphql-schema.ts` | `GraphQLTypeInfo` + `GraphQLOperationInfo` — regex-based parsing of `.graphql`/`.gql` files. Extracts `type`/`input`/`interface`/`enum`/`union`/`scalar` definitions. `Query`/`Mutation`/`Subscription` fields → `RouteNode` with `apiTags: ['graphql']`. Type definitions → `ClassNode` for graph visibility |
+| Terraform/IaC | `terraform.ts` | `TerraformResourceInfo` + `TerraformVariableInfo` + `TerraformModuleInfo` — HCL-like regex parsing of `.tf` files. Extracts `resource` (type, name, provider, attributes), `variable` (type, default, description), `module` (name, source), `data` blocks. Creates `ClassNode` (resources), `EnvVarNode` (variables), `ModuleNode` (modules) |
+| Dependencies | `dependencies.ts` | `DependencyInfo` — parses `package.json` (dependencies, devDependencies, peerDependencies, optionalDependencies) and `requirements.txt` (Python packages with version constraints). Creates `ModuleNode` + `DEPENDS_ON` edges |
 
 ### Python (`src/extractors/python.ts`)
 
@@ -167,9 +171,9 @@ Discovers supported files in a directory via `glob`, respects include/exclude pa
 
 ## Tests
 
-**221 tests across 18 files** (parser: 147 tests in 11 files)
+**226 tests across 18 files** (parser: 152 tests in 11 files)
 
-- `parser-integration.test.ts`: **38 tests** (cross-file calls, alias imports, name collisions, controller→service delegation, namespace imports, dynamic imports, **lineCount**, **Supabase chain classification**, **route handler names**, **bodyHash uniqueness**, **Redis operations**, **Bull/BullMQ queues**, **Prometheus metrics**, **Socket.io rooms**, **OpenTelemetry spans**, **KafkaJS broker**, **Swagger setup**, **tRPC procedures**, **WebSocket ws library**, **OpenAPI spec parsing**, **Docker compose**, **GitHub Actions**)
+- `parser-integration.test.ts`: **43 tests** (cross-file calls, alias imports, name collisions, controller→service delegation, namespace imports, dynamic imports, **lineCount**, **Supabase chain classification**, **route handler names**, **bodyHash uniqueness**, **Redis operations**, **Bull/BullMQ queues**, **Prometheus metrics**, **Socket.io rooms**, **OpenTelemetry spans**, **KafkaJS broker**, **Swagger setup**, **tRPC procedures**, **WebSocket ws library**, **OpenAPI spec parsing**, **Docker compose**, **GitHub Actions**, **LaunchDarkly feature flags**, **GraphQL schema**, **Terraform resources**, **package.json deps**, **Python requirements**)
 - `api-calls.test.ts`: 17 tests (fetch, $fetch, axios.get/post, URL heuristic, unknown receiver, buildHttpClientIdentifiers, buildAPINodesAndEdges)
 - `db-operations.test.ts`: 24 tests (Prisma CRUD, Supabase .from(), Knex fn(), structural match, buildDBClientIdentifiers, buildDBNodesAndEdges)
 - `db-schema.test.ts`: 9 tests (SQL, C# EF, Django, Alembic migration schema extraction)

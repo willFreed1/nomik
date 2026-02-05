@@ -145,6 +145,35 @@ Once connected, your AI assistant gets these tools automatically:
 - Extracts all `paths` with HTTP methods, `operationId`, `summary`, `tags`, `responses`
 - Creates `Route` nodes from spec definitions
 
+### Feature Flag Tracking (dynamic, import-aware)
+- **LaunchDarkly**: `ldClient.variation()`, `boolVariation()`, `stringVariation()`
+- **Unleash**: `client.isEnabled()`, `isFeatureEnabled()`
+- **Flagsmith**: `flagsmith.hasFeature()`, `flagsmith.getValue()`
+- **Split.io**: `client.getTreatment()`
+- **GrowthBook**: `growthbook.isOn()`, `growthbook.getFeatureValue()`
+- **Custom**: `process.env.FEATURE_*`, `process.env.FF_*`, `process.env.FLAG_*`
+- Variable resolution for `const ldClient = init('key')` chains
+- Creates `EnvVar` nodes + `USES_ENV` edges
+
+### GraphQL Schema File Parsing
+- Parses `.graphql` / `.gql` schema files directly
+- Extracts `type`, `input`, `interface`, `enum`, `union`, `scalar` definitions
+- `Query`/`Mutation`/`Subscription` fields → Route nodes with `apiTags: ['graphql']`
+- Type definitions → Class nodes for graph visibility
+
+### Terraform / IaC Config Parsing
+- Parses `.tf` files (HCL-like regex parsing)
+- `resource` blocks: type, name, provider, key attributes
+- `variable` blocks: name, type, default, description
+- `module` blocks: name, source
+- `data` blocks: data source extraction
+- Creates Class nodes (resources), EnvVar nodes (variables), Module nodes (modules)
+
+### Dependency Tracking
+- **package.json**: dependencies, devDependencies, peerDependencies, optionalDependencies
+- **requirements.txt**: Python packages with version constraints
+- Creates Module nodes + DEPENDS_ON edges
+
 ### Codebase Health
 - **Dead code detection** — functions never called (excludes constructors, class methods, React components, barrel exports)
 - **God object detection** — functions with excessive cross-file coupling (configurable threshold)
