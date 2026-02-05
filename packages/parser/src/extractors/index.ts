@@ -14,3 +14,8 @@ export { extractSpans, buildSpanNodesAndEdges, buildTracingClientIdentifiers } f
 export { extractMessageOps, buildMessageNodesAndEdges, buildBrokerClientIdentifiers } from './messaging';
 export { buildSwaggerClientIdentifiers, extractSwaggerSetups, enrichRoutesWithSwagger } from './swagger';
 export { extractAlertRules, extractGrafanaPanels, extractScrapeConfigs, buildInfraConfigNodes } from './infra-config';
+export { buildRPCClientIdentifiers, extractRPCProcedures, buildRPCNodesAndEdges } from './grpc';
+export { buildWSClientIdentifiers, extractWSEvents, buildWSNodesAndEdges } from './websocket';
+export { extractDockerfileInfo, extractDockerComposeServices, extractK8sResources, buildDockerNodes } from './docker';
+export { extractGitHubActionsJobs, extractGitLabCIJobs, buildCICDNodes } from './cicd';
+export { extractOpenAPIRoutesFromJSON, extractOpenAPIRoutesFromYAML, buildOpenAPIRouteNodes } from './openapi-spec';

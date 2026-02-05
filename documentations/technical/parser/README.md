@@ -48,6 +48,11 @@ src/
 │   ├── messaging.ts       # Message broker detection (KafkaJS, amqplib, NATS, SQS/SNS)
 │   ├── swagger.ts         # Swagger/OpenAPI setup detection (NestJS, express, fastify)
 │   ├── infra-config.ts    # Prometheus/Grafana config parsing (alerts, dashboards)
+│   ├── grpc.ts            # gRPC/tRPC/GraphQL procedure detection
+│   ├── websocket.ts       # WebSocket tracking (ws, @nestjs/websockets)
+│   ├── docker.ts          # Docker/K8s config parsing
+│   ├── cicd.ts            # CI/CD pipeline detection (GitHub Actions, GitLab CI)
+│   ├── openapi-spec.ts    # OpenAPI spec file parsing (JSON/YAML)
 │   ├── python.ts          # Python extractor
 │   ├── rust.ts            # Rust extractor
 │   ├── markdown.ts        # Markdown parser
@@ -88,6 +93,11 @@ src/
 | Messaging | `messaging.ts` | `MessageOpInfo` — **dynamic, import-aware** detection of `kafkajs`/`amqplib`/`nats`/`@aws-sdk/client-sqs`/`@aws-sdk/client-sns`/`@google-cloud/pubsub`. Tracks `producer.send({topic})`, `consumer.subscribe({topic})`, AWS `SendMessageCommand`. **Two-pass variable resolution** for `new Kafka()` → `kafka.producer()` chains. Creates `TopicNode` + `PRODUCES_MESSAGE`/`CONSUMES_MESSAGE` edges |
 | Swagger Setup | `swagger.ts` | `SwaggerSetupInfo` — detects `SwaggerModule.setup()`/`createDocument()` (NestJS), `swagger-ui-express`, `@fastify/swagger` register, `swagger-jsdoc`. Enriches routes in swagger-enabled files |
 | Infra Config | `infra-config.ts` | `AlertRuleInfo` + `GrafanaPanelInfo` + `ScrapeConfigInfo` — parses Prometheus alert rules (PromQL metric extraction), Grafana dashboard JSON (panel titles + targets), `prometheus.yml` scrape configs. Creates `MetricNode` stubs for referenced metrics |
+| gRPC/tRPC/GraphQL | `grpc.ts` | `RPCProcedureInfo` — **dynamic, import-aware** detection of `@trpc/server`/`@grpc/grpc-js`/`type-graphql`/`@nestjs/graphql`. Tracks `t.procedure.query()`/`.mutation()`/`.subscription()` (tRPC), `server.addService()`/`@GrpcMethod()` (gRPC), `@Query()`/`@Mutation()` decorators (GraphQL). Creates `RouteNode` (method=RPC/GET/POST/WS) with `apiTags: [framework]` |
+| WebSocket | `websocket.ts` | `WebSocketEventInfo` — **dynamic, import-aware** detection of `ws`/`@nestjs/websockets`/`uWebSockets.js`. Tracks `wss.on('connection')`/`ws.on('message')`/`ws.send()` + `@WebSocketGateway()`/`@SubscribeMessage()` decorators. Variable resolution for `new WebSocketServer()` chains. Creates `EventNode` (namespace='websocket') + `EMITS`/`LISTENS_TO` edges |
+| Docker/K8s | `docker.ts` | `DockerfileInfo` + `DockerServiceInfo` + `K8sResourceInfo` — parses Dockerfile (FROM/EXPOSE/ENTRYPOINT/CMD), docker-compose.yml (services, ports, depends_on), Kubernetes manifests (Deployment/Service/Ingress — labels, images, ports) |
+| CI/CD | `cicd.ts` | `CICDJobInfo` — parses GitHub Actions workflows (jobs, steps, uses, runs-on, triggers) and GitLab CI configs (stages, jobs, scripts). Creates `CronJobNode` for pipeline jobs |
+| OpenAPI Spec | `openapi-spec.ts` | `OpenAPIRouteInfo` — parses `openapi.json`/`swagger.json` (JSON) and `openapi.yaml`/`swagger.yaml` (YAML). Extracts all paths with HTTP methods, operationId, summary, tags. Creates `RouteNode` from spec definitions |
 
 ### Python (`src/extractors/python.ts`)
 
@@ -157,9 +167,9 @@ Discovers supported files in a directory via `glob`, respects include/exclude pa
 
 ## Tests
 
-**216 tests across 18 files** (parser: 142 tests in 11 files)
+**221 tests across 18 files** (parser: 147 tests in 11 files)
 
-- `parser-integration.test.ts`: **33 tests** (cross-file calls, alias imports, name collisions, controller→service delegation, namespace imports, dynamic imports, **lineCount**, **Supabase chain classification**, **route handler names**, **bodyHash uniqueness**, **Redis operations**, **Bull/BullMQ queues**, **Prometheus metrics**, **Socket.io rooms**, **OpenTelemetry spans**, **KafkaJS broker**, **Swagger setup**)
+- `parser-integration.test.ts`: **38 tests** (cross-file calls, alias imports, name collisions, controller→service delegation, namespace imports, dynamic imports, **lineCount**, **Supabase chain classification**, **route handler names**, **bodyHash uniqueness**, **Redis operations**, **Bull/BullMQ queues**, **Prometheus metrics**, **Socket.io rooms**, **OpenTelemetry spans**, **KafkaJS broker**, **Swagger setup**, **tRPC procedures**, **WebSocket ws library**, **OpenAPI spec parsing**, **Docker compose**, **GitHub Actions**)
 - `api-calls.test.ts`: 17 tests (fetch, $fetch, axios.get/post, URL heuristic, unknown receiver, buildHttpClientIdentifiers, buildAPINodesAndEdges)
 - `db-operations.test.ts`: 24 tests (Prisma CRUD, Supabase .from(), Knex fn(), structural match, buildDBClientIdentifiers, buildDBNodesAndEdges)
 - `db-schema.test.ts`: 9 tests (SQL, C# EF, Django, Alembic migration schema extraction)

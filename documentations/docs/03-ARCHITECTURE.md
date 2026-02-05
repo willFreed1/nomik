@@ -87,6 +87,11 @@ nomik/
 │   │   │   │   ├── messaging.ts    # Message broker detection (Kafka/RabbitMQ/NATS/SQS)
 │   │   │   │   ├── swagger.ts      # Swagger/OpenAPI setup detection
 │   │   │   │   ├── infra-config.ts # Prometheus/Grafana config parsing
+│   │   │   │   ├── grpc.ts        # gRPC/tRPC/GraphQL procedure detection
+│   │   │   │   ├── websocket.ts   # WebSocket tracking (ws, @nestjs/websockets)
+│   │   │   │   ├── docker.ts      # Docker/K8s config parsing
+│   │   │   │   ├── cicd.ts        # CI/CD pipeline detection (GitHub Actions, GitLab CI)
+│   │   │   │   ├── openapi-spec.ts # OpenAPI spec file parsing (JSON/YAML)
 │   │   │   │   ├── db-schema/        # DB migration schema extraction (modular)
 │   │   │   │   │   ├── types.ts      # Shared types (DBSchemaTable, DBSchemaColumn)
 │   │   │   │   │   ├── builder.ts    # Node/edge builder

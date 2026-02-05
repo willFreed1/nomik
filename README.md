@@ -118,6 +118,33 @@ Once connected, your AI assistant gets these tools automatically:
 - Parses Grafana dashboards (`.json`): panel titles, PromQL targets, datasources
 - Extracts metric names from PromQL and creates `Metric` node stubs
 
+### gRPC / tRPC / GraphQL (dynamic, import-aware)
+- **tRPC**: `t.procedure.query()`, `t.procedure.mutation()`, `t.procedure.subscription()` — procedure name from parent property key
+- **gRPC**: `server.addService()`, `@GrpcMethod()`, `@GrpcStreamMethod()` decorators
+- **GraphQL**: `@Query()`, `@Mutation()`, `@Subscription()`, `@Resolver()` decorators (type-graphql, @nestjs/graphql)
+- Creates `Route` nodes (method=GET/POST/WS/RPC) with `apiTags: [framework]`
+
+### WebSocket Tracking (dynamic, import-aware)
+- **ws**: `new WebSocketServer()`, `wss.on('connection')`, `ws.on('message')`, `ws.send()`
+- **@nestjs/websockets**: `@WebSocketGateway()`, `@SubscribeMessage('event')`
+- **uWebSockets.js**: `app.ws('/path', { ... })`
+- Variable resolution: `const wss = new WebSocketServer()` → `wss.on()`
+- Creates `Event` nodes (namespace='websocket') + `EMITS`/`LISTENS_TO` edges
+
+### Docker / Kubernetes Config Parsing
+- **Dockerfile**: `FROM`, `EXPOSE`, `ENTRYPOINT`, `CMD`, multi-stage build detection
+- **docker-compose.yml**: services, images, ports, `depends_on`, environment variables
+- **Kubernetes manifests**: Deployment, Service, Ingress, ConfigMap — labels, container images, ports
+
+### CI/CD Pipeline Detection
+- **GitHub Actions**: jobs, steps, `uses` actions, `runs-on`, trigger events (`push`, `pull_request`)
+- **GitLab CI**: stages, jobs, scripts, stage assignment
+
+### OpenAPI Spec File Parsing
+- Parses `openapi.json` / `swagger.json` (JSON) and `openapi.yaml` / `swagger.yaml` (YAML)
+- Extracts all `paths` with HTTP methods, `operationId`, `summary`, `tags`, `responses`
+- Creates `Route` nodes from spec definitions
+
 ### Codebase Health
 - **Dead code detection** — functions never called (excludes constructors, class methods, React components, barrel exports)
 - **God object detection** — functions with excessive cross-file coupling (configurable threshold)

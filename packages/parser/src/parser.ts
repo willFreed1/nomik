@@ -23,6 +23,8 @@ import { extractMetrics, buildMetricNodesAndEdges, buildMetricsClientIdentifiers
 import { extractSpans, buildSpanNodesAndEdges, buildTracingClientIdentifiers } from './extractors/tracing';
 import { extractMessageOps, buildMessageNodesAndEdges, buildBrokerClientIdentifiers } from './extractors/messaging';
 import { buildSwaggerClientIdentifiers, extractSwaggerSetups, enrichRoutesWithSwagger } from './extractors/swagger';
+import { buildRPCClientIdentifiers, extractRPCProcedures, buildRPCNodesAndEdges } from './extractors/grpc';
+import { buildWSClientIdentifiers, extractWSEvents, buildWSNodesAndEdges } from './extractors/websocket';
 import { extractPythonFunctions, extractPythonClasses, extractPythonImports, extractPythonCalls } from './extractors/python';
 import { extractRustFunctions, extractRustClasses, extractRustImports, extractRustCalls } from './extractors/rust';
 import { createNodeId, createFileHash } from './utils';
@@ -330,7 +332,33 @@ export function createParserEngine(): ParserEngine {
             }
         }
 
-        const nodes: GraphNode[] = [fileNode, ...functions, ...classes, ...variables, ...routes, ...moduleNodes, ...apiNodes, ...dbNodes, ...migrationSchemaNodes, ...envNodes, ...eventNodes, ...redisNodes, ...queueNodes, ...metricNodes, ...spanNodes, ...messageNodes];
+        // gRPC / tRPC / GraphQL procedure tracking (TS/JS only)
+        let rpcNodes: GraphNode[] = [];
+        let rpcEdges: GraphEdge[] = [];
+        if (language !== 'python' && language !== 'rust') {
+            const { ids: rpcClientIds, frameworkMap: rpcFrameworkMap } = buildRPCClientIdentifiers(imports);
+            const rpcProcs = extractRPCProcedures(tree, absolutePath, rpcClientIds, rpcFrameworkMap);
+            if (rpcProcs.length > 0) {
+                const rpcResult = buildRPCNodesAndEdges(rpcProcs, localFuncMap, fileNode.id, absolutePath);
+                rpcNodes = rpcResult.nodes;
+                rpcEdges = rpcResult.edges;
+            }
+        }
+
+        // WebSocket tracking — ws, @nestjs/websockets (TS/JS only)
+        let wsNodes: GraphNode[] = [];
+        let wsEdges: GraphEdge[] = [];
+        if (language !== 'python' && language !== 'rust') {
+            const wsClientIds = buildWSClientIdentifiers(imports);
+            const wsEvents = extractWSEvents(tree, absolutePath, wsClientIds);
+            if (wsEvents.length > 0) {
+                const wsResult = buildWSNodesAndEdges(wsEvents, localFuncMap, fileNode.id, absolutePath);
+                wsNodes = wsResult.nodes;
+                wsEdges = wsResult.edges;
+            }
+        }
+
+        const nodes: GraphNode[] = [fileNode, ...functions, ...classes, ...variables, ...routes, ...moduleNodes, ...apiNodes, ...dbNodes, ...migrationSchemaNodes, ...envNodes, ...eventNodes, ...redisNodes, ...queueNodes, ...metricNodes, ...spanNodes, ...messageNodes, ...rpcNodes, ...wsNodes];
 
         const localVarMap = new Map<string, string>();
         for (const v of variables) {
@@ -399,6 +427,8 @@ export function createParserEngine(): ParserEngine {
             ...metricEdges,
             ...spanEdges,
             ...messageEdges,
+            ...rpcEdges,
+            ...wsEdges,
             ...exportEdges,
         ];
 

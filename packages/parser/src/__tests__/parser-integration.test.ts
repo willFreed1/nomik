@@ -1554,4 +1554,143 @@ app.get('/users', (req, res) => res.json([]));
             fs.rmSync(tmpDir, { recursive: true, force: true });
         }
     });
+
+    it('detects tRPC procedure definitions and creates Route nodes', async () => {
+        const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'nomik-trpc-'));
+        try {
+            const filePath = path.join(tmpDir, 'router.ts');
+            writeFile(filePath, `
+import { initTRPC } from '@trpc/server';
+const t = initTRPC.create();
+
+export const appRouter = t.router({
+    getUser: t.procedure.query(async () => {
+        return { id: 1, name: 'test' };
+    }),
+    createUser: t.procedure.mutation(async ({ input }) => {
+        return { id: 2, name: input.name };
+    }),
+});
+`);
+            const engine = createParserEngine();
+            const results = await engine.parseFiles([filePath]);
+            const result = results[0]!;
+
+            const routeNodes = result.nodes.filter(n => n.type === 'route');
+            expect(routeNodes.length).toBe(2);
+            expect(routeNodes.some(n => 'apiTags' in n && (n as any).apiTags?.includes('trpc'))).toBe(true);
+        } finally {
+            fs.rmSync(tmpDir, { recursive: true, force: true });
+        }
+    });
+
+    it('detects WebSocket ws library events and creates Event nodes', async () => {
+        const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'nomik-ws-'));
+        try {
+            const filePath = path.join(tmpDir, 'ws-server.ts');
+            writeFile(filePath, `
+import { WebSocketServer } from 'ws';
+const wss = new WebSocketServer({ port: 8080 });
+
+export function startServer() {
+    wss.on('connection', (ws) => {
+        ws.on('message', (data) => {
+            console.log('received:', data);
+        });
+        ws.send('hello');
+    });
+}
+`);
+            const engine = createParserEngine();
+            const results = await engine.parseFiles([filePath]);
+            const result = results[0]!;
+
+            const eventNodes = result.nodes.filter(n => n.type === 'event');
+            expect(eventNodes.length).toBeGreaterThanOrEqual(1);
+            // Should have websocket namespace
+            const wsEvent = eventNodes.find(n => 'namespace' in n && (n as any).namespace === 'websocket');
+            expect(wsEvent).toBeDefined();
+        } finally {
+            fs.rmSync(tmpDir, { recursive: true, force: true });
+        }
+    });
+
+    it('extracts OpenAPI routes from JSON spec file', async () => {
+        const { extractOpenAPIRoutesFromJSON, buildOpenAPIRouteNodes } = await import('../extractors/openapi-spec');
+
+        const spec = JSON.stringify({
+            openapi: '3.0.0',
+            paths: {
+                '/users': {
+                    get: { operationId: 'getUsers', summary: 'List users', tags: ['users'] },
+                    post: { operationId: 'createUser', summary: 'Create user', tags: ['users'] },
+                },
+                '/users/{id}': {
+                    get: { operationId: 'getUser', summary: 'Get user by ID' },
+                },
+            },
+        });
+
+        const routes = extractOpenAPIRoutesFromJSON(spec, 'openapi.json');
+        expect(routes.length).toBe(3);
+        expect(routes.some(r => r.method === 'GET' && r.path === '/users')).toBe(true);
+        expect(routes.some(r => r.method === 'POST' && r.path === '/users')).toBe(true);
+
+        const { nodes } = buildOpenAPIRouteNodes(routes, 'openapi.json');
+        expect(nodes.length).toBe(3);
+        expect(nodes.every(n => n.type === 'route')).toBe(true);
+    });
+
+    it('extracts Docker compose services', async () => {
+        const { extractDockerComposeServices } = await import('../extractors/docker');
+
+        const compose = `version: '3.8'
+services:
+  api:
+    image: node:18
+    ports:
+      - 3000:3000
+    depends_on:
+      - db
+  db:
+    image: postgres:15
+    ports:
+      - 5432:5432
+`;
+        const services = extractDockerComposeServices(compose);
+        expect(services.length).toBe(2);
+        expect(services[0]!.name).toBe('api');
+        expect(services[1]!.name).toBe('db');
+        expect(services[0]!.image).toBe('node:18');
+    });
+
+    it('extracts GitHub Actions jobs from workflow YAML', async () => {
+        const { extractGitHubActionsJobs } = await import('../extractors/cicd');
+
+        const workflow = `name: CI
+on:
+  push:
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Run tests
+        run: npm test
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Build
+        run: npm run build
+`;
+        const jobs = extractGitHubActionsJobs(workflow, '.github/workflows/ci.yml');
+        expect(jobs.length).toBe(2);
+        expect(jobs[0]!.name).toBe('test');
+        expect(jobs[1]!.name).toBe('build');
+        expect(jobs[0]!.platform).toBe('github-actions');
+        expect(jobs[0]!.runsOn).toBe('ubuntu-latest');
+    });
 });
