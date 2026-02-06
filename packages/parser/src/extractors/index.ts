@@ -23,3 +23,9 @@ export { buildFlagClientIdentifiers, extractFeatureFlags, buildFlagNodesAndEdges
 export { extractGraphQLSchema, buildGraphQLNodes } from './graphql-schema';
 export { extractTerraformResources, extractTerraformVariables, extractTerraformModules, extractTerraformOutputs, buildTerraformNodes } from './terraform';
 export { extractDependencies, extractPythonRequirements, buildDependencyNodes } from './dependencies';
+export { extractSecrets, buildSecretNodes } from './secrets';
+export { extractEnvDefinitions, buildEnvDefinitionNodes } from './dotenv';
+export { buildCronClientIdentifiers, extractCronJobs, buildCronNodesAndEdges } from './cron';
+export { extractCFNResources, extractCFNParameters, extractCFNOutputs, buildCFNNodes } from './cloudformation';
+export { isTestFile, extractTestFileInfo, buildTestCoverageEdges, getTestSummary } from './test-coverage';
+export { extractPythonRedisOps, extractPythonCeleryTasks, extractPythonMetrics, extractPythonSpans, extractPythonBrokerOps, buildPythonRuntimeNodes } from './python-runtime';

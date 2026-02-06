@@ -96,6 +96,12 @@ nomik/
 │   │   │   │   ├── graphql-schema.ts # GraphQL schema file parsing (.graphql/.gql)
 │   │   │   │   ├── terraform.ts   # Terraform/IaC config parsing (.tf)
 │   │   │   │   ├── dependencies.ts # Dependency tracking (package.json, requirements.txt)
+│   │   │   │   ├── secrets.ts     # Secret/credential detection (AWS, GitHub, Stripe, etc.)
+│   │   │   │   ├── dotenv.ts      # .env config file parsing
+│   │   │   │   ├── cron.ts        # Cron job detection (node-cron, @nestjs/schedule)
+│   │   │   │   ├── cloudformation.ts # CloudFormation/SAM template parsing
+│   │   │   │   ├── test-coverage.ts  # Test coverage correlation
+│   │   │   │   ├── python-runtime.ts # Python Redis/Celery/Prometheus/OTel/brokers
 │   │   │   │   ├── db-schema/        # DB migration schema extraction (modular)
 │   │   │   │   │   ├── types.ts      # Shared types (DBSchemaTable, DBSchemaColumn)
 │   │   │   │   │   ├── builder.ts    # Node/edge builder

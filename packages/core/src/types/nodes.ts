@@ -164,6 +164,17 @@ export interface TopicNode {
     filePath: string;
 }
 
+export interface SecurityIssueNode {
+    id: string;
+    type: 'security_issue';
+    name: string;
+    severity: 'critical' | 'high' | 'medium' | 'low';
+    category: 'hardcoded_secret' | 'weak_crypto' | 'insecure_config' | 'exposed_credential';
+    filePath: string;
+    line: number;
+    description: string;
+}
+
 /** Project node: isolates data by project in the graph */
 export interface ProjectNode {
     id: string;
@@ -197,6 +208,7 @@ export type GraphNode =
     | QueueJobNode
     | MetricNode
     | SpanNode
-    | TopicNode;
+    | TopicNode
+    | SecurityIssueNode;
 
 export type NodeType = GraphNode['type'];

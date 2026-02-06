@@ -19,7 +19,9 @@ export type EdgeType =
     | 'USES_METRIC'
     | 'STARTS_SPAN'
     | 'PRODUCES_MESSAGE'
-    | 'CONSUMES_MESSAGE';
+    | 'CONSUMES_MESSAGE'
+    | 'HAS_SECURITY_ISSUE'
+    | 'SCHEDULES';
 
 export interface BaseEdge {
     id: string;
@@ -62,7 +64,7 @@ export interface CallsEdge extends BaseEdge {
 
 export interface DependsOnEdge extends BaseEdge {
     type: 'DEPENDS_ON';
-    kind: 'import' | 'call' | 'http' | 'event' | 'env';
+    kind: 'import' | 'call' | 'http' | 'event' | 'env' | 'test';
 }
 
 export interface HandlesEdge extends BaseEdge {
@@ -135,6 +137,15 @@ export interface ConsumesMessageEdge extends BaseEdge {
     topicName?: string;
 }
 
+export interface HasSecurityIssueEdge extends BaseEdge {
+    type: 'HAS_SECURITY_ISSUE';
+}
+
+export interface SchedulesEdge extends BaseEdge {
+    type: 'SCHEDULES';
+    schedule?: string;
+}
+
 export type GraphEdge =
     | ContainsEdge
     | ImportsEdge
@@ -156,4 +167,6 @@ export type GraphEdge =
     | UsesMetricEdge
     | StartsSpanEdge
     | ProducesMessageEdge
-    | ConsumesMessageEdge;
+    | ConsumesMessageEdge
+    | HasSecurityIssueEdge
+    | SchedulesEdge;

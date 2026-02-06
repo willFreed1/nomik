@@ -26,6 +26,9 @@ import { buildSwaggerClientIdentifiers, extractSwaggerSetups, enrichRoutesWithSw
 import { buildRPCClientIdentifiers, extractRPCProcedures, buildRPCNodesAndEdges } from './extractors/grpc';
 import { buildWSClientIdentifiers, extractWSEvents, buildWSNodesAndEdges } from './extractors/websocket';
 import { buildFlagClientIdentifiers, extractFeatureFlags, buildFlagNodesAndEdges } from './extractors/feature-flags';
+import { extractSecrets, buildSecretNodes } from './extractors/secrets';
+import { buildCronClientIdentifiers, extractCronJobs, buildCronNodesAndEdges } from './extractors/cron';
+import { extractPythonRedisOps, extractPythonCeleryTasks, extractPythonMetrics, extractPythonSpans, extractPythonBrokerOps, buildPythonRuntimeNodes } from './extractors/python-runtime';
 import { extractPythonFunctions, extractPythonClasses, extractPythonImports, extractPythonCalls } from './extractors/python';
 import { extractRustFunctions, extractRustClasses, extractRustImports, extractRustCalls } from './extractors/rust';
 import { createNodeId, createFileHash } from './utils';
@@ -372,7 +375,46 @@ export function createParserEngine(): ParserEngine {
             }
         }
 
-        const nodes: GraphNode[] = [fileNode, ...functions, ...classes, ...variables, ...routes, ...moduleNodes, ...apiNodes, ...dbNodes, ...migrationSchemaNodes, ...envNodes, ...eventNodes, ...redisNodes, ...queueNodes, ...metricNodes, ...spanNodes, ...messageNodes, ...rpcNodes, ...wsNodes, ...flagNodes];
+        // Secret/credential detection (all languages)
+        let secretNodes: GraphNode[] = [];
+        let secretEdges: GraphEdge[] = [];
+        const secrets = extractSecrets(content, absolutePath);
+        if (secrets.length > 0) {
+            const secretResult = buildSecretNodes(secrets, fileNode.id, absolutePath);
+            secretNodes = secretResult.nodes;
+            secretEdges = secretResult.edges;
+        }
+
+        // Cron job detection — node-cron, node-schedule, @nestjs/schedule (TS/JS only)
+        let cronNodes: GraphNode[] = [];
+        let cronEdges: GraphEdge[] = [];
+        if (language !== 'python' && language !== 'rust') {
+            const { ids: cronClientIds, frameworkMap: cronFrameworkMap } = buildCronClientIdentifiers(imports);
+            const cronJobs = extractCronJobs(tree, absolutePath, cronClientIds, cronFrameworkMap);
+            if (cronJobs.length > 0) {
+                const cronResult = buildCronNodesAndEdges(cronJobs, localFuncMap, fileNode.id, absolutePath);
+                cronNodes = cronResult.nodes;
+                cronEdges = cronResult.edges;
+            }
+        }
+
+        // Python runtime tracking — Redis, Celery, Prometheus, OTel, message brokers
+        let pyRuntimeNodes: GraphNode[] = [];
+        let pyRuntimeEdges: GraphEdge[] = [];
+        if (language === 'python') {
+            const pyRedis = extractPythonRedisOps(content);
+            const pyCelery = extractPythonCeleryTasks(content);
+            const pyMetrics = extractPythonMetrics(content);
+            const pySpans = extractPythonSpans(content);
+            const pyBrokers = extractPythonBrokerOps(content);
+            if (pyRedis.length > 0 || pyCelery.length > 0 || pyMetrics.length > 0 || pySpans.length > 0 || pyBrokers.length > 0) {
+                const pyResult = buildPythonRuntimeNodes(pyRedis, pyCelery, pyMetrics, pySpans, pyBrokers, fileNode.id, absolutePath);
+                pyRuntimeNodes = pyResult.nodes;
+                pyRuntimeEdges = pyResult.edges;
+            }
+        }
+
+        const nodes: GraphNode[] = [fileNode, ...functions, ...classes, ...variables, ...routes, ...moduleNodes, ...apiNodes, ...dbNodes, ...migrationSchemaNodes, ...envNodes, ...eventNodes, ...redisNodes, ...queueNodes, ...metricNodes, ...spanNodes, ...messageNodes, ...rpcNodes, ...wsNodes, ...flagNodes, ...secretNodes, ...cronNodes, ...pyRuntimeNodes];
 
         const localVarMap = new Map<string, string>();
         for (const v of variables) {
@@ -444,6 +486,9 @@ export function createParserEngine(): ParserEngine {
             ...rpcEdges,
             ...wsEdges,
             ...flagEdges,
+            ...secretEdges,
+            ...cronEdges,
+            ...pyRuntimeEdges,
             ...exportEdges,
         ];
 

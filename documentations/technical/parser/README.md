@@ -102,6 +102,12 @@ src/
 | GraphQL Schema | `graphql-schema.ts` | `GraphQLTypeInfo` + `GraphQLOperationInfo` — regex-based parsing of `.graphql`/`.gql` files. Extracts `type`/`input`/`interface`/`enum`/`union`/`scalar` definitions. `Query`/`Mutation`/`Subscription` fields → `RouteNode` with `apiTags: ['graphql']`. Type definitions → `ClassNode` for graph visibility |
 | Terraform/IaC | `terraform.ts` | `TerraformResourceInfo` + `TerraformVariableInfo` + `TerraformModuleInfo` — HCL-like regex parsing of `.tf` files. Extracts `resource` (type, name, provider, attributes), `variable` (type, default, description), `module` (name, source), `data` blocks. Creates `ClassNode` (resources), `EnvVarNode` (variables), `ModuleNode` (modules) |
 | Dependencies | `dependencies.ts` | `DependencyInfo` — parses `package.json` (dependencies, devDependencies, peerDependencies, optionalDependencies) and `requirements.txt` (Python packages with version constraints). Creates `ModuleNode` + `DEPENDS_ON` edges |
+| Secrets | `secrets.ts` | `SecretFinding` — pattern-based detection of AWS keys (`AKIA...`), GitHub tokens (`ghp_`), Stripe (`sk_live_`), Slack (`xoxb-`), SendGrid, Twilio, JWT, private keys, basic auth URLs, generic API key/password assignments. Skips comments/test/mock/placeholder lines. Creates `SecurityIssueNode` + `HAS_SECURITY_ISSUE` edges |
+| .env Config | `dotenv.ts` | `EnvDefinition` — parses `.env`/`.env.local`/`.env.production` files. Extracts variable definitions with values/empty detection. Creates `EnvVarNode` + `CONTAINS` edges |
+| Cron Jobs | `cron.ts` | `CronInfo` — **dynamic, import-aware** detection of `node-cron`/`node-schedule`/`cron`/`@nestjs/schedule`/`agenda`/`bree`. Tracks `cron.schedule()`/`scheduleJob()`/`@Cron()` decorator/`new CronJob()`. Creates `CronJobNode` + `SCHEDULES` edges |
+| CloudFormation | `cloudformation.ts` | `CFNResourceInfo` + `CFNParameterInfo` + `CFNOutputInfo` — line-by-line YAML parsing of CloudFormation/SAM templates. Resources (logicalId, Type, provider), Parameters (type, default, description), Outputs (name, exportName). Creates `ClassNode` (resources), `EnvVarNode` (parameters) |
+| Test Coverage | `test-coverage.ts` | `TestFileInfo` — detects test files (.test.ts, .spec.ts, __tests__/). Extracts tested/mocked modules, describe blocks, test counts. `jest.mock()`/`vi.mock()` detection. Creates `DEPENDS_ON` edges with `kind:'test'` |
+| Python Runtime | `python-runtime.ts` | `PythonRedisOp` + `PythonCeleryTask` + `PythonMetricDef` + `PythonSpanDef` + `PythonBrokerOp` — regex-based detection of Redis ops, Celery tasks (`@shared_task`/`.delay()`), Prometheus metrics (`Counter/Gauge/Histogram/Summary`), OpenTelemetry spans, message brokers (confluent_kafka/pika/nats). Creates various node types + edges |
 
 ### Python (`src/extractors/python.ts`)
 
@@ -171,9 +177,9 @@ Discovers supported files in a directory via `glob`, respects include/exclude pa
 
 ## Tests
 
-**226 tests across 18 files** (parser: 152 tests in 11 files)
+**232 tests across 18 files** (parser: 158 tests in 11 files)
 
-- `parser-integration.test.ts`: **43 tests** (cross-file calls, alias imports, name collisions, controller→service delegation, namespace imports, dynamic imports, **lineCount**, **Supabase chain classification**, **route handler names**, **bodyHash uniqueness**, **Redis operations**, **Bull/BullMQ queues**, **Prometheus metrics**, **Socket.io rooms**, **OpenTelemetry spans**, **KafkaJS broker**, **Swagger setup**, **tRPC procedures**, **WebSocket ws library**, **OpenAPI spec parsing**, **Docker compose**, **GitHub Actions**, **LaunchDarkly feature flags**, **GraphQL schema**, **Terraform resources**, **package.json deps**, **Python requirements**)
+- `parser-integration.test.ts`: **49 tests** (cross-file calls, alias imports, name collisions, controller→service delegation, namespace imports, dynamic imports, **lineCount**, **Supabase chain classification**, **route handler names**, **bodyHash uniqueness**, **Redis operations**, **Bull/BullMQ queues**, **Prometheus metrics**, **Socket.io rooms**, **OpenTelemetry spans**, **KafkaJS broker**, **Swagger setup**, **tRPC procedures**, **WebSocket ws library**, **OpenAPI spec parsing**, **Docker compose**, **GitHub Actions**, **LaunchDarkly feature flags**, **GraphQL schema**, **Terraform resources**, **package.json deps**, **Python requirements**, **hardcoded secrets**, **.env parsing**, **node-cron jobs**, **CloudFormation templates**, **test file metadata**, **Python Celery+Prometheus**)
 - `api-calls.test.ts`: 17 tests (fetch, $fetch, axios.get/post, URL heuristic, unknown receiver, buildHttpClientIdentifiers, buildAPINodesAndEdges)
 - `db-operations.test.ts`: 24 tests (Prisma CRUD, Supabase .from(), Knex fn(), structural match, buildDBClientIdentifiers, buildDBNodesAndEdges)
 - `db-schema.test.ts`: 9 tests (SQL, C# EF, Django, Alembic migration schema extraction)

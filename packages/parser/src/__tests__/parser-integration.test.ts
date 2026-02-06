@@ -1860,4 +1860,183 @@ pytest>=7.0.0
         expect(deps[0]!.version).toBe('==2.3.0');
         expect(deps.find(d => d.name === 'pydantic')?.version).toBe('*');
     });
+
+    it('detects hardcoded secrets and creates SecurityIssue nodes', async () => {
+        const { extractSecrets, buildSecretNodes } = await import('../extractors/secrets');
+
+        const code = `
+const API_KEY = 'AKIAIOSFODNN7EXAMPLE';
+const token = 'fake_github_token_for_tests_1234567890';
+const stripe = 'fake_stripe_token_for_tests_1234567890';
+const safe = process.env.API_KEY;
+`;
+        const findings = extractSecrets(code, 'config.ts');
+        expect(findings.length).toBe(3);
+        expect(findings[0]!.name).toBe('AWS Access Key');
+        expect(findings[0]!.severity).toBe('critical');
+        expect(findings[1]!.name).toBe('GitHub Token');
+        expect(findings[2]!.name).toBe('Stripe Secret Key');
+
+        const { nodes, edges } = buildSecretNodes(findings, 'file:config.ts', 'config.ts');
+        expect(nodes.length).toBe(3);
+        expect(edges.length).toBe(3);
+        expect(edges.every(e => e.type === 'HAS_SECURITY_ISSUE')).toBe(true);
+    });
+
+    it('parses .env file definitions', async () => {
+        const { extractEnvDefinitions, buildEnvDefinitionNodes } = await import('../extractors/dotenv');
+
+        const envContent = `
+# Database
+DATABASE_URL="postgres://localhost:5432/mydb"
+REDIS_URL=redis://localhost:6379
+API_KEY='my-secret-key'
+DEBUG=
+PORT=3000
+`;
+        const defs = extractEnvDefinitions(envContent, '.env');
+        expect(defs.length).toBe(5);
+        expect(defs[0]!.name).toBe('DATABASE_URL');
+        expect(defs[0]!.value).toBe('postgres://localhost:5432/mydb');
+        expect(defs[0]!.hasValue).toBe(true);
+        expect(defs[3]!.name).toBe('DEBUG');
+        expect(defs[3]!.hasValue).toBe(false);
+
+        const { nodes, edges } = buildEnvDefinitionNodes(defs, 'file:.env', '.env');
+        expect(nodes.length).toBe(5);
+        expect(nodes.every(n => n.type === 'env_var')).toBe(true);
+        expect(edges.length).toBe(5);
+        expect(edges.every(e => e.type === 'CONTAINS')).toBe(true);
+    });
+
+    it('detects node-cron scheduled jobs and creates CronJob nodes', async () => {
+        const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'nomik-cron-'));
+        try {
+            const filePath = path.join(tmpDir, 'scheduler.ts');
+            writeFile(filePath, `
+import cron from 'node-cron';
+
+export function setupJobs() {
+    cron.schedule('*/5 * * * *', () => {
+        console.log('running every 5 min');
+    });
+}
+`);
+            const engine = createParserEngine();
+            const results = await engine.parseFiles([filePath]);
+            const result = results[0]!;
+
+            const cronNodes = result.nodes.filter(n => n.type === 'cron_job');
+            expect(cronNodes.length).toBe(1);
+            expect((cronNodes[0] as any).schedule).toBe('*/5 * * * *');
+
+            const scheduleEdges = result.edges.filter(e => e.type === 'SCHEDULES');
+            expect(scheduleEdges.length).toBe(1);
+        } finally {
+            fs.rmSync(tmpDir, { recursive: true, force: true });
+        }
+    });
+
+    it('extracts CloudFormation resources and parameters', async () => {
+        const { extractCFNResources, extractCFNParameters } = await import('../extractors/cloudformation');
+
+        const template = `
+AWSTemplateFormatVersion: '2010-09-09'
+Parameters:
+  InstanceType:
+    Type: String
+    Default: t2.micro
+    Description: EC2 instance type
+  Environment:
+    Type: String
+Resources:
+  WebServer:
+    Type: AWS::EC2::Instance
+    Properties:
+      InstanceType: !Ref InstanceType
+  MyBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: my-bucket
+Outputs:
+  WebServerIP:
+    Value: !GetAtt WebServer.PublicIp
+`;
+        const resources = extractCFNResources(template, 'template.yaml');
+        expect(resources.length).toBe(2);
+        expect(resources[0]!.logicalId).toBe('WebServer');
+        expect(resources[0]!.type).toBe('AWS::EC2::Instance');
+        expect(resources[1]!.logicalId).toBe('MyBucket');
+
+        const params = extractCFNParameters(template, 'template.yaml');
+        expect(params.length).toBe(2);
+        expect(params[0]!.name).toBe('InstanceType');
+        expect(params[0]!.defaultValue).toBe('t2.micro');
+        expect(params[1]!.name).toBe('Environment');
+    });
+
+    it('detects test file metadata and counts', async () => {
+        const { isTestFile, extractTestFileInfo } = await import('../extractors/test-coverage');
+
+        expect(isTestFile('src/utils.test.ts')).toBe(true);
+        expect(isTestFile('src/__tests__/utils.ts')).toBe(true);
+        expect(isTestFile('src/utils.ts')).toBe(false);
+
+        const testContent = `
+import { add, subtract } from '../math';
+import { format } from '../format';
+
+jest.mock('../format');
+
+describe('Math operations', () => {
+    it('should add two numbers', () => {
+        expect(add(1, 2)).toBe(3);
+    });
+
+    it('should subtract two numbers', () => {
+        expect(subtract(5, 3)).toBe(2);
+    });
+
+    test('should handle negatives', () => {
+        expect(add(-1, -2)).toBe(-3);
+    });
+});
+`;
+        const info = extractTestFileInfo(testContent, 'src/__tests__/math.test.ts');
+        expect(info.isTestFile).toBe(true);
+        expect(info.testCount).toBe(3);
+        expect(info.testedModules).toContain('../math');
+        expect(info.testedModules).toContain('../format');
+        expect(info.mockedModules).toContain('../format');
+        expect(info.describeBlocks).toContain('Math operations');
+    });
+
+    it('detects Python Celery tasks and Prometheus metrics', async () => {
+        const { extractPythonCeleryTasks, extractPythonMetrics } = await import('../extractors/python-runtime');
+
+        const pythonCode = `
+from celery import shared_task
+from prometheus_client import Counter, Histogram
+
+REQUEST_COUNT = Counter('http_requests_total', 'Total HTTP requests')
+REQUEST_LATENCY = Histogram('http_request_duration_seconds', 'Request latency')
+
+@shared_task
+def send_email(to, subject, body):
+    pass
+
+send_email.delay('user@example.com', 'Hello', 'World')
+`;
+        const tasks = extractPythonCeleryTasks(pythonCode);
+        expect(tasks.length).toBe(2);
+        expect(tasks[0]!.name).toBe('send_email');
+        expect(tasks[0]!.kind).toBe('define');
+        expect(tasks[1]!.kind).toBe('call');
+
+        const metrics = extractPythonMetrics(pythonCode);
+        expect(metrics.length).toBe(2);
+        expect(metrics[0]!.name).toBe('http_requests_total');
+        expect(metrics[0]!.metricType).toBe('counter');
+        expect(metrics[1]!.metricType).toBe('histogram');
+    });
 });

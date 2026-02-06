@@ -174,6 +174,51 @@ Once connected, your AI assistant gets these tools automatically:
 - **requirements.txt**: Python packages with version constraints
 - Creates Module nodes + DEPENDS_ON edges
 
+### Secret / Credential Detection
+- **AWS**: access keys (`AKIA...`), secret keys in variable assignments
+- **GitHub**: personal access tokens (`ghp_`, `gho_`, `ghs_`, `ghr_`, `github_pat_`)
+- **Stripe**: live secret keys (`sk_live_`, `rk_live_`)
+- **Slack**: API tokens (`xoxb-`, `xoxp-`)
+- **SendGrid**, **Twilio**: API key patterns
+- **JWT**: hardcoded tokens (`eyJ...`)
+- **Private keys**: RSA/EC/OPENSSH embedded in source
+- **Basic auth in URLs**: `https://user:pass@host`
+- **Generic**: `api_key`, `secret_key`, `password` variable assignments
+- Creates `SecurityIssue` nodes + `HAS_SECURITY_ISSUE` edges
+- Skips comments, test/mock files, placeholder values
+
+### .env Config File Parsing
+- Parses `.env`, `.env.local`, `.env.production`, `.env.development`
+- Extracts variable definitions with values, detects empty vars
+- Creates `EnvVar` nodes + `CONTAINS` edges linking definitions to usage
+
+### Cron Job Detection (dynamic, import-aware)
+- **node-cron**: `cron.schedule('*/5 * * * *', handler)`
+- **node-schedule**: `schedule.scheduleJob('expr', handler)`
+- **@nestjs/schedule**: `@Cron('45 * * * * *')` decorator
+- **cron (npm)**: `new CronJob('expr', handler)`
+- Creates `CronJob` nodes + `SCHEDULES` edges
+
+### CloudFormation / SAM Template Parsing
+- Parses CloudFormation YAML templates
+- `Resources`: logical ID, Type, provider extraction
+- `Parameters`: name, type, default, description
+- `Outputs`: name, export name
+- Creates Class nodes (resources), EnvVar nodes (parameters)
+
+### Test Coverage Correlation
+- Detects test files (`.test.ts`, `.spec.ts`, `__tests__/`)
+- Extracts tested modules, mocked modules, describe blocks, test counts
+- `jest.mock()` / `vi.mock()` target detection
+- Creates `DEPENDS_ON` edges with `kind: 'test'`
+
+### Python Runtime Tracking
+- **Redis**: `redis.get/set/hget/lpush` operations → `DBTable` nodes
+- **Celery**: `@shared_task`/`@app.task` definitions, `.delay()`/`.apply_async()` calls → `QueueJob` nodes
+- **Prometheus**: `Counter/Gauge/Histogram/Summary` definitions → `Metric` nodes
+- **OpenTelemetry**: `tracer.start_span()`/`start_as_current_span()` → `Span` nodes
+- **Message brokers**: Kafka (`confluent_kafka`), RabbitMQ (`pika`), NATS → `Topic` nodes
+
 ### Codebase Health
 - **Dead code detection** — functions never called (excludes constructors, class methods, React components, barrel exports)
 - **God object detection** — functions with excessive cross-file coupling (configurable threshold)
