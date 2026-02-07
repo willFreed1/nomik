@@ -3,10 +3,10 @@ import type { GraphNode, GraphEdge, ProjectNode } from '@nomik/core';
 import { createNeo4jDriver } from './drivers/neo4j.driver.js';
 import type { GraphDriver } from './drivers/driver.interface.js';
 import { upsertNodes, createEdges, clearFileData, clearFilesData, purgeStaleFiles, upsertProject, deleteProjectData, listProjects, getProject } from './queries/write.js';
-import { impactAnalysis, findDeadCode, findGodObjects, findGodFiles, findDuplicates, graphStats, findDependencyChain, findDetailedPath, recentChanges, findDBImpact, getFileSymbols } from './queries/read.js';
+import { impactAnalysis, findDeadCode, findGodObjects, findGodFiles, findDuplicates, graphStats, findDependencyChain, findDetailedPath, recentChanges, findDBImpact, getFileSymbols, explainSymbol, findServiceLinks } from './queries/read.js';
 import { initializeSchema } from './schema/init.js';
 import { QueryCache } from './cache.js';
-import type { ImpactResult, DetailedPath, FileSymbol } from './queries/read.js';
+import type { ImpactResult, DetailedPath, FileSymbol, ExplainResult, ServiceLink } from './queries/read.js';
 
 export interface ParseResult {
     file: { id: string; path: string; language: string; hash: string; size: number; lastParsed: string; type: 'file' };
@@ -33,6 +33,8 @@ export interface GraphService {
     getDependencyChain(from: string, to: string, projectId?: string): Promise<string[][]>;
     getDetailedPath(from: string, to: string, projectId?: string): Promise<DetailedPath[]>;
     getRecentChanges(since: string, limit?: number, projectId?: string): Promise<Array<{ name: string; type: string; filePath: string; updatedAt: string; createdAt: string | null }>>;
+    getExplain(symbolName: string, projectId?: string): Promise<ExplainResult>;
+    getServiceLinks(projectId?: string): Promise<ServiceLink[]>;
     healthCheck(): Promise<boolean>;
     executeQuery<T>(query: string, params?: Record<string, any>): Promise<T[]>;
     // Gestion des projets
@@ -148,6 +150,14 @@ export function createGraphService(config: GraphConfig): GraphService {
 
         async getRecentChanges(since: string, limit = 50, projectId?: string) {
             return cached(`recent:${projectId}:${since}:${limit}`, () => recentChanges(driver, since, limit, projectId));
+        },
+
+        async getExplain(symbolName: string, projectId?: string) {
+            return cached(`explain:${projectId}:${symbolName}`, () => explainSymbol(driver, symbolName, projectId));
+        },
+
+        async getServiceLinks(projectId?: string) {
+            return cached(`serviceLinks:${projectId}`, () => findServiceLinks(driver, projectId));
         },
 
         async healthCheck() {

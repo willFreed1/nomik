@@ -2,7 +2,7 @@ import type { GraphService } from '@nomik/graph';
 import { NomikError } from '@nomik/core';
 
 /** Labels Neo4j reconnus par le scan */
-const KNOWN_LABELS = ['File', 'Function', 'Class', 'Variable', 'Module', 'Route', 'DBTable', 'DBColumn', 'ExternalAPI', 'CronJob', 'Event', 'EnvVar'];
+const KNOWN_LABELS = ['File', 'Function', 'Class', 'Variable', 'Module', 'Route', 'DBTable', 'DBColumn', 'ExternalAPI', 'CronJob', 'Event', 'EnvVar', 'QueueJob', 'Metric', 'Span', 'Topic', 'SecurityIssue'];
 
 /** Recupere le projectId depuis l'env (injecte par Cursor/IDE) */
 function getProjectId(): string | undefined {
@@ -114,6 +114,18 @@ const TOOLS = {
                 limit: { type: 'number', description: 'Max results', default: 30 },
                 project: { type: 'string', description: 'Project name to scope the changes to. Overrides NOMIK_PROJECT_ID env var.' },
             },
+        },
+    },
+    nm_explain: {
+        name: 'nm_explain',
+        description: 'Explain a symbol — returns its type, file location, incoming edges (callers), outgoing edges (callees), and summary. Use this to understand what a function/class does and how it connects.',
+        inputSchema: {
+            type: 'object',
+            properties: {
+                symbol: { type: 'string', description: 'Name of the function, class, or variable to explain' },
+                project: { type: 'string', description: 'Project name to scope the explanation to. Overrides NOMIK_PROJECT_ID env var.' },
+            },
+            required: ['symbol'],
         },
     },
     nm_projects: {
@@ -370,6 +382,40 @@ export async function handleCallTool(graph: GraphService, name: string, args: an
             const limit = Number(args.limit) || 30;
             const changes = await graph.getRecentChanges(since, limit, effectiveProjectId);
             return [{ type: 'text', text: JSON.stringify(changes, null, 2) }];
+        }
+
+        case 'nm_explain': {
+            const effectiveProjectId = eid(args);
+            const symbolName = String(args.symbol ?? '').trim();
+            if (!symbolName) {
+                return [{ type: 'text', text: JSON.stringify({ error: 'symbol is required' }) }];
+            }
+            const explain = await graph.getExplain(symbolName, effectiveProjectId);
+            if (!explain.symbol) {
+                return [{ type: 'text', text: JSON.stringify({ error: `Symbol "${symbolName}" not found in graph`, hint: 'Run nomik scan first, then use the exact function/class name' }) }];
+            }
+
+            // Build a structured summary
+            const inByType: Record<string, string[]> = {};
+            for (const e of explain.incomingEdges) {
+                (inByType[e.edgeType] ??= []).push(`${e.sourceType}:${e.sourceName}`);
+            }
+            const outByType: Record<string, string[]> = {};
+            for (const e of explain.outgoingEdges) {
+                (outByType[e.edgeType] ??= []).push(`${e.targetType}:${e.targetName}`);
+            }
+
+            const summary = {
+                symbol: explain.symbol,
+                containedIn: explain.containedIn,
+                siblingCount: explain.siblingCount,
+                incoming: inByType,
+                outgoing: outByType,
+                callerCount: explain.incomingEdges.filter(e => e.edgeType === 'CALLS').length,
+                calleeCount: explain.outgoingEdges.filter(e => e.edgeType === 'CALLS').length,
+                totalEdges: explain.incomingEdges.length + explain.outgoingEdges.length,
+            };
+            return [{ type: 'text', text: JSON.stringify(summary, null, 2) }];
         }
 
         case 'nm_projects': {

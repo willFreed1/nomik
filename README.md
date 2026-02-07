@@ -225,6 +225,21 @@ Once connected, your AI assistant gets these tools automatically:
 - **God file detection** — files with too many functions, with accurate line counts (configurable threshold)
 - **Duplicate code detection** — functions with identical body hash (excludes trivial <3-line stubs)
 
+### Symbol Explanation (`nomik explain`)
+- `nomik explain <symbol>` — full context report: type, file, lines, exported status
+- Shows incoming edges (callers) grouped by edge type
+- Shows outgoing edges (callees) grouped by edge type
+- Summary: caller count, callee count, total edges
+- `--json` flag for machine-readable output
+- Also available as `nm_explain` MCP tool
+
+### Cross-Service Correlation (`nomik service-links`)
+- `nomik service-links` — discovers producer↔consumer pairs sharing topics/queues
+- Scans `PRODUCES_MESSAGE`/`CONSUMES_MESSAGE` (Kafka, RabbitMQ, NATS, SQS, SNS)
+- Scans `PRODUCES_JOB`/`CONSUMES_JOB` (Bull, BullMQ, Bee-Queue, Celery)
+- Shows which functions/files produce and which consume each topic
+- `--json` flag for machine-readable output
+
 ## CLI Commands
 
 ```bash
@@ -235,6 +250,8 @@ nomik status                  # Graph health & stats (project-scoped)
 nomik impact <symbol>         # Impact analysis for a symbol
 nomik query "<cypher>"        # Raw Cypher query
 nomik recent                  # Recently changed nodes
+nomik explain <symbol>        # Full context report for a function/class
+nomik service-links           # Cross-service producer↔consumer mapping
 nomik setup-cursor            # Auto-configure Cursor MCP
 nomik setup-windsurf          # Auto-configure Windsurf MCP
 nomik serve                   # Start MCP server + viz dashboard

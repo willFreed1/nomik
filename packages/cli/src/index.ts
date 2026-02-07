@@ -11,6 +11,8 @@ import { setupCursorCommand } from './commands/setup-cursor.js';
 import { setupWindsurfCommand } from './commands/setup-windsurf.js';
 import { projectCommand } from './commands/project.js';
 import { prImpactCommand } from './commands/pr-impact.js';
+import { explainCommand } from './commands/explain.js';
+import { serviceLinksCommand } from './commands/service-links.js';
 
 const program = new Command();
 
@@ -31,5 +33,7 @@ program.addCommand(setupCursorCommand);
 program.addCommand(setupWindsurfCommand);
 program.addCommand(projectCommand);
 program.addCommand(prImpactCommand);
+program.addCommand(explainCommand);
+program.addCommand(serviceLinksCommand);
 
 program.parse();
