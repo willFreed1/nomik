@@ -216,6 +216,9 @@ nomik/
 │       │   │   ├── rename.ts          # nomik rename — graph-aware rename
 │       │   │   ├── scan-incremental.ts # nomik scan:incremental — git diff scan
 │       │   │   ├── setup-claude.ts    # nomik setup-claude — Claude Desktop MCP
+│       │   │   ├── rules.ts           # nomik rules — architecture rules engine
+│       │   │   ├── test-impact.ts     # nomik test-impact — affected test finder
+│       │   │   ├── audit.ts           # nomik audit — dependency vulnerability check
 │       │   │   └── project.ts         # nomik project list/create/
 │       │   │                          # switch/delete/info
 │       │   ├── utils/

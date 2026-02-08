@@ -229,6 +229,48 @@ const TOOLS = {
             },
         },
     },
+    nm_test_impact: {
+        name: 'nm_test_impact',
+        description: 'ALWAYS use this tool when asked which tests to run, which tests are affected by a change, or test coverage impact. Traces the knowledge graph from a changed symbol or file to find all test files that should be re-run. Do NOT manually search for test files — this tool has the complete dependency picture.',
+        inputSchema: {
+            type: 'object',
+            properties: {
+                symbol: { type: 'string', description: 'Name of the changed function/class/variable' },
+                files: { type: 'array', items: { type: 'string' }, description: 'Changed file paths (alternative to symbol)' },
+                depth: { type: 'number', description: 'Max traversal depth', default: 4 },
+                project: { type: 'string', description: 'Project name to scope the analysis to. Overrides NOMIK_PROJECT_ID env var.' },
+            },
+        },
+    },
+    nm_audit: {
+        name: 'nm_audit',
+        description: 'ALWAYS use this tool when asked about dependency vulnerabilities, security audits, or npm/pnpm audit results. Checks for vulnerable packages and cross-references with the knowledge graph to show which files import them (blast radius). Do NOT run npm audit manually — this tool integrates results with the graph.',
+        inputSchema: {
+            type: 'object',
+            properties: {
+                project: { type: 'string', description: 'Project name to scope the blast radius check to. Overrides NOMIK_PROJECT_ID env var.' },
+            },
+        },
+    },
+    nm_rules: {
+        name: 'nm_rules',
+        description: 'ALWAYS use this tool when asked about architecture rules, code quality policies, or whether the codebase follows best practices. Evaluates 9 configurable rules: dead code, god files, duplicates, high-fan-in, DB writes per route, circular imports, long functions, long files, security issues. Returns pass/fail per rule with violations.',
+        inputSchema: {
+            type: 'object',
+            properties: {
+                maxDeadCode: { type: 'number', description: 'Max allowed dead code functions', default: 5 },
+                maxGodFiles: { type: 'number', description: 'Max allowed god files', default: 3 },
+                maxDuplicates: { type: 'number', description: 'Max allowed duplicate groups', default: 2 },
+                maxFunctionCallers: { type: 'number', description: 'Max callers per function', default: 50 },
+                maxDbWritesPerRoute: { type: 'number', description: 'Max DB write functions per route', default: 3 },
+                maxFunctionLines: { type: 'number', description: 'Max lines per function', default: 200 },
+                maxFileLines: { type: 'number', description: 'Max lines per file', default: 1000 },
+                maxSecurityIssues: { type: 'number', description: 'Max security issues', default: 0 },
+                noCircularImports: { type: 'boolean', description: 'Disallow circular file imports', default: true },
+                project: { type: 'string', description: 'Project name to scope the check to. Overrides NOMIK_PROJECT_ID env var.' },
+            },
+        },
+    },
 };
 
 export async function handleListTools() {
@@ -654,6 +696,74 @@ export async function handleCallTool(graph: GraphService, name: string, args: an
             const effectiveProjectId = eid(args);
             const links = await graph.getServiceLinks(effectiveProjectId);
             return [{ type: 'text', text: JSON.stringify(links, null, 2) }];
+        }
+
+        case 'nm_audit': {
+            const effectiveProjectId = eid(args);
+            // Query graph for all external package imports and their file-level usage
+            const externalImports = await graph.executeQuery<{ pkg: string; filePath: string; importCount: number }>(
+                `MATCH (f:File ${effectiveProjectId ? '{projectId: $projectId}' : ''})-[d:DEPENDS_ON]->(m)
+                 WHERE m.type = 'module' OR d.kind = 'import'
+                 WITH COALESCE(m.name, d.source) as pkg, f.path as filePath
+                 WHERE pkg IS NOT NULL AND NOT pkg STARTS WITH '.' AND NOT pkg STARTS WITH '/'
+                 RETURN pkg, filePath, 1 as importCount
+                 ORDER BY pkg
+                 LIMIT 500`,
+                { projectId: effectiveProjectId },
+            );
+
+            // Group by package
+            const pkgMap: Record<string, string[]> = {};
+            for (const row of externalImports) {
+                (pkgMap[row.pkg] ??= []).push(row.filePath);
+            }
+
+            // Also get security issues from the graph
+            const securityIssues = await graph.executeQuery<{ name: string; severity: string; category: string; filePath: string }>(
+                `MATCH (s:SecurityIssue ${effectiveProjectId ? '{projectId: $projectId}' : ''})
+                 RETURN s.name as name, s.severity as severity, s.category as category, s.filePath as filePath
+                 ORDER BY s.severity LIMIT 50`,
+                { projectId: effectiveProjectId },
+            );
+
+            return [{ type: 'text', text: JSON.stringify({
+                externalPackages: Object.entries(pkgMap).map(([pkg, files]) => ({ package: pkg, importedByFiles: files.length, files: files.slice(0, 5) })),
+                totalPackages: Object.keys(pkgMap).length,
+                securityIssues,
+                recommendation: 'Run `nomik audit` CLI for full npm/pnpm audit with blast radius analysis. The graph data above shows all external packages imported and which files use them.',
+            }, null, 2) }];
+        }
+
+        case 'nm_test_impact': {
+            const effectiveProjectId = eid(args);
+            const symbolName = args.symbol ? String(args.symbol).trim() : '';
+            const filePaths = Array.isArray(args.files) ? args.files.map(String) : [];
+
+            if (filePaths.length > 0) {
+                const fileResults = await graph.getTestImpactForFiles(filePaths, effectiveProjectId);
+                return [{ type: 'text', text: JSON.stringify({ mode: 'files', changedFiles: filePaths, affectedTests: fileResults, totalTestFiles: fileResults.length }, null, 2) }];
+            } else if (symbolName) {
+                const result = await graph.getTestImpact(symbolName, Number(args.depth) || 4, effectiveProjectId);
+                return [{ type: 'text', text: JSON.stringify(result, null, 2) }];
+            } else {
+                return [{ type: 'text', text: JSON.stringify({ error: 'Provide either symbol or files parameter' }) }];
+            }
+        }
+
+        case 'nm_rules': {
+            const effectiveProjectId = eid(args);
+            const rulesConfig: Record<string, unknown> = {};
+            if (args.maxDeadCode !== undefined) rulesConfig.maxDeadCode = Number(args.maxDeadCode);
+            if (args.maxGodFiles !== undefined) rulesConfig.maxGodFiles = Number(args.maxGodFiles);
+            if (args.maxDuplicates !== undefined) rulesConfig.maxDuplicates = Number(args.maxDuplicates);
+            if (args.maxFunctionCallers !== undefined) rulesConfig.maxFunctionCallers = Number(args.maxFunctionCallers);
+            if (args.maxDbWritesPerRoute !== undefined) rulesConfig.maxDbWritesPerRoute = Number(args.maxDbWritesPerRoute);
+            if (args.maxFunctionLines !== undefined) rulesConfig.maxFunctionLines = Number(args.maxFunctionLines);
+            if (args.maxFileLines !== undefined) rulesConfig.maxFileLines = Number(args.maxFileLines);
+            if (args.maxSecurityIssues !== undefined) rulesConfig.maxSecurityIssues = Number(args.maxSecurityIssues);
+            if (args.noCircularImports !== undefined) rulesConfig.noCircularImports = Boolean(args.noCircularImports);
+            const rulesResult = await graph.evaluateRules(rulesConfig as any, effectiveProjectId);
+            return [{ type: 'text', text: JSON.stringify(rulesResult, null, 2) }];
         }
 
         default:

@@ -3,10 +3,10 @@ import type { GraphNode, GraphEdge, ProjectNode } from '@nomik/core';
 import { createNeo4jDriver } from './drivers/neo4j.driver.js';
 import type { GraphDriver } from './drivers/driver.interface.js';
 import { upsertNodes, createEdges, clearFileData, clearFilesData, purgeStaleFiles, upsertProject, deleteProjectData, listProjects, getProject } from './queries/write.js';
-import { impactAnalysis, findDeadCode, findGodObjects, findGodFiles, findDuplicates, graphStats, findDependencyChain, findDetailedPath, recentChanges, findDBImpact, getFileSymbols, explainSymbol, findServiceLinks, getOnboardSummary, detectCommunities, detectFlows, architectureDiff } from './queries/read.js';
+import { impactAnalysis, findDeadCode, findGodObjects, findGodFiles, findDuplicates, graphStats, findDependencyChain, findDetailedPath, recentChanges, findDBImpact, getFileSymbols, explainSymbol, findServiceLinks, getOnboardSummary, detectCommunities, detectFlows, architectureDiff, evaluateRules, findTestImpact, findTestImpactForFiles } from './queries/read.js';
 import { initializeSchema } from './schema/init.js';
 import { QueryCache } from './cache.js';
-import type { ImpactResult, DetailedPath, FileSymbol, ExplainResult, ServiceLink, OnboardSummary, CommunityResult, FlowResult, DiffResult, FullStats } from './queries/read.js';
+import type { ImpactResult, DetailedPath, FileSymbol, ExplainResult, ServiceLink, OnboardSummary, CommunityResult, FlowResult, DiffResult, FullStats, RulesConfig, RuleResult, TestImpactResult } from './queries/read.js';
 
 export interface ParseResult {
     file: { id: string; path: string; language: string; hash: string; size: number; lastParsed: string; type: 'file' };
@@ -39,6 +39,9 @@ export interface GraphService {
     getCommunities(projectId?: string, minSize?: number): Promise<CommunityResult>;
     getFlows(projectId?: string, maxDepth?: number, limit?: number): Promise<FlowResult>;
     getDiff(fromSha: string, toSha: string, projectId?: string): Promise<DiffResult>;
+    evaluateRules(config?: RulesConfig, projectId?: string): Promise<{ passed: boolean; results: RuleResult[]; summary: { errors: number; warnings: number; info: number } }>;
+    getTestImpact(symbolName: string, maxDepth?: number, projectId?: string): Promise<TestImpactResult>;
+    getTestImpactForFiles(filePaths: string[], projectId?: string): Promise<Array<{ testFile: string; changedFile: string; reason: string }>>;
     healthCheck(): Promise<boolean>;
     executeQuery<T>(query: string, params?: Record<string, any>): Promise<T[]>;
     // Gestion des projets
@@ -178,6 +181,18 @@ export function createGraphService(config: GraphConfig): GraphService {
 
         async getDiff(fromSha: string, toSha: string, projectId?: string) {
             return architectureDiff(driver, fromSha, toSha, projectId);
+        },
+
+        async evaluateRules(config?: RulesConfig, projectId?: string) {
+            return evaluateRules(driver, config, projectId);
+        },
+
+        async getTestImpact(symbolName: string, maxDepth = 4, projectId?: string) {
+            return cached(`testImpact:${projectId}:${symbolName}:${maxDepth}`, () => findTestImpact(driver, symbolName, maxDepth, projectId));
+        },
+
+        async getTestImpactForFiles(filePaths: string[], projectId?: string) {
+            return findTestImpactForFiles(driver, filePaths, projectId);
         },
 
         async healthCheck() {

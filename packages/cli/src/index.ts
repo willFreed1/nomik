@@ -24,6 +24,9 @@ import { guardCommand } from './commands/guard.js';
 import { renameCommand } from './commands/rename.js';
 import { scanIncrementalCommand } from './commands/scan-incremental.js';
 import { setupClaudeCommand } from './commands/setup-claude.js';
+import { rulesCommand } from './commands/rules.js';
+import { testImpactCommand } from './commands/test-impact.js';
+import { auditCommand } from './commands/audit.js';
 
 const program = new Command();
 
@@ -57,5 +60,8 @@ program.addCommand(guardCommand);
 program.addCommand(renameCommand);
 program.addCommand(scanIncrementalCommand);
 program.addCommand(setupClaudeCommand);
+program.addCommand(rulesCommand);
+program.addCommand(testImpactCommand);
+program.addCommand(auditCommand);
 
 program.parse();

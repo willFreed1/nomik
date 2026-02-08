@@ -1,10 +1,11 @@
 import { Server } from '@modelcontextprotocol/sdk/server/index.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
-import { CallToolRequestSchema, ListResourcesRequestSchema, ListToolsRequestSchema, ReadResourceRequestSchema } from '@modelcontextprotocol/sdk/types.js';
+import { CallToolRequestSchema, ListResourcesRequestSchema, ListToolsRequestSchema, ReadResourceRequestSchema, ListPromptsRequestSchema, GetPromptRequestSchema } from '@modelcontextprotocol/sdk/types.js';
 import { createGraphService } from '@nomik/graph';
 import { loadConfigFromEnv, createLogger, setLogger, type LogConfig } from '@nomik/core';
 import { handleListResources, handleReadResource } from './resources';
 import { handleCallTool, handleListTools } from './tools';
+import { handleListPrompts, handleGetPrompt } from './prompts';
 
 const logLevel = (process.env.LOG_LEVEL as LogConfig['level']) || 'info';
 const logger = createLogger({ level: logLevel, pretty: false }, process.stderr);
@@ -53,6 +54,7 @@ async function main() {
             capabilities: {
                 resources: {},
                 tools: {},
+                prompts: {},
             },
         }
     );
@@ -74,6 +76,16 @@ async function main() {
     server.setRequestHandler(CallToolRequestSchema, async (request) => ({
         content: await handleCallTool(graph, request.params.name, request.params.arguments),
     }));
+
+    // Prompts
+    server.setRequestHandler(ListPromptsRequestSchema, async () => ({
+        prompts: handleListPrompts(),
+    }));
+
+    server.setRequestHandler(GetPromptRequestSchema, async (request) => {
+        const result = await handleGetPrompt(graph, request.params.name, request.params.arguments as Record<string, unknown> | undefined);
+        return result;
+    });
 
     const transport = new StdioServerTransport();
     await server.connect(transport);

@@ -54,6 +54,9 @@ Once connected, your AI assistant gets these tools automatically:
 | `nm_rename` | Graph-aware rename impact analysis | "What files change if I rename `createWatcher`?" |
 | `nm_diff` | Architecture drift between two scans | "What changed between these two commits?" |
 | `nm_service_links` | Cross-service dependencies | "How do our microservices communicate?" |
+| `nm_test_impact` | Find affected test files after a change | "Which tests should I run after changing parseFile?" |
+| `nm_audit` | Dependency vulnerability check + blast radius | "Are there any vulnerable packages?" |
+| `nm_rules` | Architecture rules engine (9 configurable rules) | "Does the codebase follow our quality policies?" |
 
 ## What NOMIK Tracks
 
@@ -302,6 +305,14 @@ Once connected, your AI assistant gets these tools automatically:
 - Detects DB table impact (READS_FROM/WRITES_TO) on changed functions
 - Non-blocking — warnings don't interrupt the re-index pipeline
 
+### MCP Prompts (6 pre-built conversation starters)
+- `nomik-onboard` — full architecture briefing from the knowledge graph
+- `nomik-review-change` — impact analysis before refactoring a symbol
+- `nomik-health-check` — full health report with prioritized fixes
+- `nomik-explain-module` — deep-dive into a specific file or module
+- `nomik-migration-plan` — plan a safe migration with all affected files
+- `nomik-infrastructure` — audit all infrastructure tracked in the codebase
+
 ### MCP Resources (9 browsable endpoints)
 - `nomik://stats` — full stats for ALL 17 node types (files, functions, classes, routes, DB tables, columns, APIs, cron jobs, events, env vars, queues, metrics, spans, topics, security issues, variables, modules)
 - `nomik://health` — dead code, god files, duplicates, security issues, edge type distribution + full node counts
@@ -325,13 +336,13 @@ Once connected, your AI assistant gets these tools automatically:
 - Writes NOMIK MCP server config to the editor's config directory
 - Cross-platform path resolution (Windows, macOS, Linux)
 - `--config-path <path>` to override target config file
-- Supports all 18 MCP tools out of the box (search, impact, context, health, wiki, flows, guard, rename, diff, etc.)
+- Supports all 21 MCP tools out of the box (search, impact, context, health, wiki, flows, guard, rename, diff, rules, test-impact, audit, etc.)
 
 ### Claude Desktop MCP Setup (`nomik setup-claude`)
 - `nomik setup-claude` — auto-configure Claude Desktop's `claude_desktop_config.json`
 - Config path: `%APPDATA%\Claude\` (Windows), `~/Library/Application Support/Claude/` (macOS)
 - Same format as Cursor/Windsurf — uses `mcpServers` key
-- All 18 MCP tools + 9 resources available after restart
+- All 21 MCP tools + 9 resources + 6 prompts available after restart
 
 ### Health Badges (`nomik badge`)
 - `nomik badge` — generate shields.io badges for README
@@ -373,6 +384,9 @@ nomik setup-claude            # Auto-configure Claude Desktop MCP
 nomik guard                   # Quality gate (CI/pre-commit)
 nomik rename <old> <new>      # Graph-aware symbol rename
 nomik scan:incremental <path> # Incremental scan (git diff-based)
+nomik rules                   # Architecture rules engine (9 rules)
+nomik test-impact <symbol>    # Find affected tests after a change
+nomik audit                   # Dependency vulnerability check + blast radius
 nomik serve                   # Start MCP server + viz dashboard
 nomik project list            # List all projects in Neo4j
 nomik project create <name>   # Create a new project

@@ -470,3 +470,11 @@ export type { OnboardSummary } from './read-onboard.js';
 // Explain + service-links queries split to read-explain.ts
 export { findServiceLinks, explainSymbol } from './read-explain.js';
 export type { ServiceLink, ExplainResult } from './read-explain.js';
+
+// Architecture rules engine split to read-rules.ts
+export { evaluateRules } from './read-rules.js';
+export type { RulesConfig, RuleResult, RuleViolation, RuleSeverity } from './read-rules.js';
+
+// Test impact analysis split to read-test-impact.ts
+export { findTestImpact, findTestImpactForFiles } from './read-test-impact.js';
+export type { TestImpactResult } from './read-test-impact.js';
