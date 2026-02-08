@@ -13,6 +13,8 @@ import { projectCommand } from './commands/project.js';
 import { prImpactCommand } from './commands/pr-impact.js';
 import { explainCommand } from './commands/explain.js';
 import { serviceLinksCommand } from './commands/service-links.js';
+import { onboardCommand } from './commands/onboard.js';
+import { wikiCommand } from './commands/wiki.js';
 
 const program = new Command();
 
@@ -35,5 +37,7 @@ program.addCommand(projectCommand);
 program.addCommand(prImpactCommand);
 program.addCommand(explainCommand);
 program.addCommand(serviceLinksCommand);
+program.addCommand(onboardCommand);
+program.addCommand(wikiCommand);
 
 program.parse();

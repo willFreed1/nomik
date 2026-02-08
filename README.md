@@ -240,6 +240,23 @@ Once connected, your AI assistant gets these tools automatically:
 - Shows which functions/files produce and which consume each topic
 - `--json` flag for machine-readable output
 
+### Codebase Briefing (`nomik onboard`)
+- `nomik onboard` — one-command architecture overview
+- Shows functions/files/classes/routes counts, language distribution
+- Lists DB tables (with reader/writer counts), external APIs, env vars
+- Highlights high-risk functions (most callers)
+- Health summary: dead code, god files, duplicates, security issues
+- `--json` flag for machine-readable output
+
+### Wiki Generation (`nomik wiki`)
+- `nomik wiki` — generates markdown documentation from the knowledge graph
+- `index.md`: overview stats + file listing (language, functions, lines)
+- `functions.md`: top 100 functions by caller count with export status
+- `health.md`: dead code, god files, duplicate functions report
+- `service-links.md`: cross-service producer↔consumer connections
+- `--out <dir>` to set output directory (default `./wiki`)
+- `--json` flag for raw data output
+
 ## CLI Commands
 
 ```bash
@@ -252,6 +269,8 @@ nomik query "<cypher>"        # Raw Cypher query
 nomik recent                  # Recently changed nodes
 nomik explain <symbol>        # Full context report for a function/class
 nomik service-links           # Cross-service producer↔consumer mapping
+nomik onboard                 # Codebase architecture briefing
+nomik wiki                    # Generate markdown documentation from graph
 nomik setup-cursor            # Auto-configure Cursor MCP
 nomik setup-windsurf          # Auto-configure Windsurf MCP
 nomik serve                   # Start MCP server + viz dashboard

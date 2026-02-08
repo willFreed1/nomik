@@ -2,7 +2,7 @@ import Parser from 'tree-sitter';
 import type { GraphNode, GraphEdge, TopicNode, ProducesMessageEdge, ConsumesMessageEdge } from '@nomik/core';
 import type { ImportInfo } from './imports.js';
 import { createNodeId } from '../utils.js';
-import { findEnclosingFunctionName, extractFirstStringArg } from './ast-utils.js';
+import { findEnclosingFunctionName, extractFirstStringArg, extractObjectProperty } from './ast-utils.js';
 
 // ────────────────────────────────────────────────────────────────────────
 // Message Broker Detection — import-aware
@@ -268,19 +268,6 @@ function extractTopicFromArgs(callNode: Parser.SyntaxNode): string | null {
     return null;
 }
 
-/** Extract a string property value from an object literal */
-function extractObjectProperty(objNode: Parser.SyntaxNode, propName: string): string | null {
-    for (const child of objNode.namedChildren) {
-        if (child.type === 'pair') {
-            const key = child.childForFieldName('key');
-            const value = child.childForFieldName('value');
-            if (key?.text === propName && value && (value.type === 'string' || value.type === 'template_string')) {
-                return value.text.replace(/^['"`]|['"`]$/g, '');
-            }
-        }
-    }
-    return null;
-}
 
 // ────────────────────────────────────────────────────────────────────────
 // Step 3: Build TopicNode + PRODUCES_MESSAGE / CONSUMES_MESSAGE edges

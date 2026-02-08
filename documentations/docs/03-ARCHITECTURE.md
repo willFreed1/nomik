@@ -133,12 +133,13 @@ nomik/
 │   │   │   ├── drivers/
 │   │   │   │   ├── neo4j.driver.ts   # Neo4j connection & session management
 │   │   │   │   └── driver.interface.ts # Abstract driver contract
-│   │   │   ├── queries/
-│   │   │   │   ├── write.ts           # Upsert nodes/edges (projectId),
-│   │   │   │   │                      # Project CRUD (create/list/get/delete)
-│   │   │   │   └── read.ts            # Impact, dead code, god objects,
-│   │   │   │                          # stats, dependency chains,
-│   │   │   │                          # recent changes (all filtered by projectId)
+│   │   │   ├── queries/          # Cypher read/write helpers (modular)
+│   │   │   │   ├── read.ts           # Core queries (impact, path, chain, stats, recent, DB impact)
+│   │   │   │   ├── read-health.ts    # Health queries (dead code, god objects, god files, duplicates)
+│   │   │   │   ├── read-explain.ts   # Symbol explain + cross-service correlation
+│   │   │   │   ├── read-onboard.ts   # Onboard summary (aggregated codebase briefing)
+│   │   │   │   └── write.ts          # Upsert nodes/edges (projectId),
+│   │   │   │                          # Project CRUD (create/list/get/delete)
 │   │   │   ├── schema/
 │   │   │   │   └── init.ts            # Constraints + projectId index
 │   │   │   ├── cache.ts               # QueryCache TTL 30s
@@ -199,6 +200,10 @@ nomik/
 │       │   │   ├── setup-cursor.ts    # nomik setup-cursor
 │       │   │   ├── setup-windsurf.ts  # nomik setup-windsurf
 │       │   │   ├── pr-impact.ts       # nomik pr-impact — blast radius
+│       │   │   ├── explain.ts         # nomik explain — symbol context
+│       │   │   ├── service-links.ts   # nomik service-links — cross-service
+│       │   │   ├── onboard.ts         # nomik onboard — codebase briefing
+│       │   │   ├── wiki.ts            # nomik wiki — markdown doc generation
 │       │   │   └── project.ts         # nomik project list/create/
 │       │   │                          # switch/delete/info
 │       │   ├── utils/

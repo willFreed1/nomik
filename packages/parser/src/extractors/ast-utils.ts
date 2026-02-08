@@ -72,6 +72,20 @@ export function resolveFunctionName(node: Parser.SyntaxNode): string | null {
     return null;
 }
 
+/** Extract a string property value from an object literal: { name: 'value' } */
+export function extractObjectProperty(objNode: Parser.SyntaxNode, propName: string): string | null {
+    for (const child of objNode.namedChildren) {
+        if (child.type === 'pair') {
+            const key = child.childForFieldName('key');
+            const value = child.childForFieldName('value');
+            if (key?.text === propName && value && (value.type === 'string' || value.type === 'template_string')) {
+                return value.text.replace(/^['"`]|['"`]$/g, '');
+            }
+        }
+    }
+    return null;
+}
+
 /** Extract decorator names from sibling nodes preceding the target node */
 export function extractDecorators(node: Parser.SyntaxNode): string[] {
     const decorators: string[] = [];

@@ -2,7 +2,7 @@ import Parser from 'tree-sitter';
 import type { GraphNode, GraphEdge, SpanNode, StartsSpanEdge } from '@nomik/core';
 import type { ImportInfo } from './imports.js';
 import { createNodeId } from '../utils.js';
-import { findEnclosingFunctionName, extractFirstStringArg } from './ast-utils.js';
+import { findEnclosingFunctionName, extractFirstStringArg, extractObjectProperty } from './ast-utils.js';
 
 // ────────────────────────────────────────────────────────────────────────
 // OpenTelemetry / Tracing Detection — import-aware
@@ -154,19 +154,6 @@ function parseSpanCall(
     return null;
 }
 
-/** Extract a string property value from an object literal: { name: 'value' } */
-function extractObjectProperty(objNode: Parser.SyntaxNode, propName: string): string | null {
-    for (const child of objNode.namedChildren) {
-        if (child.type === 'pair') {
-            const key = child.childForFieldName('key');
-            const value = child.childForFieldName('value');
-            if (key?.text === propName && value && (value.type === 'string' || value.type === 'template_string')) {
-                return value.text.replace(/^['"`]|['"`]$/g, '');
-            }
-        }
-    }
-    return null;
-}
 
 // ────────────────────────────────────────────────────────────────────────
 // Step 3: Build SpanNode + STARTS_SPAN edges
