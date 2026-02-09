@@ -414,6 +414,18 @@ export async function recentChanges(
     );
 }
 
+// Architecture diff split to read-diff.ts
+export { architectureDiff } from './read-diff.js';
+export type { DiffResult } from './read-diff.js';
+
+// Flow detection split to read-flows.ts
+export { detectFlows } from './read-flows.js';
+export type { FlowStep, ExecutionFlow, FlowResult } from './read-flows.js';
+
+// Community detection split to read-community.ts
+export { detectCommunities } from './read-community.js';
+export type { Community, CommunityResult } from './read-community.js';
+
 // Onboard summary split to read-onboard.ts
 export { getOnboardSummary } from './read-onboard.js';
 export type { OnboardSummary } from './read-onboard.js';

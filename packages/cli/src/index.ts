@@ -15,6 +15,10 @@ import { explainCommand } from './commands/explain.js';
 import { serviceLinksCommand } from './commands/service-links.js';
 import { onboardCommand } from './commands/onboard.js';
 import { wikiCommand } from './commands/wiki.js';
+import { communitiesCommand } from './commands/communities.js';
+import { flowsCommand } from './commands/flows.js';
+import { diffCommand } from './commands/diff.js';
+import { badgeCommand } from './commands/badge.js';
 
 const program = new Command();
 
@@ -39,5 +43,9 @@ program.addCommand(explainCommand);
 program.addCommand(serviceLinksCommand);
 program.addCommand(onboardCommand);
 program.addCommand(wikiCommand);
+program.addCommand(communitiesCommand);
+program.addCommand(flowsCommand);
+program.addCommand(diffCommand);
+program.addCommand(badgeCommand);
 
 program.parse();

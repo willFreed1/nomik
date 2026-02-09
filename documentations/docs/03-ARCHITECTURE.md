@@ -138,6 +138,9 @@ nomik/
 │   │   │   │   ├── read-health.ts    # Health queries (dead code, god objects, god files, duplicates)
 │   │   │   │   ├── read-explain.ts   # Symbol explain + cross-service correlation
 │   │   │   │   ├── read-onboard.ts   # Onboard summary (aggregated codebase briefing)
+│   │   │   │   ├── read-community.ts # Community detection (Union-Find clustering)
+│   │   │   │   ├── read-flows.ts     # Execution flow tracing from entry points
+│   │   │   │   ├── read-diff.ts      # Architecture drift between scan snapshots
 │   │   │   │   └── write.ts          # Upsert nodes/edges (projectId),
 │   │   │   │                          # Project CRUD (create/list/get/delete)
 │   │   │   ├── schema/
@@ -204,6 +207,10 @@ nomik/
 │       │   │   ├── service-links.ts   # nomik service-links — cross-service
 │       │   │   ├── onboard.ts         # nomik onboard — codebase briefing
 │       │   │   ├── wiki.ts            # nomik wiki — markdown doc generation
+│       │   │   ├── communities.ts     # nomik communities — cluster detection
+│       │   │   ├── flows.ts           # nomik flows — execution flow tracing
+│       │   │   ├── diff.ts            # nomik diff — architecture drift
+│       │   │   ├── badge.ts           # nomik badge — shields.io badges
 │       │   │   └── project.ts         # nomik project list/create/
 │       │   │                          # switch/delete/info
 │       │   ├── utils/

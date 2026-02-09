@@ -248,6 +248,31 @@ Once connected, your AI assistant gets these tools automatically:
 - Health summary: dead code, god files, duplicates, security issues
 - `--json` flag for machine-readable output
 
+### Community Detection (`nomik communities`)
+- `nomik communities` — detect functional clusters by CALLS edge density
+- Union-Find algorithm: groups by directory affinity + cross-file call density (threshold: 3+ calls)
+- Shows cohesion score (internal vs external edges), member count, top functions
+- `--min-size <n>` to filter small clusters, `--json` flag
+
+### Execution Flow Tracing (`nomik flows`)
+- `nomik flows` — trace execution paths from entry points through the call graph
+- Entry points: route handlers (HANDLES), event listeners (LISTENS_TO), queue consumers (CONSUMES_JOB)
+- Terminators: DB operations (READS_FROM/WRITES_TO), external API calls (CALLS_API)
+- Shows call chain depth, per-step file location, terminal operations
+- `--depth <n>`, `--limit <n>`, `--json` flags
+
+### Architecture Drift (`nomik diff`)
+- `nomik diff <from-sha> <to-sha>` — compare two scan snapshots
+- Shows new/removed/modified files, new/removed functions, new call edges
+- Summary: file/function/edge deltas
+- `--json` flag
+
+### Health Badges (`nomik badge`)
+- `nomik badge` — generate shields.io badges for README
+- Badges: dead_code, god_files, duplicates, functions, files
+- Color-coded: green (0), yellow (low), orange/red (high)
+- `--json` flag for badge data
+
 ### Wiki Generation (`nomik wiki`)
 - `nomik wiki` — generates markdown documentation from the knowledge graph
 - `index.md`: overview stats + file listing (language, functions, lines)
@@ -271,6 +296,10 @@ nomik explain <symbol>        # Full context report for a function/class
 nomik service-links           # Cross-service producer↔consumer mapping
 nomik onboard                 # Codebase architecture briefing
 nomik wiki                    # Generate markdown documentation from graph
+nomik communities             # Detect functional code clusters
+nomik flows                   # Trace execution paths from entry points
+nomik diff <sha1> <sha2>      # Architecture drift between scans
+nomik badge                   # Generate shields.io health badges
 nomik setup-cursor            # Auto-configure Cursor MCP
 nomik setup-windsurf          # Auto-configure Windsurf MCP
 nomik serve                   # Start MCP server + viz dashboard

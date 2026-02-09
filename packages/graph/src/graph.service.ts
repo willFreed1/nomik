@@ -3,10 +3,10 @@ import type { GraphNode, GraphEdge, ProjectNode } from '@nomik/core';
 import { createNeo4jDriver } from './drivers/neo4j.driver.js';
 import type { GraphDriver } from './drivers/driver.interface.js';
 import { upsertNodes, createEdges, clearFileData, clearFilesData, purgeStaleFiles, upsertProject, deleteProjectData, listProjects, getProject } from './queries/write.js';
-import { impactAnalysis, findDeadCode, findGodObjects, findGodFiles, findDuplicates, graphStats, findDependencyChain, findDetailedPath, recentChanges, findDBImpact, getFileSymbols, explainSymbol, findServiceLinks, getOnboardSummary } from './queries/read.js';
+import { impactAnalysis, findDeadCode, findGodObjects, findGodFiles, findDuplicates, graphStats, findDependencyChain, findDetailedPath, recentChanges, findDBImpact, getFileSymbols, explainSymbol, findServiceLinks, getOnboardSummary, detectCommunities, detectFlows, architectureDiff } from './queries/read.js';
 import { initializeSchema } from './schema/init.js';
 import { QueryCache } from './cache.js';
-import type { ImpactResult, DetailedPath, FileSymbol, ExplainResult, ServiceLink, OnboardSummary } from './queries/read.js';
+import type { ImpactResult, DetailedPath, FileSymbol, ExplainResult, ServiceLink, OnboardSummary, CommunityResult, FlowResult, DiffResult } from './queries/read.js';
 
 export interface ParseResult {
     file: { id: string; path: string; language: string; hash: string; size: number; lastParsed: string; type: 'file' };
@@ -36,6 +36,9 @@ export interface GraphService {
     getExplain(symbolName: string, projectId?: string): Promise<ExplainResult>;
     getServiceLinks(projectId?: string): Promise<ServiceLink[]>;
     getOnboard(projectId?: string): Promise<OnboardSummary>;
+    getCommunities(projectId?: string, minSize?: number): Promise<CommunityResult>;
+    getFlows(projectId?: string, maxDepth?: number, limit?: number): Promise<FlowResult>;
+    getDiff(fromSha: string, toSha: string, projectId?: string): Promise<DiffResult>;
     healthCheck(): Promise<boolean>;
     executeQuery<T>(query: string, params?: Record<string, any>): Promise<T[]>;
     // Gestion des projets
@@ -163,6 +166,18 @@ export function createGraphService(config: GraphConfig): GraphService {
 
         async getOnboard(projectId?: string) {
             return cached(`onboard:${projectId}`, () => getOnboardSummary(driver, projectId));
+        },
+
+        async getCommunities(projectId?: string, minSize = 3) {
+            return cached(`communities:${projectId}:${minSize}`, () => detectCommunities(driver, projectId, minSize));
+        },
+
+        async getFlows(projectId?: string, maxDepth = 8, limit = 20) {
+            return cached(`flows:${projectId}:${maxDepth}:${limit}`, () => detectFlows(driver, projectId, maxDepth, limit));
+        },
+
+        async getDiff(fromSha: string, toSha: string, projectId?: string) {
+            return architectureDiff(driver, fromSha, toSha, projectId);
         },
 
         async healthCheck() {
