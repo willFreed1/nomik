@@ -355,38 +355,75 @@ export async function findDBImpact(
     return { table: resolvedTable, column, readers, writers, columns };
 }
 
-export async function graphStats(driver: GraphDriver, projectId?: string): Promise<{
+export interface FullStats {
     nodeCount: number;
     edgeCount: number;
     fileCount: number;
     functionCount: number;
     classCount: number;
     routeCount: number;
-}> {
+    dbTableCount: number;
+    dbColumnCount: number;
+    externalApiCount: number;
+    cronJobCount: number;
+    eventCount: number;
+    envVarCount: number;
+    queueJobCount: number;
+    metricCount: number;
+    spanCount: number;
+    topicCount: number;
+    securityIssueCount: number;
+    variableCount: number;
+    moduleCount: number;
+}
+
+export async function graphStats(driver: GraphDriver, projectId?: string): Promise<FullStats> {
     const pf = projectId ? '{projectId: $projectId}' : '';
-    const [result] = await driver.runQuery<{
-        nodeCount: number;
-        edgeCount: number;
-        fileCount: number;
-        functionCount: number;
-        classCount: number;
-        routeCount: number;
-    }>(
-        `
-    MATCH (n ${pf})
-    WHERE NOT n:Project AND NOT n:ScanMeta
-    WITH count(n) as nodeCount
-    OPTIONAL MATCH ()-[r ${projectId ? '{projectId: $projectId}' : ''}]->()
-    WITH nodeCount, count(r) as edgeCount
-    OPTIONAL MATCH (f:File ${pf}) WITH nodeCount, edgeCount, count(f) as fileCount
-    OPTIONAL MATCH (fn:Function ${pf}) WITH nodeCount, edgeCount, fileCount, count(fn) as functionCount
-    OPTIONAL MATCH (c:Class ${pf}) WITH nodeCount, edgeCount, fileCount, functionCount, count(c) as classCount
-    OPTIONAL MATCH (rt:Route ${pf}) WITH nodeCount, edgeCount, fileCount, functionCount, classCount, count(rt) as routeCount
-    RETURN nodeCount, edgeCount, fileCount, functionCount, classCount, routeCount
-    `,
+    // Count each label individually for accuracy
+    const counts = await driver.runQuery<{ label: string; cnt: number }>(
+        `UNWIND ['File','Function','Class','Route','DBTable','DBColumn','ExternalAPI',
+                 'CronJob','Event','EnvVar','QueueJob','Metric','Span','Topic',
+                 'SecurityIssue','Variable','Module'] AS lbl
+         CALL {
+           WITH lbl
+           MATCH (n ${pf}) WHERE lbl IN labels(n) AND NOT n:Project AND NOT n:ScanMeta
+           RETURN count(n) AS cnt
+         }
+         RETURN lbl AS label, cnt`,
         { projectId },
     );
-    return result ?? { nodeCount: 0, edgeCount: 0, fileCount: 0, functionCount: 0, classCount: 0, routeCount: 0 };
+    const m = new Map(counts.map(r => [r.label, r.cnt]));
+
+    // Total node + edge counts
+    const [totals] = await driver.runQuery<{ nodeCount: number; edgeCount: number }>(
+        `MATCH (n ${pf}) WHERE NOT n:Project AND NOT n:ScanMeta
+         WITH count(n) as nodeCount
+         OPTIONAL MATCH ()-[r ${projectId ? '{projectId: $projectId}' : ''}]->()
+         RETURN nodeCount, count(r) as edgeCount`,
+        { projectId },
+    );
+
+    return {
+        nodeCount: totals?.nodeCount ?? 0,
+        edgeCount: totals?.edgeCount ?? 0,
+        fileCount: m.get('File') ?? 0,
+        functionCount: m.get('Function') ?? 0,
+        classCount: m.get('Class') ?? 0,
+        routeCount: m.get('Route') ?? 0,
+        dbTableCount: m.get('DBTable') ?? 0,
+        dbColumnCount: m.get('DBColumn') ?? 0,
+        externalApiCount: m.get('ExternalAPI') ?? 0,
+        cronJobCount: m.get('CronJob') ?? 0,
+        eventCount: m.get('Event') ?? 0,
+        envVarCount: m.get('EnvVar') ?? 0,
+        queueJobCount: m.get('QueueJob') ?? 0,
+        metricCount: m.get('Metric') ?? 0,
+        spanCount: m.get('Span') ?? 0,
+        topicCount: m.get('Topic') ?? 0,
+        securityIssueCount: m.get('SecurityIssue') ?? 0,
+        variableCount: m.get('Variable') ?? 0,
+        moduleCount: m.get('Module') ?? 0,
+    };
 }
 
 /** Noeuds modifies depuis une date donnee, scope par projet */

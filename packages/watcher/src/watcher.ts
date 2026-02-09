@@ -50,12 +50,68 @@ export function createWatcher(
             const result = await parser.parseFile(abs);
             await graph.ingestFileData(result.nodes, result.edges, result.file.path, options.projectId);
             logger.info({ filePath: abs, nodes: result.nodes.length, edges: result.edges.length }, 'file re-indexed');
+
+            // Real-time impact warnings
+            await emitImpactWarnings(abs, result.nodes, options.projectId);
         } catch (err) {
             logger.warn({ filePath: abs, error: err instanceof Error ? err.message : String(err) }, 'watch re-index failed');
         }
     }
 
-    /** Debounce pour eviter les rafales de changements */
+    /** Emit real-time impact warnings for changed functions */
+    async function emitImpactWarnings(filePath: string, nodes: Array<{ type: string; name?: string }>, projectId: string): Promise<void> {
+        try {
+            const functionNames = nodes
+                .filter(n => n.type === 'function' && n.name)
+                .map(n => n.name!);
+
+            if (functionNames.length === 0) return;
+
+            const pf = projectId ? 'AND fn.projectId = $projectId' : '';
+            const impacts = await graph.executeQuery<{
+                name: string; callerCount: number; callers: string[];
+            }>(
+                `MATCH (fn:Function)
+                 WHERE fn.name IN $names AND fn.filePath CONTAINS $filePath ${pf}
+                 OPTIONAL MATCH (caller)-[:CALLS]->(fn)
+                 WITH fn, count(DISTINCT caller) as callerCount,
+                      collect(DISTINCT caller.name)[..5] as callers
+                 WHERE callerCount > 0
+                 RETURN fn.name as name, callerCount, callers
+                 ORDER BY callerCount DESC
+                 LIMIT 10`,
+                { names: functionNames, filePath: filePath.replace(/\\/g, '/'), projectId },
+            );
+
+            for (const imp of impacts) {
+                if (imp.callerCount >= 10) {
+                    logger.warn({ function: imp.name, callers: imp.callerCount, topCallers: imp.callers },
+                        `⚠️  HIGH IMPACT: ${imp.name} has ${imp.callerCount} callers`);
+                } else if (imp.callerCount >= 5) {
+                    logger.info({ function: imp.name, callers: imp.callerCount, topCallers: imp.callers },
+                        `📢 ${imp.name} affects ${imp.callerCount} callers`);
+                }
+            }
+
+            // Check for DB table impact
+            const dbImpact = await graph.executeQuery<{ fnName: string; tableName: string; rel: string }>(
+                `MATCH (fn:Function)-[r:READS_FROM|WRITES_TO]->(t:DBTable)
+                 WHERE fn.name IN $names AND fn.filePath CONTAINS $filePath ${pf}
+                 RETURN fn.name as fnName, t.name as tableName, type(r) as rel
+                 LIMIT 10`,
+                { names: functionNames, filePath: filePath.replace(/\\/g, '/'), projectId },
+            );
+
+            for (const db of dbImpact) {
+                logger.warn({ function: db.fnName, table: db.tableName, operation: db.rel },
+                    `🗄️  DB impact: ${db.fnName} ${db.rel} ${db.tableName}`);
+            }
+        } catch {
+            // Non-critical — don't fail the re-index if impact analysis errors
+        }
+    }
+
+    /** Debounce to avoid change bursts */
     function scheduleReindex(filePath: string): void {
         const existing = pendingFiles.get(filePath);
         if (existing) clearTimeout(existing);

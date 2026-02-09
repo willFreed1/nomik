@@ -40,11 +40,20 @@ Once connected, your AI assistant gets these tools automatically:
 | `nm_db_impact` | Analyze read/write impact for a DB table/column | "Who writes to users.email?" |
 | `nm_impact` | Impact analysis | "What breaks if I change `parseFile`?" |
 | `nm_context` | Full context for a symbol | "Show me everything about `GraphService`" |
-| `nm_health` | Codebase health metrics | "Any dead code, god objects, or god files?" |
+| `nm_health` | Full stats for all 17 node types + health checks | "Any dead code, god objects, or god files?" |
 | `nm_path` | Shortest path between symbols | "How does `scanCommand` connect to `neo4j`?" |
 | `nm_changes` | Recently modified nodes | "What changed in the last hour?" |
 | `nm_trace` | Full dependency chain | "Show me the path from A to B" |
+| `nm_explain` | Explain a symbol in detail | "Explain the `createGraphService` function" |
+| `nm_onboard` | Full codebase briefing (incl. infrastructure) | "Give me an overview of this project" |
+| `nm_wiki` | Generate structured documentation | "Generate docs for this codebase" |
+| `nm_communities` | Detect functional clusters | "What are the main code communities?" |
+| `nm_flows` | Trace execution flows | "Show me the request lifecycle for auth" |
 | `nm_projects` | List all tracked projects | "What projects does NOMIK know about?" |
+| `nm_guard` | Quality gate check (dead code, god files, dupes) | "Does the codebase pass quality checks?" |
+| `nm_rename` | Graph-aware rename impact analysis | "What files change if I rename `createWatcher`?" |
+| `nm_diff` | Architecture drift between two scans | "What changed between these two commits?" |
+| `nm_service_links` | Cross-service dependencies | "How do our microservices communicate?" |
 
 ## What NOMIK Tracks
 
@@ -267,6 +276,63 @@ Once connected, your AI assistant gets these tools automatically:
 - Summary: file/function/edge deltas
 - `--json` flag
 
+### Quality Gate (`nomik guard`)
+- `nomik guard` — CI/pre-commit quality gate with configurable thresholds
+- Checks: dead code, god files, duplicates — exits 1 if thresholds exceeded
+- `--dead-code <n>`, `--god-files <n>`, `--duplicates <n>` to set limits
+- `--install-hook` installs as git pre-commit hook automatically
+- `--ci` mode for CI pipelines (exit code only), `--json` for structured output
+
+### Graph-Aware Rename (`nomik rename`)
+- `nomik rename <old> <new>` — find all references to a symbol using the knowledge graph
+- Shows definition location, callers, imports, exports across all files
+- `--apply` to perform word-boundary-aware rename in source files
+- Dry-run by default — safe to explore before applying
+
+### Incremental Scan (`nomik scan:incremental`)
+- `nomik scan:incremental <path>` — only re-parse files changed since last scan
+- Uses `git diff` between last scan SHA and current HEAD
+- Auto-detects last scan SHA from ScanMeta nodes in the graph
+- Purges deleted files from graph, stores incremental scan metadata
+- `--since <sha>` to override base SHA, `--project <name>`
+
+### Real-time Watch Warnings
+- `nomik watch` now emits real-time impact warnings after each file re-index
+- Shows caller count for changed functions (⚠️ HIGH IMPACT for ≥10 callers)
+- Detects DB table impact (READS_FROM/WRITES_TO) on changed functions
+- Non-blocking — warnings don't interrupt the re-index pipeline
+
+### MCP Resources (9 browsable endpoints)
+- `nomik://stats` — full stats for ALL 17 node types (files, functions, classes, routes, DB tables, columns, APIs, cron jobs, events, env vars, queues, metrics, spans, topics, security issues, variables, modules)
+- `nomik://health` — dead code, god files, duplicates, security issues, edge type distribution + full node counts
+- `nomik://files` — all tracked files with language, function count, line count
+- `nomik://communities` — functional clusters by call-graph density
+- `nomik://onboard` — full codebase briefing (incl. queues, metrics, spans, topics, crons, events)
+- `nomik://schema` — all node labels and relationship types with counts
+- `nomik://projects` — all tracked projects
+- `nomik://infrastructure` — all infrastructure nodes: queues, metrics, spans, topics, crons, events, APIs, env vars
+- `nomik://guard` — quality gate status with pass/fail thresholds
+
+### GitHub App / PR Bot (`@nomik/github-bot`)
+- New `@nomik/github-bot` package — webhook handler for GitHub pull_request events
+- `analyzePR()` — queries graph for affected functions, blast radius, DB tables
+- `formatPRComment()` — generates markdown comment with risk level, function table, recommendations
+- `fetchPRFiles()` / `postPRComment()` — GitHub API helpers with comment deduplication
+- Ready to deploy as Vercel/Lambda serverless function
+
+### Antigravity MCP Setup (`nomik setup-antigravity`)
+- `nomik setup-antigravity` — auto-configure Antigravity Editor's `mcp_config.json`
+- Writes NOMIK MCP server config to the editor's config directory
+- Cross-platform path resolution (Windows, macOS, Linux)
+- `--config-path <path>` to override target config file
+- Supports all 18 MCP tools out of the box (search, impact, context, health, wiki, flows, guard, rename, diff, etc.)
+
+### Claude Desktop MCP Setup (`nomik setup-claude`)
+- `nomik setup-claude` — auto-configure Claude Desktop's `claude_desktop_config.json`
+- Config path: `%APPDATA%\Claude\` (Windows), `~/Library/Application Support/Claude/` (macOS)
+- Same format as Cursor/Windsurf — uses `mcpServers` key
+- All 18 MCP tools + 9 resources available after restart
+
 ### Health Badges (`nomik badge`)
 - `nomik badge` — generate shields.io badges for README
 - Badges: dead_code, god_files, duplicates, functions, files
@@ -302,6 +368,11 @@ nomik diff <sha1> <sha2>      # Architecture drift between scans
 nomik badge                   # Generate shields.io health badges
 nomik setup-cursor            # Auto-configure Cursor MCP
 nomik setup-windsurf          # Auto-configure Windsurf MCP
+nomik setup-antigravity       # Auto-configure Antigravity MCP
+nomik setup-claude            # Auto-configure Claude Desktop MCP
+nomik guard                   # Quality gate (CI/pre-commit)
+nomik rename <old> <new>      # Graph-aware symbol rename
+nomik scan:incremental <path> # Incremental scan (git diff-based)
 nomik serve                   # Start MCP server + viz dashboard
 nomik project list            # List all projects in Neo4j
 nomik project create <name>   # Create a new project

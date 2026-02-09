@@ -6,7 +6,7 @@ import { upsertNodes, createEdges, clearFileData, clearFilesData, purgeStaleFile
 import { impactAnalysis, findDeadCode, findGodObjects, findGodFiles, findDuplicates, graphStats, findDependencyChain, findDetailedPath, recentChanges, findDBImpact, getFileSymbols, explainSymbol, findServiceLinks, getOnboardSummary, detectCommunities, detectFlows, architectureDiff } from './queries/read.js';
 import { initializeSchema } from './schema/init.js';
 import { QueryCache } from './cache.js';
-import type { ImpactResult, DetailedPath, FileSymbol, ExplainResult, ServiceLink, OnboardSummary, CommunityResult, FlowResult, DiffResult } from './queries/read.js';
+import type { ImpactResult, DetailedPath, FileSymbol, ExplainResult, ServiceLink, OnboardSummary, CommunityResult, FlowResult, DiffResult, FullStats } from './queries/read.js';
 
 export interface ParseResult {
     file: { id: string; path: string; language: string; hash: string; size: number; lastParsed: string; type: 'file' };
@@ -29,7 +29,7 @@ export interface GraphService {
     getDBImpact(table: string, column?: string, limit?: number, projectId?: string): Promise<{ table: string; column?: string; readers: Array<{ sourceName: string; sourceType: string; filePath: string }>; writers: Array<{ sourceName: string; sourceType: string; filePath: string; operation?: string }>; columns: string[] }>;
     getGodFiles(threshold?: number, projectId?: string): Promise<Array<{ filePath: string; functionCount: number; totalLines: number }>>;
     getDuplicates(projectId?: string): Promise<Array<{ bodyHash: string; count: number; functions: Array<{ name: string; filePath: string }> }>>;
-    getStats(projectId?: string): Promise<{ nodeCount: number; edgeCount: number; fileCount: number; functionCount: number; classCount: number; routeCount: number }>;
+    getStats(projectId?: string): Promise<FullStats>;
     getDependencyChain(from: string, to: string, projectId?: string): Promise<string[][]>;
     getDetailedPath(from: string, to: string, projectId?: string): Promise<DetailedPath[]>;
     getRecentChanges(since: string, limit?: number, projectId?: string): Promise<Array<{ name: string; type: string; filePath: string; updatedAt: string; createdAt: string | null }>>;

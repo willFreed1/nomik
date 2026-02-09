@@ -1,0 +1,20 @@
+{
+  "name": "@nomik/github-bot",
+  "version": "0.1.0",
+  "description": "NOMIK GitHub App — PR impact analysis bot",
+  "type": "module",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "tsup src/index.ts --format esm",
+    "dev": "tsup src/index.ts --format esm --watch"
+  },
+  "dependencies": {
+    "@nomik/graph": "workspace:*",
+    "@nomik/core": "workspace:*"
+  },
+  "devDependencies": {
+    "tsup": "^8.0.0",
+    "typescript": "^5.3.0"
+  }
+}

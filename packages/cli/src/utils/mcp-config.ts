@@ -3,7 +3,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-export type MpcClient = 'cursor' | 'windsurf';
+export type MpcClient = 'cursor' | 'windsurf' | 'antigravity' | 'claude';
 
 export interface SetupMcpClientOptions {
     client: MpcClient;
@@ -72,6 +72,9 @@ export function setupMcpClientConfig(opts: SetupMcpClientOptions): SetupMcpClien
     };
 
     const configPath = resolveMcpConfigPath(opts.client, !!opts.global, opts.configPath);
+
+    // Antigravity uses a flat mcpServers format inside mcp_config.json
+    // identical to the standard format, so no special handling needed.
     const configDir = path.dirname(configPath);
     if (!fs.existsSync(configDir)) {
         fs.mkdirSync(configDir, { recursive: true });
@@ -104,6 +107,14 @@ function resolveMcpConfigPath(client: MpcClient, isGlobal: boolean, overridePath
 
     if (client === 'windsurf') {
         return resolveWindsurfConfigPath();
+    }
+
+    if (client === 'antigravity') {
+        return resolveAntigravityConfigPath();
+    }
+
+    if (client === 'claude') {
+        return resolveClaudeConfigPath();
     }
 
     if (!isGlobal) {
@@ -142,3 +153,66 @@ function resolveWindsurfConfigPath(): string {
     return official;
 }
 
+function resolveClaudeConfigPath(): string {
+    const home = os.homedir();
+    const platform = process.platform;
+
+    // Claude Desktop config paths (from official docs)
+    // macOS: ~/Library/Application Support/Claude/claude_desktop_config.json
+    // Windows: %APPDATA%\Claude\claude_desktop_config.json
+    // Linux: ~/.config/Claude/claude_desktop_config.json
+    const candidates = [
+        ...(platform === 'win32' ? [
+            path.join(home, 'AppData', 'Roaming', 'Claude', 'claude_desktop_config.json'),
+        ] : []),
+        ...(platform === 'darwin' ? [
+            path.join(home, 'Library', 'Application Support', 'Claude', 'claude_desktop_config.json'),
+        ] : []),
+        ...(platform === 'linux' ? [
+            path.join(home, '.config', 'Claude', 'claude_desktop_config.json'),
+        ] : []),
+    ];
+
+    for (const p of candidates) {
+        if (fs.existsSync(p)) return p;
+    }
+
+    // Default: create in the standard config location
+    if (platform === 'win32') return path.join(home, 'AppData', 'Roaming', 'Claude', 'claude_desktop_config.json');
+    if (platform === 'darwin') return path.join(home, 'Library', 'Application Support', 'Claude', 'claude_desktop_config.json');
+    return path.join(home, '.config', 'Claude', 'claude_desktop_config.json');
+}
+
+function resolveAntigravityConfigPath(): string {
+    const home = os.homedir();
+    const platform = process.platform;
+
+    // Antigravity stores MCP config in mcp_config.json
+    // Try known paths, then fall back to a sensible default
+    const candidates = [
+        // Windows
+        ...(platform === 'win32' ? [
+            path.join(home, 'AppData', 'Roaming', 'Antigravity', 'mcp_config.json'),
+            path.join(home, '.antigravity', 'mcp_config.json'),
+        ] : []),
+        // macOS
+        ...(platform === 'darwin' ? [
+            path.join(home, 'Library', 'Application Support', 'Antigravity', 'mcp_config.json'),
+            path.join(home, '.antigravity', 'mcp_config.json'),
+        ] : []),
+        // Linux
+        ...(platform === 'linux' ? [
+            path.join(home, '.config', 'antigravity', 'mcp_config.json'),
+            path.join(home, '.antigravity', 'mcp_config.json'),
+        ] : []),
+    ];
+
+    for (const p of candidates) {
+        if (fs.existsSync(p)) return p;
+    }
+
+    // Default: create in the standard config location
+    if (platform === 'win32') return path.join(home, 'AppData', 'Roaming', 'Antigravity', 'mcp_config.json');
+    if (platform === 'darwin') return path.join(home, 'Library', 'Application Support', 'Antigravity', 'mcp_config.json');
+    return path.join(home, '.config', 'antigravity', 'mcp_config.json');
+}

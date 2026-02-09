@@ -19,6 +19,11 @@ import { communitiesCommand } from './commands/communities.js';
 import { flowsCommand } from './commands/flows.js';
 import { diffCommand } from './commands/diff.js';
 import { badgeCommand } from './commands/badge.js';
+import { setupAntigravityCommand } from './commands/setup-antigravity.js';
+import { guardCommand } from './commands/guard.js';
+import { renameCommand } from './commands/rename.js';
+import { scanIncrementalCommand } from './commands/scan-incremental.js';
+import { setupClaudeCommand } from './commands/setup-claude.js';
 
 const program = new Command();
 
@@ -47,5 +52,10 @@ program.addCommand(communitiesCommand);
 program.addCommand(flowsCommand);
 program.addCommand(diffCommand);
 program.addCommand(badgeCommand);
+program.addCommand(setupAntigravityCommand);
+program.addCommand(guardCommand);
+program.addCommand(renameCommand);
+program.addCommand(scanIncrementalCommand);
+program.addCommand(setupClaudeCommand);
 
 program.parse();

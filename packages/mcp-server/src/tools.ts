@@ -12,7 +12,7 @@ function getProjectId(): string | undefined {
 const TOOLS = {
     nm_search: {
         name: 'nm_search',
-        description: 'Semantic search for nodes in the knowledge graph. Use this to find classes, functions, or files.',
+        description: 'ALWAYS use this tool when the user mentions "nomik" or asks to find/search for a function, class, file, or symbol. Searches the NOMIK knowledge graph for nodes by name. Returns type, file path, and metadata. Do NOT grep files manually — use this tool first.',
         inputSchema: {
             type: 'object',
             properties: {
@@ -25,7 +25,7 @@ const TOOLS = {
     },
     nm_db_impact: {
         name: 'nm_db_impact',
-        description: 'Analyze who reads/writes a DB table or a specific column in the knowledge graph.',
+        description: 'ALWAYS use this tool when asked about database tables, who reads/writes a table, or column-level impact. Returns all functions that read from or write to a DB table, with file paths and operation types. Do NOT search code manually for SQL queries — this tool has the complete picture from the knowledge graph.',
         inputSchema: {
             type: 'object',
             properties: {
@@ -39,7 +39,7 @@ const TOOLS = {
     },
     nm_impact: {
         name: 'nm_impact',
-        description: 'Analyze downstream impact of a change to a symbol. Returns a list of dependent nodes.',
+        description: 'ALWAYS use this tool when asked "what would break if I change X" or "what depends on X". Analyzes downstream impact of a change to a symbol by traversing the knowledge graph. Returns all dependent nodes with depth and relationship type. Use this instead of manually tracing call chains.',
         inputSchema: {
             type: 'object',
             properties: {
@@ -52,7 +52,7 @@ const TOOLS = {
     },
     nm_trace: {
         name: 'nm_trace',
-        description: 'Show the full dependency chain between two symbols. Returns the shortest path.',
+        description: 'ALWAYS use this tool when asked how two symbols are connected or to trace the dependency chain between them. Returns the shortest path through the knowledge graph. Do NOT manually inspect files to understand connections.',
         inputSchema: {
             type: 'object',
             properties: {
@@ -65,7 +65,7 @@ const TOOLS = {
     },
     nm_context: {
         name: 'nm_context',
-        description: 'Get rich context for a file or function: what it contains, what it calls, what calls it, its imports.',
+        description: 'ALWAYS use this tool when asked about a specific file or function context — what it contains, calls, is called by, and imports. Returns the complete context from the knowledge graph. Do NOT read the source file manually to understand its role — this tool already has the graph-level view.',
         inputSchema: {
             type: 'object',
             properties: {
@@ -77,7 +77,7 @@ const TOOLS = {
     },
     nm_health: {
         name: 'nm_health',
-        description: 'Codebase health metrics: node counts, edge counts, dead code, god objects, god files, duplicate code.',
+        description: 'ALWAYS use this tool when asked about codebase health, code quality, dead code, god files, duplicates, or infrastructure stats. Returns full stats for ALL node types (files, functions, classes, routes, DB tables, env vars, queues, metrics, spans, topics, security issues, etc.), plus optional dead code/god object/god file/duplicate analysis with edge type distribution.',
         inputSchema: {
             type: 'object',
             properties: {
@@ -93,7 +93,7 @@ const TOOLS = {
     },
     nm_path: {
         name: 'nm_path',
-        description: 'Find the shortest path between two code entities in the knowledge graph. Returns detailed steps with node types and relationship types.',
+        description: 'ALWAYS use this tool when asked to find the path or connection between two code entities. Returns detailed steps with node types and relationship types. More detailed than nm_trace — shows each step in the path.',
         inputSchema: {
             type: 'object',
             properties: {
@@ -106,7 +106,7 @@ const TOOLS = {
     },
     nm_changes: {
         name: 'nm_changes',
-        description: 'Show nodes that changed recently. Use to answer "what changed today/this week?"',
+        description: 'ALWAYS use this tool when asked what changed recently, today, or this week. Returns nodes that were modified since a given date with their types and file paths.',
         inputSchema: {
             type: 'object',
             properties: {
@@ -118,7 +118,7 @@ const TOOLS = {
     },
     nm_explain: {
         name: 'nm_explain',
-        description: 'Explain a symbol — returns its type, file location, incoming edges (callers), outgoing edges (callees), and summary. Use this to understand what a function/class does and how it connects.',
+        description: 'ALWAYS use this tool when asked to explain what a function/class does, how it connects to other code, or who calls it. Returns type, file location, all incoming edges (callers, containers), all outgoing edges (callees), and summary counts. Do NOT read the source file — this tool provides the complete graph-level understanding.',
         inputSchema: {
             type: 'object',
             properties: {
@@ -128,12 +128,105 @@ const TOOLS = {
             required: ['symbol'],
         },
     },
+    nm_onboard: {
+        name: 'nm_onboard',
+        description: 'ALWAYS use this tool when asked to describe, summarize, or understand a codebase. Returns a full briefing: stats (functions, files, classes, routes), language distribution, DB tables, external APIs, env vars, high-risk functions, and health summary. Do NOT manually inspect files — this tool already has the complete picture.',
+        inputSchema: {
+            type: 'object',
+            properties: {
+                project: { type: 'string', description: 'Project name to scope the briefing to. Overrides NOMIK_PROJECT_ID env var.' },
+            },
+        },
+    },
+    nm_wiki: {
+        name: 'nm_wiki',
+        description: 'ALWAYS use this tool when asked to generate, write, or create documentation for a module, package, or codebase. Returns structured data: file index with function counts, top functions ranked by caller count, health report (dead code, god files, duplicates), and cross-service links. Do NOT manually read source files to write docs — call this tool first to get the authoritative data from the knowledge graph, then format the output.',
+        inputSchema: {
+            type: 'object',
+            properties: {
+                section: { type: 'string', description: 'Which section to generate: "index" (file overview), "functions" (top functions), "health" (dead code + god files + duplicates), "service-links" (cross-service connections), or "all" (everything). Default: "all"' },
+                limit: { type: 'number', description: 'Max items per section', default: 50 },
+                project: { type: 'string', description: 'Project name to scope the wiki to. Overrides NOMIK_PROJECT_ID env var.' },
+            },
+        },
+    },
+    nm_communities: {
+        name: 'nm_communities',
+        description: 'ALWAYS use this tool when asked about code organization, modules, coupling, or architecture structure. Detects functional communities — groups of code that frequently call each other. Returns clusters with cohesion scores, member counts, and internal/external edge ratios.',
+        inputSchema: {
+            type: 'object',
+            properties: {
+                minSize: { type: 'number', description: 'Minimum community size (number of functions)', default: 3 },
+                project: { type: 'string', description: 'Project name to scope the detection to. Overrides NOMIK_PROJECT_ID env var.' },
+            },
+        },
+    },
+    nm_flows: {
+        name: 'nm_flows',
+        description: 'ALWAYS use this tool when asked about request lifecycles, execution paths, or how data flows through the system. Traces execution flows from entry points (routes, event listeners, queue consumers) through the call graph. Shows call chain depth, per-step file location, and terminal operations (DB writes, API calls).',
+        inputSchema: {
+            type: 'object',
+            properties: {
+                maxDepth: { type: 'number', description: 'Maximum traversal depth', default: 8 },
+                limit: { type: 'number', description: 'Maximum number of flows to return', default: 20 },
+                project: { type: 'string', description: 'Project name to scope the trace to. Overrides NOMIK_PROJECT_ID env var.' },
+            },
+        },
+    },
     nm_projects: {
         name: 'nm_projects',
-        description: 'List all projects tracked in the NOMIK knowledge graph.',
+        description: 'ALWAYS use this tool when asked about available projects or which codebases are tracked. Lists all projects in the NOMIK knowledge graph with their IDs and metadata.',
         inputSchema: {
             type: 'object',
             properties: {},
+        },
+    },
+    nm_guard: {
+        name: 'nm_guard',
+        description: 'ALWAYS use this tool when asked about code quality gates, CI checks, or whether the codebase passes quality thresholds. Returns dead code count, god file count, duplicate count, and whether each passes the given threshold. Use this instead of manually counting issues.',
+        inputSchema: {
+            type: 'object',
+            properties: {
+                deadCodeThreshold: { type: 'number', description: 'Max allowed dead code functions', default: 5 },
+                godFileThreshold: { type: 'number', description: 'Max allowed god files (files with >10 functions)', default: 3 },
+                duplicateThreshold: { type: 'number', description: 'Max allowed duplicate function groups', default: 2 },
+                project: { type: 'string', description: 'Project name to scope the check to. Overrides NOMIK_PROJECT_ID env var.' },
+            },
+        },
+    },
+    nm_rename: {
+        name: 'nm_rename',
+        description: 'ALWAYS use this tool when asked about renaming a symbol or understanding the impact of renaming. Returns the symbol definition, all callers, importers, and affected files — everything needed to safely rename across the codebase. Do NOT manually grep for references — this tool uses the knowledge graph for accurate results.',
+        inputSchema: {
+            type: 'object',
+            properties: {
+                symbol: { type: 'string', description: 'Current name of the function/class/variable to rename' },
+                project: { type: 'string', description: 'Project name to scope the search to. Overrides NOMIK_PROJECT_ID env var.' },
+            },
+            required: ['symbol'],
+        },
+    },
+    nm_diff: {
+        name: 'nm_diff',
+        description: 'ALWAYS use this tool when asked about architecture drift, what changed between two scans, or comparing codebase snapshots. Returns new/removed/modified files, new/removed functions, and new call edges between two git SHAs.',
+        inputSchema: {
+            type: 'object',
+            properties: {
+                fromSha: { type: 'string', description: 'Git SHA of the baseline scan' },
+                toSha: { type: 'string', description: 'Git SHA of the target scan' },
+                project: { type: 'string', description: 'Project name to scope the diff to. Overrides NOMIK_PROJECT_ID env var.' },
+            },
+            required: ['fromSha', 'toSha'],
+        },
+    },
+    nm_service_links: {
+        name: 'nm_service_links',
+        description: 'ALWAYS use this tool when asked about cross-service dependencies, microservice connections, or how services communicate. Returns producer/consumer pairs for message queues, event buses, and API calls across service boundaries.',
+        inputSchema: {
+            type: 'object',
+            properties: {
+                project: { type: 'string', description: 'Project name to scope the analysis to. Overrides NOMIK_PROJECT_ID env var.' },
+            },
         },
     },
 };
@@ -418,9 +511,149 @@ export async function handleCallTool(graph: GraphService, name: string, args: an
             return [{ type: 'text', text: JSON.stringify(summary, null, 2) }];
         }
 
+        case 'nm_onboard': {
+            const effectiveProjectId = eid(args);
+            const onboard = await graph.getOnboard(effectiveProjectId);
+            return [{ type: 'text', text: JSON.stringify(onboard, null, 2) }];
+        }
+
+        case 'nm_wiki': {
+            const effectiveProjectId = eid(args);
+            const section = String(args.section ?? 'all');
+            const limit = Number(args.limit) || 50;
+            const wiki: Record<string, any> = {};
+
+            if (section === 'all' || section === 'index') {
+                const stats = await graph.getStats(effectiveProjectId);
+                const pf = effectiveProjectId ? 'AND f.projectId = $projectId' : '';
+                const files = await graph.executeQuery<any>(
+                    `MATCH (f:File) WHERE f.path IS NOT NULL ${pf}
+                     OPTIONAL MATCH (f)-[:CONTAINS]->(fn:Function)
+                     WITH f, count(fn) as fnCount
+                     RETURN f.path as path, f.language as language, fnCount, f.lineCount as lineCount
+                     ORDER BY fnCount DESC LIMIT toInteger($limit)`,
+                    { projectId: effectiveProjectId, limit },
+                );
+                wiki.index = { stats, files };
+            }
+
+            if (section === 'all' || section === 'functions') {
+                const pf = effectiveProjectId ? 'AND fn.projectId = $projectId' : '';
+                const fns = await graph.executeQuery<any>(
+                    `MATCH (fn:Function) WHERE fn.filePath IS NOT NULL ${pf}
+                     OPTIONAL MATCH (caller)-[:CALLS]->(fn)
+                     WITH fn, count(DISTINCT caller) as callerCount
+                     RETURN fn.name as name, fn.filePath as filePath, fn.isExported as isExported,
+                            fn.startLine as startLine, fn.endLine as endLine, callerCount
+                     ORDER BY callerCount DESC LIMIT toInteger($limit)`,
+                    { projectId: effectiveProjectId, limit },
+                );
+                wiki.functions = fns;
+            }
+
+            if (section === 'all' || section === 'health') {
+                const deadCode = await graph.getDeadCode(effectiveProjectId);
+                const godFiles = await graph.getGodFiles(10, effectiveProjectId);
+                const duplicates = await graph.getDuplicates(effectiveProjectId);
+                wiki.health = { deadCode, godFiles, duplicates };
+            }
+
+            if (section === 'all' || section === 'service-links') {
+                const links = await graph.getServiceLinks(effectiveProjectId);
+                wiki.serviceLinks = links;
+            }
+
+            return [{ type: 'text', text: JSON.stringify(wiki, null, 2) }];
+        }
+
+        case 'nm_communities': {
+            const effectiveProjectId = eid(args);
+            const minSize = Number(args.minSize) || 3;
+            const communities = await graph.getCommunities(effectiveProjectId, minSize);
+            return [{ type: 'text', text: JSON.stringify(communities, null, 2) }];
+        }
+
+        case 'nm_flows': {
+            const effectiveProjectId = eid(args);
+            const maxDepth = Number(args.maxDepth) || 8;
+            const limit = Number(args.limit) || 20;
+            const flows = await graph.getFlows(effectiveProjectId, maxDepth, limit);
+            return [{ type: 'text', text: JSON.stringify(flows, null, 2) }];
+        }
+
         case 'nm_projects': {
             const projects = await graph.listProjects();
             return [{ type: 'text', text: JSON.stringify(projects, null, 2) }];
+        }
+
+        case 'nm_guard': {
+            const effectiveProjectId = eid(args);
+            const deadCodeThreshold = Number(args.deadCodeThreshold) || 5;
+            const godFileThreshold = Number(args.godFileThreshold) || 3;
+            const duplicateThreshold = Number(args.duplicateThreshold) || 2;
+
+            const deadCode = await graph.getDeadCode(effectiveProjectId);
+            const godFiles = await graph.getGodFiles(10, effectiveProjectId);
+            const duplicates = await graph.getDuplicates(effectiveProjectId);
+
+            const checks = {
+                dead_code: { count: deadCode.length, threshold: deadCodeThreshold, passed: deadCode.length <= deadCodeThreshold, items: deadCode.slice(0, 10) },
+                god_files: { count: godFiles.length, threshold: godFileThreshold, passed: godFiles.length <= godFileThreshold, items: godFiles.slice(0, 10) },
+                duplicates: { count: duplicates.length, threshold: duplicateThreshold, passed: duplicates.length <= duplicateThreshold, items: duplicates.slice(0, 5) },
+            };
+            const allPassed = checks.dead_code.passed && checks.god_files.passed && checks.duplicates.passed;
+
+            return [{ type: 'text', text: JSON.stringify({ passed: allPassed, checks }, null, 2) }];
+        }
+
+        case 'nm_rename': {
+            const effectiveProjectId = eid(args);
+            const symbolName = String(args.symbol ?? '').trim();
+            if (!symbolName) {
+                return [{ type: 'text', text: JSON.stringify({ error: 'symbol is required' }) }];
+            }
+            const explain = await graph.getExplain(symbolName, effectiveProjectId);
+            if (!explain.symbol) {
+                return [{ type: 'text', text: JSON.stringify({ error: `Symbol "${symbolName}" not found in graph` }) }];
+            }
+
+            // Collect all affected files
+            const affectedFiles: Record<string, string[]> = {};
+            const addAffected = (fp: string, desc: string) => { (affectedFiles[fp] ??= []).push(desc); };
+            if (explain.symbol.filePath) {
+                addAffected(explain.symbol.filePath, `definition: ${explain.symbol.type} ${explain.symbol.name}`);
+            }
+            for (const e of explain.incomingEdges) {
+                if (e.filePath) addAffected(e.filePath, `${e.edgeType}: ${e.sourceType}:${e.sourceName}`);
+            }
+            for (const e of explain.outgoingEdges) {
+                if (e.filePath) addAffected(e.filePath, `${e.edgeType}: ${e.targetType}:${e.targetName}`);
+            }
+
+            return [{ type: 'text', text: JSON.stringify({
+                symbol: explain.symbol,
+                callerCount: explain.incomingEdges.filter(e => e.edgeType === 'CALLS').length,
+                importerCount: explain.incomingEdges.filter(e => e.edgeType === 'DEPENDS_ON').length,
+                affectedFiles,
+                totalReferences: explain.incomingEdges.length + explain.outgoingEdges.length,
+            }, null, 2) }];
+        }
+
+        case 'nm_diff': {
+            const effectiveProjectId = eid(args);
+            const fromSha = String(args.fromSha ?? '').trim();
+            const toSha = String(args.toSha ?? '').trim();
+            if (!fromSha || !toSha) {
+                return [{ type: 'text', text: JSON.stringify({ error: 'fromSha and toSha are required' }) }];
+            }
+            const diff = await graph.getDiff(fromSha, toSha, effectiveProjectId);
+            return [{ type: 'text', text: JSON.stringify(diff, null, 2) }];
+        }
+
+        case 'nm_service_links': {
+            const effectiveProjectId = eid(args);
+            const links = await graph.getServiceLinks(effectiveProjectId);
+            return [{ type: 'text', text: JSON.stringify(links, null, 2) }];
         }
 
         default:

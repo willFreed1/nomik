@@ -16,6 +16,13 @@ export interface OnboardSummary {
     godFileCount: number;
     duplicateCount: number;
     securityIssueCount: number;
+    // Infrastructure tracking
+    queueJobs: Array<{ name: string; queueName: string; jobKind: string; filePath: string }>;
+    metrics: Array<{ name: string; metricType: string; filePath: string }>;
+    spans: Array<{ name: string; tracerLib: string; filePath: string }>;
+    topics: Array<{ name: string; broker: string; filePath: string }>;
+    cronJobs: Array<{ name: string; schedule: string; filePath: string }>;
+    events: Array<{ name: string; namespace: string; filePath: string }>;
 }
 
 export async function getOnboardSummary(
@@ -131,6 +138,54 @@ export async function getOnboardSummary(
         { projectId },
     );
 
+    // Queue jobs (Bull, BullMQ, Bee-Queue, etc.)
+    const queueJobs = await driver.runQuery<{ name: string; queueName: string; jobKind: string; filePath: string }>(
+        `MATCH (q:QueueJob) WHERE true ${pf.replace('n.', 'q.')}
+         RETURN q.name as name, COALESCE(q.queueName, '') as queueName, COALESCE(q.jobKind, '') as jobKind, COALESCE(q.filePath, '') as filePath
+         ORDER BY q.name LIMIT 30`,
+        { projectId },
+    );
+
+    // Prometheus/OpenTelemetry metrics
+    const metrics = await driver.runQuery<{ name: string; metricType: string; filePath: string }>(
+        `MATCH (m:Metric) WHERE true ${pf.replace('n.', 'm.')}
+         RETURN m.name as name, COALESCE(m.metricType, '') as metricType, COALESCE(m.filePath, '') as filePath
+         ORDER BY m.name LIMIT 30`,
+        { projectId },
+    );
+
+    // OpenTelemetry/Datadog spans
+    const spans = await driver.runQuery<{ name: string; tracerLib: string; filePath: string }>(
+        `MATCH (s:Span) WHERE true ${pf.replace('n.', 's.')}
+         RETURN s.name as name, COALESCE(s.tracerLib, '') as tracerLib, COALESCE(s.filePath, '') as filePath
+         ORDER BY s.name LIMIT 30`,
+        { projectId },
+    );
+
+    // Kafka/RabbitMQ/SQS/SNS topics
+    const topics = await driver.runQuery<{ name: string; broker: string; filePath: string }>(
+        `MATCH (t:Topic) WHERE true ${pf.replace('n.', 't.')}
+         RETURN t.name as name, COALESCE(t.broker, '') as broker, COALESCE(t.filePath, '') as filePath
+         ORDER BY t.name LIMIT 30`,
+        { projectId },
+    );
+
+    // Cron jobs
+    const cronJobs = await driver.runQuery<{ name: string; schedule: string; filePath: string }>(
+        `MATCH (c:CronJob) WHERE true ${pf.replace('n.', 'c.')}
+         RETURN c.name as name, COALESCE(c.schedule, '') as schedule, COALESCE(c.filePath, '') as filePath
+         ORDER BY c.name LIMIT 30`,
+        { projectId },
+    );
+
+    // Events (Socket.io, EventEmitter, etc.)
+    const events = await driver.runQuery<{ name: string; namespace: string; filePath: string }>(
+        `MATCH (e:Event) WHERE true ${pf.replace('n.', 'e.')}
+         RETURN e.name as name, COALESCE(e.namespace, '') as namespace, COALESCE(e.filePath, '') as filePath
+         ORDER BY e.name LIMIT 30`,
+        { projectId },
+    );
+
     return {
         stats: {
             nodeCount: stats?.nodeCount ?? 0,
@@ -150,5 +205,11 @@ export async function getOnboardSummary(
         godFileCount: godFileResult?.cnt ?? 0,
         duplicateCount: dupResult?.cnt ?? 0,
         securityIssueCount: secResult?.cnt ?? 0,
+        queueJobs,
+        metrics,
+        spans,
+        topics,
+        cronJobs,
+        events,
     };
 }

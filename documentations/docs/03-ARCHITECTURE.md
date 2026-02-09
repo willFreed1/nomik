@@ -211,6 +211,11 @@ nomik/
 │       │   │   ├── flows.ts           # nomik flows — execution flow tracing
 │       │   │   ├── diff.ts            # nomik diff — architecture drift
 │       │   │   ├── badge.ts           # nomik badge — shields.io badges
+│       │   │   ├── setup-antigravity.ts # nomik setup-antigravity
+│       │   │   ├── guard.ts           # nomik guard — CI/pre-commit gate
+│       │   │   ├── rename.ts          # nomik rename — graph-aware rename
+│       │   │   ├── scan-incremental.ts # nomik scan:incremental — git diff scan
+│       │   │   ├── setup-claude.ts    # nomik setup-claude — Claude Desktop MCP
 │       │   │   └── project.ts         # nomik project list/create/
 │       │   │                          # switch/delete/info
 │       │   ├── utils/

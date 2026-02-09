@@ -113,6 +113,22 @@ importers:
         specifier: ^5.7.0
         version: 5.9.3
 
+  packages/github-bot:
+    dependencies:
+      '@nomik/core':
+        specifier: workspace:*
+        version: link:../core
+      '@nomik/graph':
+        specifier: workspace:*
+        version: link:../graph
+    devDependencies:
+      tsup:
+        specifier: ^8.0.0
+        version: 8.5.1(jiti@1.21.7)(postcss@8.5.6)(typescript@5.9.3)
+      typescript:
+        specifier: ^5.3.0
+        version: 5.9.3
+
   packages/graph:
     dependencies:
       '@nomik/core':
