@@ -1,6 +1,6 @@
 import { useEffect, useState, useRef, useCallback } from 'react';
 import cytoscape from 'cytoscape';
-import { fetchGraphData, fetchGraphOverview, type ViewMode } from '../neo4j';
+import { fetchGraphOverview, fetchGraphDataPaginated, type ViewMode } from '../neo4j';
 import { graphStyles, graphStylesFast } from '../styles/graphStyles';
 import { graphLayout } from '../styles/graphLayout';
 import { getAdaptiveLayout } from '../styles/graphLayout';
@@ -146,7 +146,7 @@ export function GraphViewer({ projectId, viewMode, onViewModeChange }: GraphView
                 // ── Phase 1: Fetch data ──
                 const data = viewMode === 'overview'
                     ? await fetchGraphOverview(projectId)
-                    : await fetchGraphData(projectId);
+                    : await fetchGraphDataPaginated(projectId, 500);
                 if (cancelled) return;
 
                 const nodeEls = data.nodes;
@@ -293,6 +293,29 @@ export function GraphViewer({ projectId, viewMode, onViewModeChange }: GraphView
                         evt.target.style('label', '');
                     });
                 }
+
+                // ── LOD: Zoom-based level-of-detail ──
+                // When zoomed out, hide Function/Class to reduce visual clutter
+                const LOD_THRESHOLD = 0.6;
+                let lodState: 'detail' | 'overview' = 'detail';
+                cy.on('zoom', () => {
+                    const z = cy.zoom();
+                    if (z < LOD_THRESHOLD && lodState === 'detail') {
+                        lodState = 'overview';
+                        cy.batch(() => {
+                            cy.nodes('[label = "Function"], [label = "Class"]').style('display', 'none');
+                            cy.edges('[label = "CONTAINS"], [label = "CALLS"]').style('display', 'none');
+                            cy.edges('[label = "DEPENDS_ON"]').style('display', 'element');
+                        });
+                    } else if (z >= LOD_THRESHOLD && lodState === 'overview') {
+                        lodState = 'detail';
+                        cy.batch(() => {
+                            cy.nodes('[label = "Function"], [label = "Class"]').style('display', 'element');
+                            cy.edges('[label = "CONTAINS"], [label = "CALLS"]').style('display', 'element');
+                            cy.edges('[label = "DEPENDS_ON"]').style('display', 'element');
+                        });
+                    }
+                });
 
                 setPhase('ready');
 

@@ -1,4 +1,4 @@
-import type { CallsEdge, GraphEdge } from '@nomik/core';
+import type { CallsEdge, CallResolution, GraphEdge } from '@nomik/core';
 import type { CallInfo } from '../extractors/calls.js';
 
 // ────────────────────────────────────────────────────────────────────────
@@ -27,6 +27,7 @@ export function resolveCallEdges(calls: CallInfo[], funcMap: Map<string, string>
             sourceId: callerId,
             targetId: calleeId,
             confidence: 1.0,
+            resolution: 'same-file' as CallResolution,
             line: call.line,
             column: call.column,
         });
@@ -53,7 +54,8 @@ export function resolveFileCallEdges(calls: CallInfo[], funcMap: Map<string, str
             type: 'CALLS' as const,
             sourceId: fileId,
             targetId: calleeId,
-            confidence: 0.9,
+            confidence: 0.90,
+            resolution: 'file-context' as CallResolution,
             line: call.line,
             column: call.column,
         });

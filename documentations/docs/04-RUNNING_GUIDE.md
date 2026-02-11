@@ -1,155 +1,136 @@
-# Running NOMIK
-
-This guide explains how to run the NOMIK system from scratch.
+# NOMIK — Running Guide
 
 ## Prerequisites
 
-- Node.js 20+
-- pnpm 9+
-- Docker
+- Node.js ≥ 20 LTS
+- pnpm ≥ 9
+- Docker (for Neo4j)
 
-## Step 1: Start the Graph Database
+## Quick Start
 
-NOMIK uses Neo4j to store the code relationship graph.
+```bash
+# 1. Start Neo4j
+docker compose up -d
+
+# 2. Build
+pnpm install
+pnpm build
+
+# 3. Scan your project
+pnpm nomik scan .
+
+# 4. Connect your AI editor
+pnpm nomik setup-cursor     # or setup-windsurf / setup-claude / setup-antigravity
+```
+
+That's it. Your AI editor now has graph-powered intelligence.
+
+## Step-by-Step
+
+### 1. Start Neo4j
 
 ```bash
 docker compose up -d
 ```
-> The `docker-compose.yml` file is at the project root.
 
-## Step 2: Build the System
+Verify at `http://localhost:7474` (user: `neo4j`, pass: `nomik_local`).
 
-Ensure all packages are compiled and type-safe.
+### 2. Build
 
 ```bash
 pnpm install
-pnpm build
+pnpm build    # Builds all 8 packages
 ```
 
-## Step 3: Populate the Graph (Scan)
-
-The CLI scans your source code and builds the graph in Neo4j.
+### 3. Scan
 
 ```bash
-# Scan the NOMIK project itself
-pnpm nomik scan .
+pnpm nomik scan .                      # Scan current directory
+pnpm nomik scan ./src --project my-api # Scan specific path with project name
 ```
 
-To verify the data is in the database, visit `http://localhost:7474` (User: `neo4j`, Pass: `nomik_local`) and run:
-```cypher
-MATCH (n) RETURN n LIMIT 25
-```
-
-## Step 4: Launch the Visualization Dashboard
-
-Interact with your knowledge graph visually.
+### 4. Connect AI Editor
 
 ```bash
-cd packages/viz
-pnpm dev
+pnpm nomik setup-cursor       # Creates .cursor/mcp.json
+pnpm nomik setup-windsurf     # Creates ~/.codeium/windsurf/mcp_config.json
+pnpm nomik setup-claude       # Creates Claude Desktop config
+pnpm nomik setup-antigravity  # Creates Antigravity config
 ```
-Open [http://localhost:3000](http://localhost:3000).
 
-## Step 5: Connect AI Agents (MCP)
+> In stdio mode, the IDE launches the MCP server on demand. `nomik serve` is not required.
 
-To let AI assistants (like Cursor, Windsurf, or Claude) use your knowledge graph:
-
-### Automatic Cursor/Windsurf Configuration (Recommended)
-
-The simplest method is to use the dedicated command:
+### 5. Diagnose (optional)
 
 ```bash
-pnpm nomik setup-cursor
-pnpm nomik setup-windsurf
+pnpm nomik doctor    # Check Node.js, Neo4j, configs, MCP server
 ```
 
-This automatically creates `.cursor/mcp.json` (Cursor) or `~/.codeium/windsurf/mcp_config.json` (Windsurf) with the correct path to the MCP server and Neo4j variables.
+## Common Workflows
 
-> **Note**: For Cursor/Windsurf in stdio mode, you do **not** need `nomik serve`. After `setup-cursor` or `setup-windsurf`, the IDE launches the MCP server automatically on demand. `nomik serve` is mainly for the visualization dashboard and manual debugging.
-
-### Development Mode (Optional)
-
-If you want to test the MCP server manually:
+### Live Development
 
 ```bash
-cd packages/mcp-server
-pnpm dev
+pnpm nomik watch .           # Auto-reindex on file changes
 ```
 
-### Or via CLI (Visualization Dashboard)
-
-To launch the visualization dashboard (includes MCP server for debugging):
+### Architecture Review
 
 ```bash
-pnpm nomik serve
-# Or without visualization:
-pnpm nomik serve --no-viz
+pnpm nomik onboard           # Codebase briefing
+pnpm nomik rules             # Architecture rules evaluation
+pnpm nomik communities       # Functional clusters
+pnpm nomik flows             # Execution flow tracing
 ```
 
-### Manual Configuration (Claude Desktop)
-
-```json
-{
-  "mcpServers": {
-    "nomik": {
-      "command": "node",
-      "args": ["packages/mcp-server/dist/index.js"],
-      "env": {
-        "NOMIK_GRAPH_URI": "bolt://localhost:7687",
-        "NOMIK_GRAPH_USER": "neo4j",
-        "NOMIK_GRAPH_PASS": "nomik_local",
-        "NOMIK_PROJECT_ID": "nomik"
-      }
-    }
-  }
-}
-```
-
----
-
-## Step 6: Watch for Changes (Optional)
-
-Auto-reindex files as you edit them:
+### CI Pipeline
 
 ```bash
-pnpm nomik watch .
+pnpm nomik ci                # scan → rules → guard → audit (all-in-one)
+pnpm nomik ci --skip-scan    # Skip scan if already scanned
 ```
 
-The watcher uses `chokidar` with debounce (500ms by default) to re-parse and re-ingest modified files. Data is isolated per project via `projectId`.
-
----
-
-## Step 7: Query the Graph (Optional)
+### PR Review
 
 ```bash
-# Format tableau
-pnpm nomik query "MATCH (n:Function) RETURN n.name, n.filePath LIMIT 10"
-
-# Format JSON
-pnpm nomik query "MATCH (n)-[r]->(m) RETURN type(r), count(*)" --json
+pnpm nomik pr-impact         # Blast radius for current branch
+pnpm nomik pr-impact --json  # JSON output for CI
 ```
 
----
-
-## Step 8: Project Management (Optional)
-
-NOMIK isolates data per project. Each node and each relationship carries a `projectId`.
+### Documentation
 
 ```bash
-# List projects
-pnpm nomik project list
-
-# Create a new project
-pnpm nomik project create my-api
-
-# View current project stats
-pnpm nomik project info
-
-# Switch project
-pnpm nomik project switch other-project
-
-# Delete a project and its data
-pnpm nomik project delete old-project
+pnpm nomik wiki --out ./wiki     # Generate architecture wiki
+pnpm nomik badge                 # Generate health badges
+pnpm nomik changelog --since v1  # Auto-generate changelog
 ```
 
-The current project is stored in `.nomik/project.json` (to be committed in git for team sharing).
+### Visualization
+
+```bash
+pnpm nomik serve             # Dashboard + MCP debug
+pnpm nomik dashboard         # REST API on port 4242
+```
+
+### Project Management
+
+```bash
+pnpm nomik project list      # List all projects
+pnpm nomik project create X  # Create project
+pnpm nomik project switch X  # Switch active project
+pnpm nomik project info      # Current project stats
+pnpm nomik project delete X  # Delete project + data
+```
+
+## Environment Variables
+
+Create a `.env` file at the project root:
+
+```bash
+NOMIK_GRAPH_URI=bolt://localhost:7687
+NOMIK_GRAPH_USER=neo4j
+NOMIK_GRAPH_PASS=nomik_local
+NOMIK_PROJECT_ID=my-project
+```
+
+See [CLI & MCP Reference](11-CLI-TOOLS-REFERENCE.md) for all environment variables.

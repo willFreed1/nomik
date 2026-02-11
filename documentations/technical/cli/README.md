@@ -1,6 +1,6 @@
 # @nomik-ai/cli
 
-Command-line interface for the NOMIK system. 10 commands, multi-project isolation, standalone bundle via tsup.
+Command-line interface — **38 commands**, multi-project isolation, standalone bundle via tsup.
 
 ## Installation
 
@@ -13,93 +13,77 @@ pnpm build
 pnpm nomik <command>
 ```
 
-## Commands
+## Commands (38)
 
-### `nomik init`
-Initializes the project: creates `nomik.config.ts`, starts Neo4j via Docker, creates `.nomik/project.json`.
+### Core
+| Command | Description |
+|---|---|
+| `init` | Initialize project, Docker, `.nomik/project.json` |
+| `scan <path>` | Parse + ingest into Neo4j (per-file refresh) |
+| `scan:incremental` | Git diff-based selective re-scan |
+| `status` | Neo4j connection + project stats |
+| `watch [path]` | File monitoring with real-time reindex |
+| `query "<cypher>"` | Raw Cypher query (`--json`) |
+| `recent` | Recently modified nodes (`--since`, `--limit`) |
 
-```bash
-nomik init
-nomik init --no-docker   # Without Docker
-```
+### Analysis
+| Command | Description |
+|---|---|
+| `impact <symbol>` | Downstream impact analysis |
+| `explain <symbol>` | Full symbol context |
+| `pr-impact` | PR blast-radius (git diff → graph → risk report) |
+| `test-impact <symbol>` | Affected test files |
+| `rename <old> <new>` | Graph-aware rename (`--apply`) |
+| `migrate <symbol>` | Migration plan with risk level |
+| `audit` | Dependency vulnerability + blast radius |
 
-### `nomik scan <path>`
-Scans the directory, parses files and ingests them into Neo4j. Automatically creates the project if it does not exist.
+### Architecture
+| Command | Description |
+|---|---|
+| `rules` | 9 rules + custom Cypher (`--init`, `--ci`) |
+| `guard` | Quality gate (`--install-hook`, `--ci`) |
+| `communities` | Functional cluster detection |
+| `flows` | Execution flow tracing |
+| `diff <sha1> <sha2>` | Architecture drift |
+| `onboard` | Codebase briefing |
+| `wiki` | Generate markdown docs (`--out`) |
+| `badge` | Health badges for README |
+| `service-links` | Cross-service dependencies |
+| `changelog` | Auto changelog (`--since`) |
 
-```bash
-nomik scan .
-nomik scan . --project my-api   # Explicit project name
-```
+### Infrastructure
+| Command | Description |
+|---|---|
+| `serve` | MCP server + viz dashboard |
+| `dashboard` | REST API on port 4242 |
+| `ci` | Unified pipeline: scan → rules → guard → audit |
+| `doctor` | Diagnose setup (Node.js, Neo4j, configs) |
 
-- **Options**: `--language`, `--project`
-- **Auto-detection**: Detects and updates `rootPath` if the folder has been renamed.
+### Setup
+| Command | Description |
+|---|---|
+| `setup-cursor` | Configure Cursor AI MCP |
+| `setup-windsurf` | Configure Windsurf AI MCP |
+| `setup-claude` | Configure Claude Desktop MCP |
+| `setup-antigravity` | Configure Antigravity MCP |
 
-### `nomik status`
-Verifies Neo4j connection and displays statistics for the current project.
-
-```bash
-nomik status
-```
-
-### `nomik impact <symbol>`
-Impact analysis on a symbol (function, class) — scoped by project.
-
-```bash
-nomik impact "AuthService" --depth 5
-```
-
-### `nomik watch [path]`
-Watches files and re-indexes automatically (chokidar, 500ms debounce).
-
-```bash
-nomik watch .
-nomik watch . --debounce 1000
-```
-
-### `nomik serve`
-Starts the MCP server and visualization dashboard.
-
-```bash
-nomik serve
-```
-
-### `nomik query <cypher>`
-Executes a raw Cypher query against the knowledge graph.
-
-```bash
-nomik query "MATCH (n:Function) RETURN n.name LIMIT 10"
-nomik query "MATCH (n)-[r]->(m) RETURN type(r), count(*)" --json
-```
-
-### `nomik recent`
-Displays recently modified nodes — scoped by project.
-
-```bash
-nomik recent
-nomik recent --since 2026-02-10T00:00:00Z --limit 50 --json
-```
-
-### `nomik setup-cursor`
-Auto-configures `.cursor/mcp.json` to connect Cursor AI to NOMIK. Injects `NOMIK_PROJECT_ID` automatically.
-
-```bash
-nomik setup-cursor
-nomik setup-cursor --global   # Global config (all projects)
-```
-
-### `nomik project <subcommand>`
-Project management — data isolation in Neo4j.
-
-```bash
-nomik project list              # List all projects
-nomik project create my-api     # Create a project
-nomik project switch my-api     # Switch project (with atomic validation)
-nomik project delete my-api     # Delete a project and its data
-nomik project info              # Stats for current project
-```
-
-The current project is stored in `.nomik/project.json` (version, projectId, projectName, createdAt).
+### Projects
+| Command | Description |
+|---|---|
+| `project list` | List all projects |
+| `project create <name>` | Create project |
+| `project switch <name>` | Switch active project |
+| `project delete <name>` | Delete project + data |
+| `project info` | Current project stats |
 
 ## Architecture
 
-The CLI uses `commander` for argument parsing and delegates to services (`@nomik/parser`, `@nomik/graph`, `@nomik/watcher`). Entry point: `src/index.ts`. Standalone bundle via `tsup` with the MCP server included in `dist/mcp-server.js`.
+Commander.js for argument parsing. Delegates to `@nomik/parser`, `@nomik/graph`, `@nomik/watcher`. Entry point: `src/index.ts`. Standalone bundle via `tsup`.
+
+## Utils
+
+| File | Purpose |
+|---|---|
+| `utils/project-config.ts` | Read/write `.nomik/project.json` |
+| `utils/mcp-config.ts` | Generate MCP client configs |
+| `utils/rules-config.ts` | Parse `.nomik/rules.yaml` (thresholds + custom Cypher) |

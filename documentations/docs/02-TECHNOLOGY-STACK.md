@@ -1,92 +1,66 @@
-# NOMIK — Technology Stack Decision
+# NOMIK — Technology Stack
 
-## The Verdict: **TypeScript (Node.js)**
+## Core Stack
 
-### Why TypeScript Wins for the MVP
+| Layer | Technology | Why |
+|---|---|---|
+| **Language** | TypeScript (Node.js) | Single language for all layers, strict types |
+| **Parser** | Tree-sitter | Official Node.js bindings, multi-language AST |
+| **Graph DB** | Neo4j | Native graph traversal, APOC, Cypher |
+| **MCP** | `@modelcontextprotocol/sdk` | Anthropic's reference implementation |
+| **CLI** | Commander.js | Standard Node.js CLI framework |
+| **Viz** | React + Cytoscape.js + Three.js | 2D + 3D graph rendering |
+| **Watcher** | Chokidar | Cross-platform file monitoring |
+| **Build** | tsup (esbuild) | Fast TypeScript bundling |
+| **Monorepo** | pnpm workspaces | Disk-efficient, strict dependency resolution |
+| **Validation** | Zod | Runtime type validation for configs |
+| **Logging** | Pino | Structured JSON logging |
+| **Testing** | Vitest | Fast, TypeScript-native test runner |
 
-| Factor | TypeScript | Python | Go | Rust |
-|---|---|---|---|---|
-| **Tree-sitter bindings** | ✅ Official, mature | ⚠️ Community | ⚠️ Community | ✅ Native (TS is overkill) |
-| **MCP SDK** | ✅ **Reference impl** (Anthropic) | ⚠️ Exists, secondary | ❌ Community only | ❌ Community only |
-| **Frontend/Viz (Three.js / Cytoscape.js)** | ✅ Native | ❌ Needs separate app | ❌ Needs separate app | ❌ Needs separate app |
-| **Neo4j driver** | ✅ Official | ✅ Official | ✅ Official | ⚠️ Community |
-| **Iteration speed** | ✅ Fast | ✅ Fast | ⚠️ Medium | ❌ Slow |
-| **Type safety** | ✅ Yes | ⚠️ Optional (mypy) | ✅ Yes | ✅ Yes |
-| **Ecosystem (npm)** | ✅ Largest | ✅ Large | ⚠️ Smaller | ⚠️ Smaller |
-| **Monorepo tooling** | ✅ Turborepo/Nx | ⚠️ Poetry workspaces | ⚠️ Go workspaces | ⚠️ Cargo workspaces |
-| **Deployment** | ✅ Docker, serverless | ✅ Docker, serverless | ✅ Single binary | ✅ Single binary |
+## Why TypeScript
 
-### The Decisive Factors
+- **MCP SDK is TypeScript-first** —  zero lag on protocol updates
+- **Single-language stack** — parser, graph, MCP server, CLI, viz all in TypeScript
+- **Type safety for graph schemas** — Zod-validated node/edge types
+- **Ecosystem** — npm has the largest package ecosystem
 
-#### 1. MCP SDK Is TypeScript-First
-Anthropic's **official MCP SDK** (`@modelcontextprotocol/sdk`) is the **reference implementation** in TypeScript. Every MCP feature lands here first. Building NOMIK's MCP server in TypeScript means:
-- Zero lag on protocol updates
-- Battle-tested patterns from the official examples
-- Direct compatibility with Cursor, Claude Desktop, and every MCP client
-
-#### 2. Single-Language Stack
-TypeScript covers **every layer** of NOMIK:
-- **Parser** → Tree-sitter Node bindings (`tree-sitter`, `tree-sitter-typescript`, etc.)
-- **Graph** → Neo4j official driver (`neo4j-driver`)
-- **MCP Server** → `@modelcontextprotocol/sdk`
-- **CLI** → `commander` or `yargs`
-- **Visualization** → Three.js (3d-force-graph) / Cytoscape.js (native JavaScript)
-- **File Watcher** → `chokidar`
-
-One language = one team can own everything. No polyglot overhead for the MVP.
-
-#### 3. Type Safety for Graph Schemas
-TypeScript's type system lets you define **strict interfaces** for graph nodes and edges:
-
-```typescript
-interface FunctionNode {
-  type: 'function';
-  name: string;
-  filePath: string;
-  startLine: number;
-  endLine: number;
-  params: string[];
-  returnType?: string;
-  decorators?: string[];
-  confidence: number; // 0-1
-}
-
-interface DependsOnEdge {
-  type: 'DEPENDS_ON';
-  source: string; // node ID
-  target: string; // node ID
-  kind: 'import' | 'call' | 'http' | 'event';
-  confidence: number;
-}
-```
-
-### Languages supported by the parser
-
-NOMIK already analyzes several languages via Tree-sitter:
+## Languages Parsed
 
 | Language | Grammar | Extractors | Status |
 |---|---|---|---|
-| TypeScript / JavaScript | `tree-sitter-typescript` | functions, classes, imports, exports, routes, calls | **Done** |
-| Python | `tree-sitter-python` | functions, classes, imports, calls | **Done** |
-| Rust | `tree-sitter-rust` | functions, structs/enums/traits, use, calls | **Done** |
-| Markdown | Custom parser (regex) | sections, headings | **Done** |
-| Go | `tree-sitter-go` | Not started | Backlog |
+| TypeScript / JavaScript | `tree-sitter-typescript` | All 25 extractors (code, data, infra, config, security) | Done |
+| Python | `tree-sitter-python` | Functions, classes, imports, calls + runtime (Redis, Celery, Prometheus, OTel, brokers) | Done |
+| Rust | `tree-sitter-rust` | Functions, structs/enums/traits, use, calls | Done |
+| Markdown | Custom regex parser | Sections, headings | Done |
+| SQL | Custom regex parser | CREATE TABLE, ALTER TABLE, column definitions | Done |
+| C# Migrations | Custom regex parser | Entity Framework migration → DB schema | Done |
+| Python Migrations | Custom regex parser | Django/Alembic migration → DB schema | Done |
 
-### Planned languages (Roadmap Q2 2026)
+### Parser Extractors (25)
 
-| Phase | Language | Goal | Status |
-|---|---|---|---|
-| **Q2 2026** | **C# / .NET** | Enterprise ecosystems (banks, government) | Planned |
-| **Q2 2026** | **Go** | Cloud/infra (K8s, microservices) | Planned |
-| Scale | **Java** | Enterprise JVM ecosystem | Backlog |
-| Scale | **Native Rust** | High-performance parser for repos >1M lines | Backlog |
+| Category | Extractors |
+|---|---|
+| **Code** | functions, classes, imports, exports, calls, variables |
+| **API** | routes, api-calls, grpc/tRPC/GraphQL |
+| **Data** | db-operations, db-schema (SQL/C#/Python), redis |
+| **Infrastructure** | queue, metrics, tracing, messaging, websocket, cron, events |
+| **Config** | docker, cicd, terraform, cloudformation, openapi-spec, graphql-schema, dependencies, dotenv, infra-config, swagger |
+| **Security** | secrets, feature-flags, env-vars |
+| **Python** | python-runtime (Redis, Celery, Prometheus, OTel, brokers) |
 
-### Runtime Requirements
+### Planned Languages
 
-| Component | Version | Notes |
+| Language | Why | Timeline |
 |---|---|---|
-| Node.js | ≥ 20 LTS | Required for Tree-sitter native bindings |
-| TypeScript | ≥ 5.4 | Strict mode, `satisfies` operator |
-| Package Manager | pnpm ≥ 9 | Workspace support, disk-efficient |
-| Build Tool | tsup or esbuild | Fast bundling for CLI |
-| Monorepo | Turborepo | Task orchestration, caching |
+| **Go** | Cloud/infrastructure dominance (K8s, microservices) | Q2 2026 |
+| **C# / .NET** | Enterprise codebases (banks, insurance, government) | Q2 2026 |
+| **Java** | Enterprise JVM ecosystem | Q3 2026 |
+
+## Runtime Requirements
+
+| Component | Version |
+|---|---|
+| Node.js | ≥ 20 LTS |
+| pnpm | ≥ 9 |
+| Neo4j | ≥ 5.x (Community or Enterprise) |
+| Docker | For Neo4j (optional if using external instance) |

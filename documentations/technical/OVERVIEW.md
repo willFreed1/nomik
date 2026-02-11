@@ -1,76 +1,59 @@
 # NOMIK Technical Architecture
 
-> This document provides a technical overview of the NOMIK system. For details on each package, see the subdirectories.
+> For details on each package, see the subdirectories.
 
 ## Overview
 
-NOMIK is a knowledge graph sidecar that analyzes source code, builds a dependency graph in Neo4j, and exposes this data via an MCP server or CLI.
+NOMIK is a knowledge graph sidecar that analyzes source code, builds a dependency graph in Neo4j, and exposes this data via MCP server, CLI, REST API, and visualization dashboard.
 
-```mermaid
-graph TD
-    User[User / IDE] -->|MCP / CLI| Core
-    subgraph NOMIK
-        Core[Core Logic]
-        Parser[Tree-sitter Parser]
-        Graph[Neo4j Graph Database]
-        
-        Core --> Parser
-        Core --> Graph
-        Parser -->|Nodes + Edges| Core
-    end
-    Source[Source Code] -->|Read| Parser
-```
-
-## Packages (7)
-
-The monorepo is divided into strictly scoped packages:
+## Packages (8)
 
 ### 1. [CLI](./cli/README.md) (`@nomik-ai/cli`)
-Command-line interface.
-- **Commands**: `init`, `scan`, `status`, `impact`, `watch`, `serve`, `query`, `recent`, `setup-cursor`, `setup-windsurf`, `project` (list/create/switch/delete/info), `pr-impact`.
-- **Isolation**: Reads `.nomik/project.json` to scope operations per project.
+Command-line interface — **38 commands**.
+- **Core**: init, scan, scan:incremental, status, watch, query, recent
+- **Analysis**: impact, explain, pr-impact, test-impact, rename, migrate, audit
+- **Architecture**: rules, guard, communities, flows, diff, onboard, wiki, badge, service-links, changelog
+- **Infrastructure**: serve, dashboard, ci, doctor
+- **Setup**: setup-cursor, setup-windsurf, setup-claude, setup-antigravity
+- **Projects**: list, create, switch, delete, info
 
 ### 2. [Core](./core/README.md) (`@nomik/core`)
-Shared infrastructure and types.
-- **Responsibilities**: Configuration (Zod), typed error handling (`NomikError`), structured logging (Pino), types (`GraphNode`, `GraphEdge`, `ProjectNode`).
+Shared types, configuration (Zod), error handling (`NomikError`), structured logging (Pino).
 
 ### 3. [Parser](./parser/README.md) (`@nomik/parser`)
-Intelligence engine that converts source code into graph nodes.
-- **Languages**: TypeScript, JavaScript, Python, Rust, Markdown.
-- **Tech**: Tree-sitter (TS/JS/Python/Rust), custom parser (Markdown).
-- **Extractors**: functions, classes, imports, exports, routes, calls (TS/JS), python.ts, rust.ts, markdown.ts.
+Intelligence engine — **25 extractors** for 7+ languages.
+- **Languages**: TypeScript, JavaScript, Python, Rust, Markdown, SQL, C#/Django/Alembic migrations
+- **Categories**: code, API, data, infrastructure, config, security, Python runtime
 
 ### 4. [Graph](./graph/README.md) (`@nomik/graph`)
-Persistence and query layer.
-- **Tech**: Neo4j Community (Bolt), abstract `GraphDriver` interface with Neo4j implementation.
-- **Features**: Batch UNWIND upserts, QueryCache TTL 30s, exponential retry backoff, project CRUD.
-- **Queries**: Impact analysis, dead code, god objects, dependency chain, stats, recent changes — all filtered by `projectId`.
+Neo4j persistence layer — queries, rules engine, cache.
+- Batch UNWIND upserts, QueryCache (30s TTL), exponential retry
+- 10 query modules: read, read-health, read-explain, read-onboard, read-community, read-flows, read-diff, read-rules, read-test-impact, write
 
 ### 5. [MCP Server](./mcp-server/README.md) (`@nomik/mcp-server`)
 AI interface via Model Context Protocol.
-- **Tools** (9): `nm_search`, `nm_impact`, `nm_trace`, `nm_context`, `nm_health`, `nm_db_impact`, `nm_path`, `nm_changes`, `nm_projects`.
-- **Resources**: `nomik://stats`.
-- **Isolation**: Reads `NOMIK_PROJECT_ID` from the environment to scope all requests. Every tool also accepts an explicit `project` parameter to override the env var.
+- **21 tools**, **9 resources**, **6 prompts**
+- Role-scoped access (dev, architect, security, pm)
+- Sampling support (server→client LLM completions)
 
 ### 6. [Visualization](./viz/README.md) (`@nomik/viz`)
-Interactive graph exploration dashboard.
-- **Tech**: React + Vite, Cytoscape.js (2D), 3d-force-graph/Three.js (3D), TailwindCSS.
-- **Components**: GraphViewer, Graph3DViewer, SearchBar, FilterPanel, NodeDetail, HelpModal, LayoutSelector.
-- **Layouts**: Force (cose), Tree (breadthfirst), Radial (concentric), Circle (circle).
+React dashboard — 2D (Cytoscape.js) + 3D (Three.js).
+- Search, filter, layout selector, impact overlay, detail panel, stats panel
 
 ### 7. [Watcher](./watcher/) (`@nomik/watcher`)
-File watching for incremental reindexing.
-- **Tech**: chokidar, configurable debounce, `projectId` support.
-- **Integration**: Uses `@nomik/parser` for re-parsing and `@nomik/graph` for re-ingestion.
+Chokidar file watcher with debounced reindex and `projectId` support.
+
+### 8. [GitHub Bot](./github-bot/) (`@nomik/github-bot`)
+PR impact analysis webhook — auto-comments on PRs with blast radius.
 
 ## Multi-project
 
-Each node and each relation carries a `projectId` for logical isolation in a single Neo4j Community database. The current project is stored in `.nomik/project.json` (committable in git).
+Each node and edge carries a `projectId` for logical isolation in a single Neo4j database. Current project stored in `.nomik/project.json`.
 
 ## Design Principles
 
 1. **Strict boundaries**: No circular dependencies. `core` is the leaf dependency.
-2. **Pipeline**: Parsing and ingestion are separate steps (backpressure).
+2. **Pipeline**: Parsing and ingestion are separate steps.
 3. **Observability**: Structured logging (Pino) everywhere.
 4. **Typed errors**: `NomikError` with `code`, `severity`, `recoverable`.
-5. **Isolation**: `projectId` injected at each layer via explicit parameters on all queries and mutations.
+5. **Isolation**: `projectId` on all queries and mutations.

@@ -24,11 +24,13 @@ Visualization dashboard for NOMIK. React application to interactively explore th
 |---|---|---|
 | `GraphViewer` | `components/GraphViewer.tsx` | 2D Cytoscape graph, event handlers |
 | `Graph3DViewer` | `components/Graph3DViewer.tsx` | 3D Three.js graph, rotation, particles |
-| `SearchBar` | `components/SearchBar.tsx` | Node search with focus |
+| `SearchBar` | `components/SearchBar.tsx` | Focused search with ranked results, next/prev navigation |
 | `FilterPanel` | `components/FilterPanel.tsx` | Toggle filters by type |
 | `NodeDetail` | `components/NodeDetail.tsx` | Detail panel for selected node |
 | `HelpModal` | `components/HelpModal.tsx` | Interactive help popup |
 | `LayoutSelector` | `components/LayoutSelector.tsx` | Layout selector (Force/Tree/Radial/Circle) |
+| `StatsPanel` | `components/StatsPanel.tsx` | Health stats panel (dead code, god files) |
+| `ProjectSelector` | `components/ProjectSelector.tsx` | Project dropdown (defaults to NOMIK/GENOME) |
 
 ## Neo4j connection
 

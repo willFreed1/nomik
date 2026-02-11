@@ -6,6 +6,7 @@ export interface ImpactResult {
     filePath: string;
     depth: number;
     relationship: string;
+    confidence?: number;
 }
 
 /** Analyse d'impact scope par projet — retourne la profondeur et le type de relation reels */
@@ -14,15 +15,21 @@ export async function impactAnalysis(
     symbolName: string,
     maxDepth: number = 5,
     projectId?: string,
+    minConfidence: number = 0,
 ): Promise<ImpactResult[]> {
     const projectFilter = projectId ? 'AND target.projectId = $projectId' : '';
     const nodeFilter = projectId ? 'AND node.projectId = $projectId' : '';
+    // Filter CALLS edges below minConfidence threshold (other edge types always pass)
+    const confidenceFilter = minConfidence > 0
+        ? 'AND (type(rel) <> "CALLS" OR COALESCE(rel.confidence, 1.0) >= $minConfidence)'
+        : '';
     const results = await driver.runQuery<{
         name: string;
         type: string;
         filePath: string;
         depth: number;
         relType: string;
+        confidence: number;
     }>(
         `
     MATCH (target)
@@ -36,15 +43,16 @@ export async function impactAnalysis(
     WITH last(nodes(path)) as node,
          length(path) as depth,
          last(relationships(path)) as rel
-    WHERE node <> target ${nodeFilter}
+    WHERE node <> target ${nodeFilter} ${confidenceFilter}
     RETURN DISTINCT COALESCE(node.name, node.path) as name,
            labels(node)[0] as type,
            COALESCE(node.filePath, node.path) as filePath,
            depth,
-           type(rel) as relType
+           type(rel) as relType,
+           COALESCE(rel.confidence, 1.0) as confidence
     ORDER BY depth ASC, name ASC
     `,
-        { name: symbolName, maxDepth, projectId },
+        { name: symbolName, maxDepth, projectId, minConfidence },
     );
 
     return results.map((r) => ({
@@ -53,6 +61,7 @@ export async function impactAnalysis(
         filePath: r.filePath,
         depth: r.depth,
         relationship: r.relType,
+        confidence: r.confidence,
     }));
 }
 

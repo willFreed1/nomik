@@ -1,4 +1,4 @@
-import type { CallsEdge, GraphNode, GraphEdge } from '@nomik/core';
+import type { CallsEdge, CallResolution, GraphNode, GraphEdge } from '@nomik/core';
 import type { ImportInfo } from '../extractors/imports.js';
 
 import type { CallInfo } from '../extractors/calls.js';
@@ -117,15 +117,20 @@ export function resolveCrossFileCallEdges(
         // Note: method calls (obj.method()) skip the shadow check — the receiver
         // already disambiguates, and filterMethodCandidatesByReceiverImport handles it.
         let calleeIds: string[];
+        let resolution: CallResolution;
         if (aliasTargets.length > 0) {
             calleeIds = aliasTargets;
+            resolution = 'import-resolved';
         } else {
             const globalIds = multiMap.get(call.calleeName) ?? [];
             const hasLocalShadow = !call.isMethodCall && globalIds.some(id => localIds.has(id));
             calleeIds = hasLocalShadow
                 ? []
                 : globalIds.filter(id => importedFileIds.has(nodeIdToFileId.get(id) ?? ''));
+            resolution = 'global-filtered';
         }
+        // Confidence: import-resolved = 0.95, global-filtered = 0.60
+        const confidence = resolution === 'import-resolved' ? 0.95 : 0.60;
 
         // Seul le caller dans CE fichier est pertinent
         const localCallerIds = callerIds.filter((id) => localIds.has(id));
@@ -150,7 +155,8 @@ export function resolveCrossFileCallEdges(
                     type: 'CALLS' as const,
                     sourceId: callerId,
                     targetId: calleeId,
-                    confidence: 0.85,
+                    confidence,
+                    resolution,
                     line: call.line,
                     column: call.column,
                 });
@@ -211,15 +217,20 @@ export function resolveFileCrossFileCallEdges(
         if (call.isLocalIdentifier) continue;
         const aliasTargets = importedAliasFunctionIds.get(call.calleeName) ?? [];
         let calleeIds: string[];
+        let resolution: CallResolution;
         if (aliasTargets.length > 0) {
             calleeIds = aliasTargets;
+            resolution = 'import-resolved';
         } else {
             const globalIds = multiMap.get(call.calleeName) ?? [];
             const hasLocalShadow = !call.isMethodCall && globalIds.some(id => localIds.has(id));
             calleeIds = hasLocalShadow
                 ? []
                 : globalIds.filter(id => importedFileIds.has(nodeIdToFileId.get(id) ?? ''));
+            resolution = 'global-filtered';
         }
+        // File-context: import-resolved = 0.85, global-filtered = 0.50
+        const confidence = resolution === 'import-resolved' ? 0.85 : 0.50;
         calleeIds = filterMethodCandidatesByReceiverImport(
             calleeIds,
             call,
@@ -238,7 +249,8 @@ export function resolveFileCrossFileCallEdges(
                 type: 'CALLS' as const,
                 sourceId: fileId,
                 targetId: calleeId,
-                confidence: 0.8,
+                confidence,
+                resolution,
                 line: call.line,
                 column: call.column,
             });

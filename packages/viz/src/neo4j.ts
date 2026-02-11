@@ -316,6 +316,113 @@ export async function fetchHealthStats(projectId?: string): Promise<HealthStats>
     }
 }
 
+/** Fetch graph with pagination — loads top N files by importance + their children.
+ *  Returns nodeLimit and whether more data exists (hasMore). */
+export async function fetchGraphDataPaginated(projectId?: string, nodeLimit = 500) {
+    const session = driver.session();
+    try {
+        const pf = projectId ? 'WHERE f.projectId = $projectId' : '';
+        const params = { projectId: projectId ?? null, nodeLimit: neo4j.int(nodeLimit) };
+
+        // Get top files by function count (most important files first)
+        const fileResult = await session.run(`
+            MATCH (f:File) ${pf}
+            OPTIONAL MATCH (f)-[:CONTAINS]->(fn:Function)
+            WITH f, count(fn) as funcCount
+            ORDER BY funcCount DESC
+            LIMIT $nodeLimit
+            RETURN f, funcCount
+        `, params);
+
+        const fileIds = new Set<string>();
+        const propIdToElementId = new Map<string, string>();
+        const nodes = new Map<string, any>();
+        const edges: any[] = [];
+        const sanitize = (id: string) => id.replace(/:/g, '_');
+
+        fileResult.records.forEach(record => {
+            const f = record.get('f');
+            const nId = sanitize(f.elementId);
+            const parts = (f.properties.path ?? '').split(/[/\\]/);
+            const name = parts[parts.length - 1] || f.properties.name || 'File';
+            fileIds.add(f.properties.id);
+            propIdToElementId.set(f.properties.id, nId);
+            nodes.set(nId, {
+                data: { ...f.properties, id: nId, label: 'File', name }
+            });
+        });
+
+        // Get children (Functions/Classes) of selected files
+        const childResult = await session.run(`
+            MATCH (f:File)-[r:CONTAINS]->(n)
+            WHERE f.id IN $fileIds
+            AND NOT n:ScanMeta AND NOT n:Project
+            RETURN f.id as fileId, n, r
+        `, { fileIds: Array.from(fileIds) });
+
+        childResult.records.forEach(record => {
+            const n = record.get('n');
+            const r = record.get('r');
+            const fileId = record.get('fileId');
+            const nId = sanitize(n.elementId);
+            const parentId = propIdToElementId.get(fileId);
+            if (!parentId) return;
+
+            const getDisplayName = (node: any) => {
+                const props = node.properties;
+                return props.name || props.fileName || node.labels[0] || 'Node';
+            };
+
+            if (!nodes.has(nId)) {
+                propIdToElementId.set(n.properties.id, nId);
+                nodes.set(nId, {
+                    data: { ...n.properties, id: nId, label: n.labels[0], name: getDisplayName(n) }
+                });
+            }
+            edges.push({
+                data: { id: sanitize(r.elementId), source: parentId, target: nId, label: 'CONTAINS' }
+            });
+        });
+
+        // Get edges between the loaded nodes (CALLS, DEPENDS_ON, etc.)
+        const nodeIdList = Array.from(propIdToElementId.keys());
+        const edgeResult = await session.run(`
+            MATCH (a)-[r]->(b)
+            WHERE a.id IN $nodeIds AND b.id IN $nodeIds
+            AND NOT a:ScanMeta AND NOT b:ScanMeta AND NOT a:Project AND NOT b:Project
+            AND type(r) <> 'CONTAINS'
+            RETURN a.id as sourceId, b.id as targetId, r
+        `, { nodeIds: nodeIdList });
+
+        edgeResult.records.forEach(record => {
+            const r = record.get('r');
+            const sourceId = propIdToElementId.get(record.get('sourceId'));
+            const targetId = propIdToElementId.get(record.get('targetId'));
+            if (sourceId && targetId && nodes.has(sourceId) && nodes.has(targetId)) {
+                edges.push({
+                    data: { id: sanitize(r.elementId), source: sourceId, target: targetId, label: r.type }
+                });
+            }
+        });
+
+        // Check if there are more files
+        const totalResult = await session.run(
+            `MATCH (f:File) ${pf} RETURN count(f) as total`, { projectId: projectId ?? null }
+        );
+        const totalFiles = totalResult.records[0]?.get('total')?.toNumber?.() ?? 0;
+
+        return {
+            nodes: Array.from(nodes.values()),
+            edges,
+            hasMore: totalFiles > fileIds.size,
+            totalFiles,
+            loadedFiles: fileIds.size,
+        };
+    } finally {
+        await session.close();
+    }
+}
+
 /** List available projects in the graph */
 export async function fetchProjects(): Promise<Array<{ id: string; name: string; rootPath: string }>> {
     const session = driver.session();

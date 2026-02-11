@@ -1,76 +1,64 @@
 # @nomik/graph
 
-Persistence layer managing interactions with Neo4j Community Edition.
+Neo4j persistence layer — 10 query modules, rules engine, cache, batch upserts.
 
 ## Features
 
-- **Schema Management**: Auto-initializes constraints (uniqueness by `id`) and indexes (performance + `projectId`) on startup
-- **Driver Abstraction**: `GraphDriver` interface with Neo4j implementation (`neo4j.driver.ts`)
-- **Batch UNWIND Upserts**: Nodes and edges grouped by type, sent in a single `UNWIND` Cypher per group
-- **QueryCache**: TTL cache 30s (max 200 entries) on all reads, automatic invalidation after writes, LRU eviction
-- **Retry**: Exponential backoff on Neo4j operations (3 attempts, transient error detection)
+- **Schema Management**: Auto-initializes constraints + indexes on startup
+- **Driver Abstraction**: `GraphDriver` interface with Neo4j implementation (Bolt)
+- **Batch UNWIND Upserts**: Nodes and edges grouped by type
+- **QueryCache**: TTL 30s, max 200 entries, LRU eviction, auto-invalidation after writes
+- **Retry**: Exponential backoff (3 attempts, transient error detection)
 - **Timestamps**: `createdAt` and `updatedAt` on all nodes and edges
-- **Multi-project**: `projectId` on all nodes and edges, full project CRUD
+- **Multi-project**: `projectId` on all nodes and edges
 
-## Modules
+## Query Modules (10)
 
-### `queries/write.ts`
-- `upsertNodes(driver, nodes, projectId)`: Batch upsert with UNWIND
-- `createEdges(driver, edges, projectId)`: Batch edge creation
-- `clearFileData(driver, filePath, projectId)`: Delete data for a file
-- `upsertProject(driver, project)`: Create or update a Project node
-- `deleteProjectData(driver, projectId)`: Delete all data for a project (DETACH DELETE)
-- `listProjects(driver)`: List all projects
-- `getProject(driver, projectId)`: Retrieve a project by ID
+| File | Queries |
+|---|---|
+| `read.ts` | impact, path, chain, stats, recent, DB impact, search, file symbols |
+| `read-health.ts` | dead code, god objects, god files, duplicates |
+| `read-explain.ts` | symbol explain, cross-service links |
+| `read-onboard.ts` | aggregated codebase briefing |
+| `read-community.ts` | Union-Find functional clustering |
+| `read-flows.ts` | execution flow tracing from entry points |
+| `read-diff.ts` | architecture drift between snapshots |
+| `read-rules.ts` | 9 built-in rules + custom Cypher evaluation |
+| `read-test-impact.ts` | affected test file detection |
+| `write.ts` | node/edge upsert, file clear, project CRUD, stale file purge |
 
-### `queries/read.ts`
-- `impactAnalysis(driver, symbolName, maxDepth, projectId?)`: APOC upstream traversal
-- `findDependencyChain(driver, from, to, projectId?)`: Shortest path
-- `findDeadCode(driver, projectId?)`: Functions never called — excludes constructors, class methods (called via `obj.method()`), React components, barrel re-exports
-- `findGodObjects(driver, threshold, projectId?)`: Functions with unexpected cross-file coupling (excludes intra-file dispatch and calls to directly imported files). Default threshold: 15
-- `findGodFiles(driver, threshold, projectId?)`: Files with too many functions. Returns `filePath`, `functionCount`, `totalLines` (uses `f.lineCount` — actual line count, not byte size). Default threshold: 10
-- `findDuplicates(driver, projectId?)`: Functions with identical `bodyHash`. Excludes trivial stubs (<3 lines) to reduce false positives on one-liner wrappers
-- `findDBImpact(driver, table, column?, limit, projectId?)`: Who reads/writes a DB table or column
-- `graphStats(driver, projectId?)`: Counts (nodes, edges, files, functions, classes, routes)
-- `recentChanges(driver, since, limit, projectId?)`: Nodes modified since a date
+## Rules Engine (`read-rules.ts`)
 
-### `drivers/`
-- `driver.interface.ts`: `GraphDriver` interface (connect, disconnect, runQuery, runWrite, getSession, isConnected, healthCheck)
-- `neo4j.driver.ts`: Neo4j implementation (Bolt protocol)
+9 built-in rules evaluated against the graph:
 
-### `schema/init.ts`
-Uniqueness constraints + search indexes + `projectId` indexes for multi-project isolation.
+| Rule | Severity | Default |
+|---|---|---|
+| `max-dead-code` | error | 5 |
+| `max-god-files` | error | 3 |
+| `max-duplicates` | warning | 2 |
+| `max-function-callers` | warning | 50 |
+| `max-db-writes-per-route` | warning | 3 |
+| `no-circular-imports` | error | true |
+| `max-function-lines` | warning | 200 |
+| `max-file-lines` | warning | 1000 |
+| `max-security-issues` | error | 0 |
 
-### `cache.ts`
-`QueryCache` with configurable TTL, `invalidateAll()`, `invalidateByPattern()`, LRU eviction.
+Custom Cypher rules via `RulesConfig.customRules[]` — each rule runs a Cypher query and fails if results exceed `maxResults`.
 
-## Service API
+## Other Modules
 
-```typescript
-interface GraphService {
-    connect(): Promise<void>;
-    disconnect(): Promise<void>;
-    initSchema(): Promise<void>;
-    ingestFileData(nodes, edges, filePath, projectId): Promise<void>;
-    ingestBatch(results, projectId): Promise<void>;
-    getImpact(symbolName, depth?, projectId?): Promise<ImpactResult[]>;
-    getDeadCode(projectId?): Promise<Array<{ name, filePath }>>;
-    getGodObjects(threshold?, projectId?): Promise<Array<{ name, filePath, depCount }>>;
-    getStats(projectId?): Promise<{ nodeCount, edgeCount, fileCount, functionCount, classCount, routeCount }>;
-    getDependencyChain(from, to, projectId?): Promise<string[][]>;
-    getDetailedPath(from, to, projectId?): Promise<DetailedPath[]>;
-    getRecentChanges(since, limit?, projectId?): Promise<Array<{ name, type, filePath, updatedAt, createdAt }>>;
-    healthCheck(): Promise<boolean>;
-    executeQuery<T>(query, params?): Promise<T[]>;
-    // Project management
-    createProject(project): Promise<void>;
-    listProjects(): Promise<ProjectNode[]>;
-    getProject(projectId): Promise<ProjectNode | null>;
-    deleteProject(projectId): Promise<void>;
-}
-```
+| File | Purpose |
+|---|---|
+| `drivers/driver.interface.ts` | `GraphDriver` abstract interface |
+| `drivers/neo4j.driver.ts` | Neo4j Bolt implementation |
+| `schema/init.ts` | Constraints + indexes |
+| `cache.ts` | `QueryCache` with TTL, pattern invalidation, LRU |
+| `graph.service.ts` | `createGraphService()` — facade over all query modules |
 
 ## Configuration
 
-- **Variables**: `NOMIK_GRAPH_URI`, `NOMIK_GRAPH_USER`, `NOMIK_GRAPH_PASS`
-- **Default**: `bolt://localhost:7687`, `neo4j`, `nomik_local`
+| Variable | Default |
+|---|---|
+| `NOMIK_GRAPH_URI` | `bolt://localhost:7687` |
+| `NOMIK_GRAPH_USER` | `neo4j` |
+| `NOMIK_GRAPH_PASS` | `nomik_local` |

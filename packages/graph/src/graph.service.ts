@@ -22,7 +22,7 @@ export interface GraphService {
     ingestFileData(nodes: GraphNode[], edges: GraphEdge[], filePath: string, projectId: string): Promise<void>;
     /** Ingestion 3-phases : clear → upsert → edges (preserve les edges cross-fichier) */
     ingestBatch(results: ParseResult[], projectId: string): Promise<void>;
-    getImpact(symbolName: string, depth?: number, projectId?: string): Promise<ImpactResult[]>;
+    getImpact(symbolName: string, depth?: number, projectId?: string, minConfidence?: number): Promise<ImpactResult[]>;
     getFileSymbols(filePath: string, projectId?: string): Promise<FileSymbol[]>;
     getDeadCode(projectId?: string): Promise<Array<{ name: string; filePath: string }>>;
     getGodObjects(threshold?: number, projectId?: string): Promise<Array<{ name: string; filePath: string; depCount: number }>>;
@@ -115,8 +115,8 @@ export function createGraphService(config: GraphConfig): GraphService {
             logger.info({ files: results.length, nodes: allNodes.length, edges: allEdges.length }, 'batch ingestion complete (3-phase)');
         },
 
-        async getImpact(symbolName: string, depth = 5, projectId?: string) {
-            return cached(`impact:${projectId}:${symbolName}:${depth}`, () => impactAnalysis(driver, symbolName, depth, projectId));
+        async getImpact(symbolName: string, depth = 5, projectId?: string, minConfidence = 0) {
+            return cached(`impact:${projectId}:${symbolName}:${depth}:${minConfidence}`, () => impactAnalysis(driver, symbolName, depth, projectId, minConfidence));
         },
 
         async getFileSymbols(filePath: string, projectId?: string) {

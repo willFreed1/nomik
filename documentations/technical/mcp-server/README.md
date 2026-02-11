@@ -1,78 +1,77 @@
 # @nomik/mcp-server
 
-Model Context Protocol (MCP) server for NOMIK. Exposes the knowledge graph to AI agents (Cursor, Claude) via the standard MCP protocol.
+MCP server exposing the NOMIK knowledge graph to AI agents (Cursor, Windsurf, Claude Desktop, Antigravity).
 
-## Features
+## Capabilities
 
-### Resources
-- `nomik://stats`: Real-time knowledge graph statistics
-
-### Tools (9 tools)
-
-All tools accept an optional `project` parameter that overrides the `NOMIK_PROJECT_ID` env var for per-call project scoping.
-
-| Tool | Description | Key Parameters |
+| Capability | Count | Description |
 |---|---|---|
-| `nm_search` | Search for nodes by name, path or id | `query`, `limit`, `project` |
-| `nm_impact` | Impact analysis of a symbol (APOC traversal) | `symbolId`, `depth`, `project` |
-| `nm_trace` | Dependency chain between two symbols | `from`, `to`, `project` |
-| `nm_context` | Rich context of a file or function | `name`, `project` |
-| `nm_health` | Health metrics (dead code, god objects, god files, duplicates, counts) | `includeDeadCode`, `includeGodObjects`, `includeGodFiles`, `includeDuplicates`, `project` |
-| `nm_db_impact` | DB table/column read-write analysis | `table`, `column?`, `limit`, `project` |
-| `nm_path` | Shortest path between two entities | `from`, `to`, `project` |
-| `nm_changes` | Recently modified nodes | `since`, `limit`, `project` |
-| `nm_projects` | List all projects in the graph | none |
+| **Tools** | 21 | Graph query functions |
+| **Resources** | 9 | Browsable data endpoints |
+| **Prompts** | 6 | Pre-built conversation starters |
+| **Sampling** | 3 helpers | Server→client LLM completions |
 
-### Multi-project isolation
+### Tools (21)
 
-The server reads the `NOMIK_PROJECT_ID` environment variable and automatically filters all requests by project. Every tool also accepts an explicit `project` parameter that overrides the env var — useful when querying multiple projects in the same AI session.
+All tools accept an optional `project` parameter overriding `NOMIK_PROJECT_ID`.
 
-## Configuration
+| Tool | Description |
+|---|---|
+| `nm_search` | Search nodes by name |
+| `nm_explain` | Full symbol context (callers, callees, edges) |
+| `nm_impact` | Downstream impact analysis |
+| `nm_trace` | Shortest dependency chain (names only) |
+| `nm_path` | Detailed path with node/edge types |
+| `nm_context` | File or function context |
+| `nm_health` | Health metrics + dead code/god files/duplicates |
+| `nm_db_impact` | DB table/column read-write analysis |
+| `nm_changes` | Recently modified nodes |
+| `nm_projects` | List all projects |
+| `nm_communities` | Functional cluster detection |
+| `nm_flows` | Execution flow tracing |
+| `nm_diff` | Architecture drift between SHAs |
+| `nm_guard` | Quality gate check |
+| `nm_rules` | Architecture rules (9 built-in + custom Cypher) |
+| `nm_rename` | Graph-aware rename impact |
+| `nm_wiki` | Structured documentation data |
+| `nm_service_links` | Cross-service dependencies |
+| `nm_test_impact` | Affected test file detection |
+| `nm_audit` | Dependency vulnerability + blast radius |
+| `nm_onboard` | Full codebase briefing |
 
-### Via `nomik setup-cursor` (recommended)
+### Resources (9)
 
-```bash
-nomik setup-cursor
-```
+| URI | Description |
+|---|---|
+| `nomik://stats` | Node/edge counts |
+| `nomik://health` | Dead code, god files, duplicates |
+| `nomik://files` | Tracked files with metadata |
+| `nomik://communities` | Functional clusters |
+| `nomik://onboard` | Codebase briefing |
+| `nomik://schema` | Node labels + relationship types |
+| `nomik://projects` | All projects |
+| `nomik://infrastructure` | Queues, metrics, spans, topics, crons, events, APIs, env vars |
+| `nomik://guard` | Quality gate status |
 
-Automatically creates `.cursor/mcp.json` with the correct path and environment variables, including `NOMIK_PROJECT_ID` if a project is configured locally.
+### Prompts (6)
 
-### Manual configuration
+`nomik-onboard`, `nomik-review-change`, `nomik-health-check`, `nomik-explain-module`, `nomik-migration-plan`, `nomik-infrastructure`
 
-Add to `.cursor/mcp.json`:
+### Role-Scoped Access
 
-```json
-{
-  "mcpServers": {
-    "nomik": {
-      "command": "node",
-      "args": ["packages/mcp-server/dist/index.js"],
-      "env": {
-        "NOMIK_GRAPH_URI": "bolt://localhost:7687",
-        "NOMIK_GRAPH_USER": "neo4j",
-        "NOMIK_GRAPH_PASS": "nomik_local",
-        "NOMIK_PROJECT_ID": "my-project"
-      }
-    }
-  }
-}
-```
+`NOMIK_ROLE` filters exposed tools/resources/prompts: `dev` (all), `architect`, `security`, `pm`.
 
-### Development
+### Sampling
 
-```bash
-cd packages/mcp-server
-pnpm dev
-```
+`NOMIK_SAMPLING=true` enables `sampleImpactSummary()`, `sampleHealthSummary()`, `sampleMigrationPlan()`.
 
-### Via CLI
+## Internal Architecture
 
-```bash
-nomik serve
-```
-
-## Internal architecture
-
-- `index.ts`: MCP server bootstrap (stdio transport)
-- `tools.ts`: Definition and handlers for the 9 tools (all with `project` param + path normalization in nm_search/nm_context)
-- `resources.ts`: MCP resources (stats)
+| File | Responsibility |
+|---|---|
+| `index.ts` | MCP server bootstrap (stdio transport), request routing |
+| `tools.ts` | 21 tool definitions + handlers |
+| `resources.ts` | 9 resource definitions |
+| `prompts.ts` | 6 prompt definitions |
+| `roles.ts` | Role-based filtering (NOMIK_ROLE) |
+| `sampling.ts` | Server→client LLM completion helpers |

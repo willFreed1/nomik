@@ -29,6 +29,7 @@ export type {
     ExtendsEdge,
     ImplementsEdge,
     CallsEdge,
+    CallResolution,
     DependsOnEdge,
     HandlesEdge,
     ReadsFromEdge,

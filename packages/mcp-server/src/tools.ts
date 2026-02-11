@@ -45,6 +45,7 @@ const TOOLS = {
             properties: {
                 symbolId: { type: 'string', description: 'The unique ID of the node (from search)' },
                 depth: { type: 'number', description: 'Traversal depth', default: 3 },
+                minConfidence: { type: 'number', description: 'Minimum confidence threshold (0.0-1.0) to filter CALLS edges. Default: 0 (all edges). Use 0.8+ for reliable results only.', default: 0 },
                 project: { type: 'string', description: 'Project name to scope the analysis to. Overrides NOMIK_PROJECT_ID env var.' },
             },
             required: ['symbolId'],
@@ -325,7 +326,8 @@ export async function handleCallTool(graph: GraphService, name: string, args: an
             const effectiveProjectId = eid(args);
             const symId = String(args.symbolId);
             const depth = Number(args.depth) || 3;
-            const impacts = await graph.getImpact(symId, depth, effectiveProjectId);
+            const minConf = Number(args.minConfidence) || 0;
+            const impacts = await graph.getImpact(symId, depth, effectiveProjectId, minConf);
             return [{ type: 'text', text: JSON.stringify(impacts, null, 2) }];
         }
 

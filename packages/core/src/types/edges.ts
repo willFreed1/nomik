@@ -56,10 +56,13 @@ export interface ImplementsEdge extends BaseEdge {
     type: 'IMPLEMENTS';
 }
 
+export type CallResolution = 'same-file' | 'file-context' | 'import-resolved' | 'global-filtered';
+
 export interface CallsEdge extends BaseEdge {
     type: 'CALLS';
     line: number;
     column?: number;
+    resolution?: CallResolution;
 }
 
 export interface DependsOnEdge extends BaseEdge {

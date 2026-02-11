@@ -1,122 +1,87 @@
-# NOMIK — MVP Roadmap & Milestones
+# NOMIK — Roadmap
 
-> Last refresh: **2026-02-18**
+> Last refresh: **2026-02-20**
 
-## Phase 1: Foundation (Weeks 1-4) — "First Heartbeat"
+## Current State (v25)
 
-### Goal: Parse a TypeScript project → store in Neo4j → query via CLI
+| Metric | Count |
+|---|---|
+| Parser extractors | 25 |
+| Node types | 17 |
+| Edge types | 19 |
+| MCP tools | 21 |
+| MCP resources | 9 |
+| MCP prompts | 6 |
+| CLI commands | 38 |
+| Tests | 232 (18 files) |
+| Build packages | 8/8 |
 
-| Week | Deliverable | Exit Criteria |
+## Completed Features
+
+### Core
+- [x] Multi-language parsing (TypeScript, JavaScript, Python, Rust, Markdown, SQL, C#, Django/Alembic)
+- [x] 25 extractors (code, data, infrastructure, config, security)
+- [x] Neo4j graph with 17 node types and 19 edge types
+- [x] Multi-project isolation via `projectId`
+- [x] File watcher with debounced reindex
+- [x] Incremental scan (git diff-based)
+
+### MCP Server
+- [x] 21 tools (search, impact, trace, path, context, health, communities, flows, diff, rules, etc.)
+- [x] 9 resources (stats, health, files, communities, onboard, schema, projects, infrastructure, guard)
+- [x] 6 prompts (onboard, review-change, health-check, explain-module, migration-plan, infrastructure)
+- [x] Role-scoped access (dev, architect, security, pm)
+- [x] Sampling support (server→client LLM completions)
+
+### CLI (38 commands)
+- [x] Core: init, scan, scan:incremental, status, watch, query, recent
+- [x] Analysis: impact, explain, pr-impact, test-impact, rename, migrate, audit
+- [x] Architecture: rules (9 built-in + custom Cypher), guard, communities, flows, diff, onboard, wiki, badge, service-links, changelog
+- [x] Infrastructure: serve, dashboard (REST API), ci, doctor
+- [x] Setup: setup-cursor, setup-windsurf, setup-claude, setup-antigravity
+- [x] Projects: list, create, switch, delete, info
+
+### Parser
+- [x] Import-aware extraction (all extractors resolve receiver variables from actual imports)
+- [x] DB tracking: Prisma, Supabase, Knex, TypeORM, pg, mysql2, drizzle + SQL/C#/Python schema parsing
+- [x] Infrastructure: Redis, queues (Bull/BullMQ/Bee-Queue), Kafka, metrics (Prometheus/OTel), tracing, WebSockets, cron
+- [x] Config: Docker, CI/CD, Terraform, CloudFormation, OpenAPI, GraphQL schemas, dependencies, dotenv
+- [x] Security: secret detection, feature flags, env var tracking
+- [x] Python runtime: Redis, Celery, Prometheus, OTel, brokers
+
+### Visualization
+- [x] 2D graph (Cytoscape.js) + 3D graph (Three.js / 3d-force-graph)
+- [x] Search with focused navigation (ranked results, next/prev)
+- [x] Filter panel, layout selector, stats panel
+- [x] Dark theme, project selector
+
+### Quality
+- [x] Dead code detection (import-aware, excludes class methods, barrel re-exports)
+- [x] God file / god object detection
+- [x] Duplicate code detection (bodyHash)
+- [x] Architecture rules engine (9 built-in + custom Cypher via `.nomik/rules.yaml`)
+- [x] PR impact analysis with risk scoring
+- [x] GitHub bot for PR auto-comments
+- [x] CI pipeline (`nomik ci`)
+- [x] Health badges for README
+
+## Next — Q2 2026
+
+| Feature | Priority | Impact |
 |---|---|---|
-| 1 | Monorepo scaffold + `@nomik/core` types | `pnpm build` passes, types exported |
-| 2 | `@nomik/parser` — Tree-sitter TS extraction | Parse a real project, output JSON symbols |
-| 3 | `@nomik/graph` — Neo4j driver + schema | Symbols written to Neo4j, Cypher queries work |
-| 4 | `@nomik/cli` — `nomik init`, `scan`, `query` | End-to-end: `nomik scan ./myproject && nomik query "MATCH..."` |
+| **Go language support** | HIGH | Cloud/infrastructure (K8s, microservices) |
+| **C# / .NET language support** | HIGH | Enterprise (banks, insurance, government) |
+| **Multi-repo federated graph** | HIGH | Enterprise multi-service architectures |
+| **Graph time-travel** (per-commit snapshots) | HIGH | Architecture drift over time |
 
-### Key Milestones
-- [x] `nomik scan` successfully parses 10K+ line TypeScript project
-- [x] Neo4j browser shows nodes and edges with correct relationships
-- [x] `nomik query` returns impact analysis results
-- [x] Docker Compose one-command setup works
+## Future — Q3+ 2026
 
----
-
-## Phase 2: Intelligence (Weeks 5-8) — "The Brain Learns"
-
-### Goal: MCP server working in Cursor + file watcher for live updates
-
-| Week | Deliverable | Exit Criteria |
-|---|---|---|
-| 5 | `@nomik/mcp-server` — basic MCP tools | Cursor connects, `nm_search` works |
-| 6 | MCP tools: impact analysis, dependency trace | Cursor answers "What breaks if I change X?" |
-| 7 | `@nomik/watcher` — incremental updates | Save a file → graph updates in <2s |
-| 8 | Integration testing + polish | Stable 30-minute Cursor session without errors |
-
-### Key Milestones
-- [x] Cursor IDE connects to NOMIK MCP server
-- [x] AI answers graph-powered questions accurately
-- [x] File changes reflected in graph within 2 seconds
-- [ ] Zero crashes during extended development sessions
-
----
-
-## Phase 3: Visualization (Weeks 9-12) — "See the DNA"
-
-### Goal: Three.js / Cytoscape.js dashboard shows live graph, highlight impacts
-
-| Week | Deliverable | Exit Criteria |
-|---|---|---|
-| 9 | `@nomik/viz` — force-directed graph rendering | Dashboard shows all nodes/edges from Neo4j |
-| 10 | Interactive features: search, filter, zoom | Find a function, see its neighborhood |
-| 11 | Impact overlay: highlight affected nodes | Click a function → red glow on impacted paths |
-| 12 | Polish, dark theme, export, demo recording | Production-quality demo for pitching |
-
-### Key Milestones
-- [x] Dashboard loads graph in <3s for 10K-line project
-- [x] God Object detection visually highlights problem areas
-- [x] Impact analysis highlighted paths are correct
-- [ ] Demo recording ready for investor/customer pitch
-
----
-
-## Phase 4: Production Hardening (Weeks 13-16) — "Battle Ready"
-
-### Goal: Error handling, performance, documentation, packaging
-
-| Week | Deliverable | Exit Criteria |
-|---|---|---|
-| 13 | Error handling, retry logic, graceful degradation | No crashes on malformed files |
-| 14 | Performance: batch processing, caching | 100K-line project scans in <60s |
-| 15 | Documentation: README, guides, examples | New user can setup in <10 minutes |
-| 16 | npm packaging, `npx nomik init` works | `npx @nomik/cli init` scaffolds project |
-
----
-
-## Non-MVP (Post-Launch Backlog)
-
-### Completed
-
-| Feature | Priority | Status |
-|---|---|---|
-| Python language support | HIGH | **DONE** |
-| Rust language support | HIGH | **DONE** |
-| Multi-project isolation (projectId) | HIGH | **DONE** |
-| Health score 100% (0 dead code, 0 god objects) | HIGH | **DONE** |
-| Rebrand GENOME → NOMIK | HIGH | **DONE** |
-| Parser modularization (1369→481 lines) | HIGH | **DONE** |
-| God file detection (`nm_health`) | HIGH | **DONE** |
-| API tracking (dynamic, import-aware) | HIGH | **DONE** |
-| DB tracking (Prisma/Supabase/Knex, import-aware) | HIGH | **DONE** |
-| Content hashing (`bodyHash`) + duplicate detection | MEDIUM | **DONE** |
-| API extractor tests (17 tests) | HIGH | **DONE** |
-| DB extractor tests (24 tests) + schema parser tests (3) | HIGH | **DONE** |
-| Dead code audit + parser hardening (144 tests, 14 files) | HIGH | **DONE** |
-| PR Impact Analyzer (`nomik pr-impact`) | HIGH | **DONE** |
-| Env var tracking (`EnvVarNode` + `USES_ENV` edges) | HIGH | **DONE** |
-| Event/message bus tracking (`EventNode` + `EMITS`/`LISTENS_TO` edges) | HIGH | **DONE** |
-| Audit accuracy fixes: lineCount, MCP project isolation, DB chain classification, route handler names, duplicate FP filter | HIGH | **DONE** |
-
-### Planned Roadmap (Q1–Q3 2026)
-
-| Timeline | Feature | Priority | Status | Impact |
-|---|---|---|---|---|
-| **Q1 2026** | Database Tracking (SQL/Prisma/TypeORM/EF migrations) | 🔥 CRITICAL | **Done** | Prisma/Supabase/Knex + TypeORM detection, SQL/C# migration parser, `DBTable` + `DBColumn` nodes, `nm_db_impact` tool |
-| **Q2 2026** | C# / .NET Language Support | HIGH | Not started | Opens Fortune 500 (banks, insurance, government) |
-| **Q2 2026** | Go Language Support | HIGH | Not started | Cloud/infra visibility (K8s operators, microservices) |
-| **Q2–2026** | PR Impact Analyzer | HIGH | **Done** | `nomik pr-impact --base <branch>`, git diff → changed symbol detection → graph blast-radius traversal → risk report (LOW/MEDIUM/HIGH). JSON output, CI/CD integration. |
-| **Q3–Q4 2026** | Logic Intent Parser | MEDIUM | Not started | Proprietary moat — business logic understanding |
-
-### Enterprise Backlog
-
-| Feature | Priority | Status |
-|---|---|---|
-| Cross-language edge resolution | HIGH | Not started |
-| Graph time-travel (per-commit snapshots) | MEDIUM | Not started |
-| Observability integration (OpenTelemetry) | HIGH | Not started |
-| Infrastructure tracking (Terraform/K8s) | MEDIUM | Not started |
-| Cross-project duplicate detection | MEDIUM | **Done** — `bodyHash` on FunctionNode/ClassNode, `findDuplicates` query, `includeDuplicates` in `nm_health` |
-| Multi-repo federated graph | HIGH | Not started |
-| RBAC + multi-tenancy | HIGH | Not started |
-| SSO (OIDC/SAML) | MEDIUM | Not started |
-| Cloud-hosted SaaS offering | HIGH | Not started |
-| Business logic linking (Jira/ADRs) | MEDIUM | Not started |
+| Feature | Priority |
+|---|---|
+| Java language support | HIGH |
+| RBAC + SSO (enterprise) | HIGH |
+| Cloud-hosted SaaS | HIGH |
+| Business logic / ADR parsing | MEDIUM |
+| Prometheus metrics exporter | MEDIUM |
+| Cross-language edge resolution | MEDIUM |
+| VS Code extension | HIGH |

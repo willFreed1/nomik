@@ -1,139 +1,102 @@
-# NOMIK — Security Architecture
+# NOMIK — Security
 
 ## Threat Model
 
-NOMIK operates as a **local sidecar** — it never touches production systems directly. However, it processes and stores sensitive information about your codebase, making security non-negotiable.
+NOMIK operates as a **local sidecar** — it never touches production systems. It stores metadata about your codebase, not source code.
 
 | Threat | Risk | Mitigation |
 |---|---|---|
-| Graph DB exposed to network | HIGH | Bind to `127.0.0.1` only, Docker network isolation |
-| Credentials in config files | HIGH | Environment variables, `.env` files in `.gitignore` |
-| MCP server accepts arbitrary queries | MEDIUM | Input validation, parameterized Cypher (no injection) |
-| Source code stored in graph | MEDIUM | Graph stores metadata only, not raw source code |
-| Viz dashboard exposes architecture | LOW | Localhost-only by default, optional auth for remote |
-| Dependency supply chain | MEDIUM | Lockfile pinning, `pnpm audit`, Snyk/Socket integration |
+| Graph DB exposed to network | HIGH | Bind to `127.0.0.1` only, Docker isolation |
+| Credentials in config files | HIGH | Environment variables, `.env` in `.gitignore` |
+| Cypher injection via MCP | MEDIUM | Parameterized queries only (no string concatenation) |
+| Source code in graph | NONE | Graph stores metadata only — names, paths, line numbers, relationships |
+| Viz dashboard access | LOW | Localhost-only by default |
+| Dependency supply chain | MEDIUM | `nomik audit` with blast radius, lockfile pinning |
 
-## Security Rules (Non-Negotiable)
+## Security Principles
 
 ### 1. No Raw Source Code in the Graph
-The graph stores **metadata** — function names, file paths, line numbers, relationships. It does **NOT** store raw source code. This means:
-- A stolen graph DB reveals architecture, not implementation
-- Compliance-friendly (no PII/secrets in the graph)
+
+The graph stores **metadata** — function names, file paths, line numbers, relationships. A stolen graph DB reveals architecture topology, not implementation details. Compliance-friendly (no PII/secrets stored).
 
 ### 2. Parameterized Cypher Only
-Every graph query MUST use parameters. Never concatenate user input into Cypher strings.
+
+All graph queries use parameters. No string concatenation in Cypher.
 
 ```typescript
-// ✅ CORRECT — Parameterized
-async function findNode(name: string) {
-  return session.run(
-    'MATCH (n:Function {name: $name}) RETURN n',
-    { name }
-  );
-}
+// Correct — parameterized
+session.run('MATCH (n:Function {name: $name}) RETURN n', { name });
 
-// ❌ NEVER — SQL/Cypher injection risk
-async function findNode(name: string) {
-  return session.run(`MATCH (n:Function {name: '${name}'}) RETURN n`);
-}
+// Never — injection risk
+session.run(`MATCH (n:Function {name: '${name}'}) RETURN n`);
 ```
 
 ### 3. Network Isolation
 
 ```yaml
-# docker-compose.yml — security hardening
+# docker-compose.yml
 services:
   neo4j:
     ports:
-      - "127.0.0.1:7474:7474"    # Bind to localhost ONLY
+      - "127.0.0.1:7474:7474"    # Localhost only
       - "127.0.0.1:7687:7687"    # No external access
 ```
 
-> **Note** : Sur Docker Desktop (Windows/macOS), `networks: internal: true` peut bloquer le port-forwarding host→container. Le binding `127.0.0.1` suffit pour empecher l'acces externe. Ne pas utiliser `internal: true` sur Docker Desktop.
+> On Docker Desktop (Windows/macOS), `networks: internal: true` can block host→container port-forwarding. The `127.0.0.1` binding is sufficient to prevent external access. Do not use `internal: true` on Docker Desktop.
 
 ### 4. Environment-Based Secrets
 
 ```bash
-# .env (NEVER committed to git)
+# .env (never committed)
 NOMIK_GRAPH_URI=bolt://localhost:7687
 NOMIK_GRAPH_USER=neo4j
-NOMIK_GRAPH_PASS=nomik_local_$(openssl rand -hex 8)
-NOMIK_MCP_SECRET=mcp_$(openssl rand -hex 16)
+NOMIK_GRAPH_PASS=nomik_local
 ```
 
-```gitignore
-# .gitignore
-.env
-.env.local
-.env.*.local
-```
+### 5. Role-Scoped MCP Access
 
-### 5. MCP Server Authentication (Phase 2)
+The `NOMIK_ROLE` environment variable restricts which MCP tools are exposed:
 
-For remote MCP access (SSE/HTTP transport), implement token-based auth:
+| Role | Access Level |
+|---|---|
+| `dev` | All 21 tools (default) |
+| `architect` | Architecture tools only |
+| `security` | Security/audit tools only |
+| `pm` | Stats/reporting tools only |
 
-```typescript
-// MCP server middleware (Phase 2)
-const server = new McpServer({
-  authenticate: async (request) => {
-    const token = request.headers['x-nomik-token'];
-    if (!token || !verifyToken(token)) {
-      throw new McpError('Unauthorized', 401);
-    }
-  },
-});
-```
+### 6. Built-in Security Tooling
 
-### 6. Audit Logging
+| Tool | Description |
+|---|---|
+| `nomik audit` | Dependency vulnerability check with graph blast radius |
+| `nomik guard` | Quality gate with secret detection |
+| `nomik rules` | Architecture rules including `maxSecurityIssues` |
+| `nomik ci` | Unified pipeline: scan → rules → guard → audit |
+| Secret detection | Parser detects hardcoded secrets in source code |
 
-Every graph mutation is logged with timestamp, source, and actor:
-
-```typescript
-interface AuditEntry {
-  timestamp: string;      // ISO 8601
-  action: 'CREATE' | 'UPDATE' | 'DELETE';
-  nodeType: string;
-  nodeId: string;
-  source: 'parser' | 'watcher' | 'mcp' | 'manual';
-  details?: Record<string, unknown>;
-}
-```
-
-### 7. Dependency Security
-
-```json
-// package.json — security scripts
-{
-  "scripts": {
-    "security:audit": "pnpm audit --audit-level=high",
-    "security:licenses": "license-checker --failOn 'GPL-3.0'",
-    "security:lockfile": "lockfile-lint --path pnpm-lock.yaml --type npm --allowed-hosts npm"
-  }
-}
-```
-
-## RBAC Model (Phase 2 — Multi-Tenant)
-
-| Role | Read Graph | Write Graph | Run MCP Tools | Admin |
-|---|---|---|---|---|
-| `viewer` | ✅ | ❌ | ❌ | ❌ |
-| `developer` | ✅ | ❌ | ✅ | ❌ |
-| `maintainer` | ✅ | ✅ | ✅ | ❌ |
-| `admin` | ✅ | ✅ | ✅ | ✅ |
-
-## Automated Security Pipeline
+### 7. CI Integration
 
 ```yaml
 # .github/workflows/security.yml
-name: Security
+name: NOMIK Security
 on: [push, pull_request]
 jobs:
-  audit:
+  check:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v4
       - run: pnpm install --frozen-lockfile
-      - run: pnpm security:audit
-      - run: pnpm security:licenses
+      - run: pnpm build
+      - run: docker compose up -d neo4j && sleep 5
+      - run: pnpm nomik ci --skip-scan
 ```
+
+## Future: RBAC + Multi-Tenant (Enterprise)
+
+| Role | Read | Write | MCP Tools | Admin |
+|---|---|---|---|---|
+| `viewer` | Yes | No | No | No |
+| `developer` | Yes | No | Yes | No |
+| `maintainer` | Yes | Yes | Yes | No |
+| `admin` | Yes | Yes | Yes | Yes |
