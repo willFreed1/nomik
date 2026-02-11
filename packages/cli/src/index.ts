@@ -27,6 +27,9 @@ import { setupClaudeCommand } from './commands/setup-claude.js';
 import { rulesCommand } from './commands/rules.js';
 import { testImpactCommand } from './commands/test-impact.js';
 import { auditCommand } from './commands/audit.js';
+import { migrateCommand } from './commands/migrate.js';
+import { dashboardCommand } from './commands/dashboard.js';
+import { changelogCommand } from './commands/changelog.js';
 
 const program = new Command();
 
@@ -63,5 +66,8 @@ program.addCommand(setupClaudeCommand);
 program.addCommand(rulesCommand);
 program.addCommand(testImpactCommand);
 program.addCommand(auditCommand);
+program.addCommand(migrateCommand);
+program.addCommand(dashboardCommand);
+program.addCommand(changelogCommand);
 
 program.parse();

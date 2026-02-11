@@ -6,6 +6,8 @@ import { loadConfigFromEnv, createLogger, setLogger, type LogConfig } from '@nom
 import { handleListResources, handleReadResource } from './resources';
 import { handleCallTool, handleListTools } from './tools';
 import { handleListPrompts, handleGetPrompt } from './prompts';
+import { filterToolsByRole, filterPromptsByRole, filterResourcesByRole, getRole } from './roles';
+import { initSampling, isSamplingEnabled } from './sampling';
 
 const logLevel = (process.env.LOG_LEVEL as LogConfig['level']) || 'info';
 const logger = createLogger({ level: logLevel, pretty: false }, process.stderr);
@@ -59,9 +61,14 @@ async function main() {
         }
     );
 
+    initSampling(server);
+    const role = getRole();
+    const samplingEnabled = isSamplingEnabled();
+    logger.info({ role, sampling: samplingEnabled }, 'MCP role scope');
+
     // Resources
     server.setRequestHandler(ListResourcesRequestSchema, async () => ({
-        resources: await handleListResources(graph),
+        resources: filterResourcesByRole(await handleListResources(graph), role),
     }));
 
     server.setRequestHandler(ReadResourceRequestSchema, async (request) => ({
@@ -70,7 +77,7 @@ async function main() {
 
     // Tools
     server.setRequestHandler(ListToolsRequestSchema, async () => ({
-        tools: await handleListTools(),
+        tools: filterToolsByRole(await handleListTools(), role),
     }));
 
     server.setRequestHandler(CallToolRequestSchema, async (request) => ({
@@ -79,7 +86,7 @@ async function main() {
 
     // Prompts
     server.setRequestHandler(ListPromptsRequestSchema, async () => ({
-        prompts: handleListPrompts(),
+        prompts: filterPromptsByRole(handleListPrompts(), role),
     }));
 
     server.setRequestHandler(GetPromptRequestSchema, async (request) => {

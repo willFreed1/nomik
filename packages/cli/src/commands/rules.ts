@@ -3,6 +3,7 @@ import { loadConfigFromEnv, validateConfig } from '@nomik/core';
 import { createGraphService } from '@nomik/graph';
 import type { RulesConfig } from '@nomik/graph';
 import { readProjectConfig } from '../utils/project-config.js';
+import { loadRulesConfig, createDefaultRulesConfig } from '../utils/rules-config.js';
 
 export const rulesCommand = new Command('rules')
     .description('Evaluate architecture rules against the knowledge graph')
@@ -18,7 +19,14 @@ export const rulesCommand = new Command('rules')
     .option('--project <name>', 'Project name')
     .option('--json', 'Output raw JSON')
     .option('--ci', 'Exit 1 on any error-severity rule failure')
+    .option('--init', 'Create a default .nomik/rules.yaml config file')
     .action(async (opts) => {
+        if (opts.init) {
+            const filePath = createDefaultRulesConfig();
+            console.log(`\n  \x1b[32m\u2713\x1b[0m Created ${filePath}\n`);
+            return;
+        }
+
         const envConfig = loadConfigFromEnv();
         const config = validateConfig({ ...envConfig, target: { root: '.' } });
         const local = readProjectConfig();
@@ -28,16 +36,18 @@ export const rulesCommand = new Command('rules')
         try {
             await graph.connect();
 
+            // Load from .nomik/rules.yaml first, then override with CLI flags
+            const yamlConfig = loadRulesConfig() ?? {};
             const rulesConfig: RulesConfig = {
-                maxDeadCode: Number(opts.maxDeadCode),
-                maxGodFiles: Number(opts.maxGodFiles),
-                maxDuplicates: Number(opts.maxDuplicates),
-                maxFunctionCallers: Number(opts.maxFunctionCallers),
-                maxDbWritesPerRoute: Number(opts.maxDbWritesPerRoute),
-                maxFunctionLines: Number(opts.maxFunctionLines),
-                maxFileLines: Number(opts.maxFileLines),
-                maxSecurityIssues: Number(opts.maxSecurityIssues),
-                noCircularImports: opts.circularImports !== false,
+                maxDeadCode: Number(opts.maxDeadCode) || yamlConfig.maxDeadCode,
+                maxGodFiles: Number(opts.maxGodFiles) || yamlConfig.maxGodFiles,
+                maxDuplicates: Number(opts.maxDuplicates) || yamlConfig.maxDuplicates,
+                maxFunctionCallers: Number(opts.maxFunctionCallers) || yamlConfig.maxFunctionCallers,
+                maxDbWritesPerRoute: Number(opts.maxDbWritesPerRoute) || yamlConfig.maxDbWritesPerRoute,
+                maxFunctionLines: Number(opts.maxFunctionLines) || yamlConfig.maxFunctionLines,
+                maxFileLines: Number(opts.maxFileLines) || yamlConfig.maxFileLines,
+                maxSecurityIssues: Number(opts.maxSecurityIssues) ?? yamlConfig.maxSecurityIssues,
+                noCircularImports: yamlConfig.noCircularImports ?? (opts.circularImports !== false),
             };
 
             const result = await graph.evaluateRules(rulesConfig, projectId);

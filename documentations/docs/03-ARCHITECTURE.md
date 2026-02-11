@@ -219,6 +219,9 @@ nomik/
 │       │   │   ├── rules.ts           # nomik rules — architecture rules engine
 │       │   │   ├── test-impact.ts     # nomik test-impact — affected test finder
 │       │   │   ├── audit.ts           # nomik audit — dependency vulnerability check
+│       │   │   ├── migrate.ts         # nomik migrate — guided migration plan
+│       │   │   ├── dashboard.ts       # nomik dashboard — REST API (port 4242)
+│       │   │   ├── changelog.ts       # nomik changelog — auto-generate changelog
 │       │   │   └── project.ts         # nomik project list/create/
 │       │   │                          # switch/delete/info
 │       │   ├── utils/

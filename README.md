@@ -337,12 +337,15 @@ Once connected, your AI assistant gets these tools automatically:
 - Cross-platform path resolution (Windows, macOS, Linux)
 - `--config-path <path>` to override target config file
 - Supports all 21 MCP tools out of the box (search, impact, context, health, wiki, flows, guard, rename, diff, rules, test-impact, audit, etc.)
+- Role-scoped filtering via `NOMIK_ROLE` env var (dev/architect/security/pm)
 
 ### Claude Desktop MCP Setup (`nomik setup-claude`)
 - `nomik setup-claude` — auto-configure Claude Desktop's `claude_desktop_config.json`
 - Config path: `%APPDATA%\Claude\` (Windows), `~/Library/Application Support/Claude/` (macOS)
 - Same format as Cursor/Windsurf — uses `mcpServers` key
 - All 21 MCP tools + 9 resources + 6 prompts available after restart
+- Role-scoped filtering via `NOMIK_ROLE` env var
+- MCP Sampling support via `NOMIK_SAMPLING=true`
 
 ### Health Badges (`nomik badge`)
 - `nomik badge` — generate shields.io badges for README
@@ -385,8 +388,12 @@ nomik guard                   # Quality gate (CI/pre-commit)
 nomik rename <old> <new>      # Graph-aware symbol rename
 nomik scan:incremental <path> # Incremental scan (git diff-based)
 nomik rules                   # Architecture rules engine (9 rules)
+nomik rules --init            # Create default .nomik/rules.yaml
 nomik test-impact <symbol>    # Find affected tests after a change
 nomik audit                   # Dependency vulnerability check + blast radius
+nomik migrate <symbol>        # Guided migration plan
+nomik dashboard               # REST API for Grafana/external tools (port 4242)
+nomik changelog               # Auto-generate changelog from graph changes
 nomik serve                   # Start MCP server + viz dashboard
 nomik project list            # List all projects in Neo4j
 nomik project create <name>   # Create a new project
