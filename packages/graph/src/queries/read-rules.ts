@@ -21,6 +21,14 @@ export interface RuleResult {
     violations: RuleViolation[];
 }
 
+export interface CustomRule {
+    name: string;
+    description?: string;
+    severity?: RuleSeverity;
+    cypher: string;
+    maxResults?: number;
+}
+
 export interface RulesConfig {
     maxDeadCode?: number;
     maxGodFiles?: number;
@@ -33,6 +41,7 @@ export interface RulesConfig {
     maxFileLines?: number;
     requireEnvVarDefaults?: boolean;
     maxSecurityIssues?: number;
+    customRules?: CustomRule[];
 }
 
 const DEFAULT_RULES: Required<RulesConfig> = {
@@ -47,6 +56,7 @@ const DEFAULT_RULES: Required<RulesConfig> = {
     maxFileLines: 1000,
     requireEnvVarDefaults: false,
     maxSecurityIssues: 0,
+    customRules: [],
 };
 
 // ── Rule evaluation ─────────────────────────────────────────────────
@@ -272,6 +282,50 @@ export async function evaluateRules(
             detail: `${s.severity} / ${s.category}`,
         })),
     });
+
+    // Custom Cypher rules
+    if (rules.customRules && rules.customRules.length > 0) {
+        for (const custom of rules.customRules) {
+            const severity: RuleSeverity = custom.severity ?? 'warning';
+            const maxAllowed = custom.maxResults ?? 0;
+            try {
+                const rows = await driver.runQuery<Record<string, unknown>>(
+                    custom.cypher,
+                    { projectId },
+                );
+                const passed = rows.length <= maxAllowed;
+                results.push({
+                    rule: `custom:${custom.name}`,
+                    severity,
+                    description: custom.description ?? custom.name,
+                    passed,
+                    violations: rows.slice(0, 20).map(row => {
+                        const name = String(row.name ?? row.filePath ?? row.node ?? '');
+                        const filePath = row.filePath ? String(row.filePath) : undefined;
+                        return {
+                            rule: `custom:${custom.name}`,
+                            severity,
+                            message: name || JSON.stringify(row),
+                            node: name || undefined,
+                            filePath,
+                        };
+                    }),
+                });
+            } catch (err) {
+                results.push({
+                    rule: `custom:${custom.name}`,
+                    severity: 'error',
+                    description: `Custom rule failed: ${err instanceof Error ? err.message : String(err)}`,
+                    passed: false,
+                    violations: [{
+                        rule: `custom:${custom.name}`,
+                        severity: 'error',
+                        message: `Cypher error: ${err instanceof Error ? err.message : String(err)}`,
+                    }],
+                });
+            }
+        }
+    }
 
     // Summary
     const errors = results.filter(r => !r.passed && r.severity === 'error').length;

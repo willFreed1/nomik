@@ -473,7 +473,7 @@ export type { ServiceLink, ExplainResult } from './read-explain.js';
 
 // Architecture rules engine split to read-rules.ts
 export { evaluateRules } from './read-rules.js';
-export type { RulesConfig, RuleResult, RuleViolation, RuleSeverity } from './read-rules.js';
+export type { RulesConfig, RuleResult, RuleViolation, RuleSeverity, CustomRule } from './read-rules.js';
 
 // Test impact analysis split to read-test-impact.ts
 export { findTestImpact, findTestImpactForFiles } from './read-test-impact.js';

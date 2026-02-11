@@ -30,6 +30,8 @@ import { auditCommand } from './commands/audit.js';
 import { migrateCommand } from './commands/migrate.js';
 import { dashboardCommand } from './commands/dashboard.js';
 import { changelogCommand } from './commands/changelog.js';
+import { ciCommand } from './commands/ci.js';
+import { doctorCommand } from './commands/doctor.js';
 
 const program = new Command();
 
@@ -69,5 +71,7 @@ program.addCommand(auditCommand);
 program.addCommand(migrateCommand);
 program.addCommand(dashboardCommand);
 program.addCommand(changelogCommand);
+program.addCommand(ciCommand);
+program.addCommand(doctorCommand);
 
 program.parse();

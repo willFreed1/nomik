@@ -4,7 +4,7 @@ import type { ProjectNode } from '@nomik/core';
 
 const NOMIK_DIR = '.nomik';
 const PROJECT_FILE = 'project.json';
-/** Version actuelle du schema projet — incrementer lors de migrations futures */
+/** Current project schema version — increment for future migrations */
 export const PROJECT_CONFIG_VERSION = 1;
 
 export interface LocalProjectConfig {
@@ -14,12 +14,12 @@ export interface LocalProjectConfig {
     createdAt: string;
 }
 
-/** Chemin vers le fichier .nomik/project.json depuis le cwd */
+/** Path to .nomik/project.json from current working directory */
 function getConfigPath(cwd: string = process.cwd()): string {
     return path.join(cwd, NOMIK_DIR, PROJECT_FILE);
 }
 
-/** Lit la config projet locale (.nomik/project.json) */
+/** Read local project config (.nomik/project.json) */
 export function readProjectConfig(cwd?: string): LocalProjectConfig | null {
     const configPath = getConfigPath(cwd);
     if (!fs.existsSync(configPath)) return null;
@@ -31,7 +31,7 @@ export function readProjectConfig(cwd?: string): LocalProjectConfig | null {
     }
 }
 
-/** Ecrit la config projet locale (.nomik/project.json) */
+/** Write local project config (.nomik/project.json) */
 export function writeProjectConfig(config: LocalProjectConfig, cwd?: string): void {
     const dir = path.join(cwd ?? process.cwd(), NOMIK_DIR);
     if (!fs.existsSync(dir)) {
@@ -41,7 +41,7 @@ export function writeProjectConfig(config: LocalProjectConfig, cwd?: string): vo
     fs.writeFileSync(configPath, JSON.stringify(config, null, 2) + '\n', 'utf-8');
 }
 
-/** Genere un ProjectNode a partir d'un nom */
+/** Generate a ProjectNode from a name */
 export function createProjectNode(name: string, rootPath?: string): ProjectNode {
     const slug = name.toLowerCase().replace(/[^a-z0-9_-]/g, '-').replace(/-+/g, '-');
     return {
@@ -53,7 +53,7 @@ export function createProjectNode(name: string, rootPath?: string): ProjectNode 
     };
 }
 
-/** Deduit un nom de projet depuis le nom du repertoire courant */
+/** Derive a project name from the current directory name */
 export function defaultProjectName(cwd?: string): string {
     return path.basename(cwd ?? process.cwd());
 }
