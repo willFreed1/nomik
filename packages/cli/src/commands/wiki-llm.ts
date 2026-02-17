@@ -1,12 +1,17 @@
 // ────────────────────────────────────────────────────────────────────
 // LLM-Powered Wiki Generator
-// Hybrid approach: graph provides evidence, Claude writes documentation
+// Hybrid approach: graph provides evidence, LLM writes documentation
+// Supports: Anthropic (Claude), OpenAI (GPT), Google (Gemini)
 // ────────────────────────────────────────────────────────────────────
 
 import Anthropic from '@anthropic-ai/sdk';
+import OpenAI from 'openai';
+import { GoogleGenerativeAI } from '@google/generative-ai';
 import { writeFileSync, mkdirSync } from 'fs';
 import { join } from 'path';
 import type { GraphService } from '@nomik/graph';
+
+export type LLMProvider = 'anthropic' | 'openai' | 'gemini';
 
 // ── Types ────────────────────────────────────────────────────────────
 
@@ -209,23 +214,84 @@ function extractModule(filePath: string): string {
     return parts.slice(0, 2).join('/') || 'root';
 }
 
-// ── Claude API Integration ───────────────────────────────────────────
+// ── LLM Provider Abstraction ─────────────────────────────────────────
 
-async function callClaude(
-    client: Anthropic,
-    systemPrompt: string,
-    userPrompt: string,
-    model = 'claude-sonnet-4-20250514',
-): Promise<string> {
-    const response = await client.messages.create({
-        model,
-        max_tokens: 8192,
-        system: systemPrompt,
-        messages: [{ role: 'user', content: userPrompt }],
-    });
-    const block = response.content[0];
-    if (block && block.type === 'text') return block.text;
-    return '';
+interface LLMClient {
+    provider: LLMProvider;
+    call(systemPrompt: string, userPrompt: string): Promise<string>;
+}
+
+function createAnthropicClient(apiKey: string, model?: string): LLMClient {
+    const client = new Anthropic({ apiKey });
+    const m = model || 'claude-sonnet-4-20250514';
+    return {
+        provider: 'anthropic',
+        async call(systemPrompt, userPrompt) {
+            const response = await client.messages.create({
+                model: m, max_tokens: 8192, system: systemPrompt,
+                messages: [{ role: 'user', content: userPrompt }],
+            });
+            const block = response.content[0];
+            return (block && block.type === 'text') ? block.text : '';
+        },
+    };
+}
+
+function createOpenAIClient(apiKey: string, model?: string): LLMClient {
+    const client = new OpenAI({ apiKey });
+    const m = model || 'gpt-4o';
+    return {
+        provider: 'openai',
+        async call(systemPrompt, userPrompt) {
+            const response = await client.chat.completions.create({
+                model: m, max_tokens: 8192,
+                messages: [
+                    { role: 'system', content: systemPrompt },
+                    { role: 'user', content: userPrompt },
+                ],
+            });
+            return response.choices[0]?.message?.content || '';
+        },
+    };
+}
+
+function createGeminiClient(apiKey: string, model?: string): LLMClient {
+    const genAI = new GoogleGenerativeAI(apiKey);
+    const m = model || 'gemini-2.0-flash';
+    return {
+        provider: 'gemini',
+        async call(systemPrompt, userPrompt) {
+            const gModel = genAI.getGenerativeModel({ model: m, systemInstruction: systemPrompt });
+            const result = await gModel.generateContent(userPrompt);
+            return result.response.text();
+        },
+    };
+}
+
+function detectProvider(apiKey?: string, provider?: LLMProvider): { llm: LLMClient; providerName: string } {
+    // Explicit provider
+    if (provider === 'anthropic' || (!provider && (apiKey || process.env.ANTHROPIC_API_KEY))) {
+        const key = apiKey || process.env.ANTHROPIC_API_KEY;
+        if (!key) throw new Error('ANTHROPIC_API_KEY not set.');
+        return { llm: createAnthropicClient(key), providerName: 'Anthropic (Claude)' };
+    }
+    if (provider === 'openai' || (!provider && process.env.OPENAI_API_KEY)) {
+        const key = apiKey || process.env.OPENAI_API_KEY;
+        if (!key) throw new Error('OPENAI_API_KEY not set.');
+        return { llm: createOpenAIClient(key), providerName: 'OpenAI (GPT-4o)' };
+    }
+    if (provider === 'gemini' || (!provider && process.env.GEMINI_API_KEY)) {
+        const key = apiKey || process.env.GEMINI_API_KEY;
+        if (!key) throw new Error('GEMINI_API_KEY not set.');
+        return { llm: createGeminiClient(key), providerName: 'Google (Gemini)' };
+    }
+    throw new Error(
+        'No LLM API key found. Set one of:\n' +
+        '  ANTHROPIC_API_KEY  (Claude)\n' +
+        '  OPENAI_API_KEY     (GPT-4o)\n' +
+        '  GEMINI_API_KEY     (Gemini)\n' +
+        'Or pass --api-key with --provider.'
+    );
 }
 
 // ── Prompt Templates ─────────────────────────────────────────────────
@@ -665,16 +731,9 @@ export async function generateLLMWiki(
     ctx: GraphContext,
     outDir: string,
     apiKey?: string,
+    provider?: LLMProvider,
 ): Promise<void> {
-    const key = apiKey || process.env.ANTHROPIC_API_KEY;
-    if (!key) {
-        throw new Error(
-            'ANTHROPIC_API_KEY not set. Set it as an environment variable or pass --api-key.\n' +
-            '  Get your key at: https://console.anthropic.com/settings/keys'
-        );
-    }
-
-    const client = new Anthropic({ apiKey: key });
+    const { llm, providerName } = detectProvider(apiKey, provider);
     const pages: WikiPage[] = [];
 
     // Create directories
@@ -692,53 +751,53 @@ export async function generateLLMWiki(
     writeFileSync(join(outDir, 'assets', 'nav.js'), getNavJS());
     console.log('  🎨 assets/style.css + nav.js');
 
-    // ── Generate pages via Claude ──
-    console.log('\n  📝 Generating pages with Claude...\n');
+    // ── Generate pages via LLM ──
+    console.log(`\n  📝 Generating pages with ${providerName}...\n`);
 
     // 1. Overview
     console.log('    → Overview...');
-    const overviewContent = await callClaude(client, SYSTEM_PROMPT, overviewPrompt(ctx));
+    const overviewContent = await llm.call(SYSTEM_PROMPT, overviewPrompt(ctx));
     pages.push({ id: 'overview', title: 'Overview', filename: 'index.html', content: overviewContent });
 
     // 2. Architecture
     console.log('    → Architecture...');
-    const archContent = await callClaude(client, SYSTEM_PROMPT, architecturePrompt(ctx));
+    const archContent = await llm.call(SYSTEM_PROMPT, architecturePrompt(ctx));
     pages.push({ id: 'architecture', title: 'Architecture', filename: 'architecture.html', content: archContent });
 
     // 3. API Reference (if routes exist)
-    const apiPrompt = apiReferencePrompt(ctx);
-    if (apiPrompt) {
+    const apiPromptStr = apiReferencePrompt(ctx);
+    if (apiPromptStr) {
         console.log('    → API Reference...');
-        const apiContent = await callClaude(client, SYSTEM_PROMPT, apiPrompt);
+        const apiContent = await llm.call(SYSTEM_PROMPT, apiPromptStr);
         pages.push({ id: 'api', title: 'API Reference', filename: 'api-reference.html', content: apiContent });
     }
 
     // 4. Database (if DB ops exist)
-    const dbPrompt = databasePrompt(ctx);
-    if (dbPrompt) {
+    const dbPromptStr = databasePrompt(ctx);
+    if (dbPromptStr) {
         console.log('    → Database...');
-        const dbContent = await callClaude(client, SYSTEM_PROMPT, dbPrompt);
+        const dbContent = await llm.call(SYSTEM_PROMPT, dbPromptStr);
         pages.push({ id: 'database', title: 'Database', filename: 'database.html', content: dbContent });
     }
 
     // 5. Configuration (if env vars exist)
-    const cfgPrompt = configurationPrompt(ctx);
-    if (cfgPrompt) {
+    const cfgPromptStr = configurationPrompt(ctx);
+    if (cfgPromptStr) {
         console.log('    → Configuration...');
-        const cfgContent = await callClaude(client, SYSTEM_PROMPT, cfgPrompt);
+        const cfgContent = await llm.call(SYSTEM_PROMPT, cfgPromptStr);
         pages.push({ id: 'config', title: 'Configuration', filename: 'configuration.html', content: cfgContent });
     }
 
     // 6. Health Report
     console.log('    → Health Report...');
-    const healthContent = await callClaude(client, SYSTEM_PROMPT, healthPrompt(ctx));
+    const healthContent = await llm.call(SYSTEM_PROMPT, healthPrompt(ctx));
     pages.push({ id: 'health', title: 'Health Report', filename: 'health.html', content: healthContent });
 
     // 7. Module pages
     for (const mod of ctx.modules) {
         const modFilename = `modules/${sanitizeFilename(mod.name)}.html`;
         console.log(`    → Module: ${mod.name}...`);
-        const modContent = await callClaude(client, SYSTEM_PROMPT, modulePrompt(ctx, mod));
+        const modContent = await llm.call(SYSTEM_PROMPT, modulePrompt(ctx, mod));
         pages.push({ id: `mod-${sanitizeFilename(mod.name)}`, title: mod.name, filename: modFilename, content: modContent, parent: 'modules' });
     }
 

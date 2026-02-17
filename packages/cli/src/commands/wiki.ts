@@ -5,7 +5,7 @@ import { readProjectConfig } from '../utils/project-config.js';
 import { writeFileSync, mkdirSync } from 'fs';
 import { join } from 'path';
 import { generateHtmlWiki } from './wiki-html.js';
-import { extractGraphContext, generateLLMWiki } from './wiki-llm.js';
+import { extractGraphContext, generateLLMWiki, type LLMProvider } from './wiki-llm.js';
 
 // ────────────────────────────────────────────────────────────────────
 // Types for wiki data
@@ -106,9 +106,10 @@ export const wikiCommand = new Command('wiki')
     .option('--json', 'Output as JSON instead of markdown files')
     .option('--no-modules', 'Skip per-module detail pages')
     .option('--html', 'Generate a single self-contained HTML documentation site')
-    .option('--generate', 'Generate LLM-powered documentation wiki (requires ANTHROPIC_API_KEY)')
-    .option('--api-key <key>', 'Anthropic API key (or set ANTHROPIC_API_KEY env var)')
-    .action(async (opts: { out: string; json?: boolean; modules?: boolean; html?: boolean; generate?: boolean; apiKey?: string }) => {
+    .option('--generate', 'Generate LLM-powered documentation wiki')
+    .option('--provider <name>', 'LLM provider: anthropic, openai, or gemini (auto-detected from env vars)')
+    .option('--api-key <key>', 'API key for the LLM provider (or set ANTHROPIC_API_KEY / OPENAI_API_KEY / GEMINI_API_KEY)')
+    .action(async (opts: { out: string; json?: boolean; modules?: boolean; html?: boolean; generate?: boolean; provider?: string; apiKey?: string }) => {
         const envConfig = loadConfigFromEnv();
         const config = validateConfig({
             ...envConfig,
@@ -171,7 +172,7 @@ export const wikiCommand = new Command('wiki')
             if (opts.generate) {
                 console.log('  Extracting graph context...');
                 const ctx = await extractGraphContext(graph, projectId, projectName);
-                await generateLLMWiki(ctx, opts.out, opts.apiKey);
+                await generateLLMWiki(ctx, opts.out, opts.apiKey, opts.provider as LLMProvider | undefined);
                 return;
             }
 

@@ -41,11 +41,13 @@
     },
     "dependencies": {
         "@anthropic-ai/sdk": "^0.78.0",
+        "@google/generative-ai": "^0.24.1",
         "chalk": "^5.4.0",
         "chokidar": "^4.0.0",
         "commander": "^13.1.0",
         "glob": "^11.0.0",
         "neo4j-driver": "^5.12.0",
+        "openai": "^6.22.0",
         "ora": "^8.1.0",
         "pino": "^9.0.0",
         "pino-pretty": "^13.0.0",
