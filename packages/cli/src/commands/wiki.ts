@@ -5,6 +5,7 @@ import { readProjectConfig } from '../utils/project-config.js';
 import { writeFileSync, mkdirSync } from 'fs';
 import { join } from 'path';
 import { generateHtmlWiki } from './wiki-html.js';
+import { extractGraphContext, generateLLMWiki } from './wiki-llm.js';
 
 // ────────────────────────────────────────────────────────────────────
 // Types for wiki data
@@ -105,7 +106,9 @@ export const wikiCommand = new Command('wiki')
     .option('--json', 'Output as JSON instead of markdown files')
     .option('--no-modules', 'Skip per-module detail pages')
     .option('--html', 'Generate a single self-contained HTML documentation site')
-    .action(async (opts: { out: string; json?: boolean; modules?: boolean; html?: boolean }) => {
+    .option('--generate', 'Generate LLM-powered documentation wiki (requires ANTHROPIC_API_KEY)')
+    .option('--api-key <key>', 'Anthropic API key (or set ANTHROPIC_API_KEY env var)')
+    .action(async (opts: { out: string; json?: boolean; modules?: boolean; html?: boolean; generate?: boolean; apiKey?: string }) => {
         const envConfig = loadConfigFromEnv();
         const config = validateConfig({
             ...envConfig,
@@ -159,6 +162,16 @@ export const wikiCommand = new Command('wiki')
 
             if (opts.json) {
                 console.log(JSON.stringify({ project: projectName, stats, files, functions, deadCode, godFiles, duplicates, serviceLinks }, null, 2));
+                return;
+            }
+
+            // ═══════════════════════════════════════════════
+            // LLM-powered wiki generation
+            // ═══════════════════════════════════════════════
+            if (opts.generate) {
+                console.log('  Extracting graph context...');
+                const ctx = await extractGraphContext(graph, projectId, projectName);
+                await generateLLMWiki(ctx, opts.out, opts.apiKey);
                 return;
             }
 
