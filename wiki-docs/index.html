@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Overview — NOMIK Wiki</title>
+<link rel="stylesheet" href="assets/style.css">
+</head>
+<body>
+<aside class="sidebar">
+    <div class="sidebar-header">
+        <h1><a href="index.html" style="color:inherit;text-decoration:none">NOMIK</a></h1>
+        <div class="gen-info">Generated 2026-02-20</div>
+    </div>
+    <div class="sidebar-search">
+        <input type="text" id="search" placeholder="Search..." autocomplete="off" />
+    </div>
+    <nav class="sidebar-nav">
+        <a href="index.html" class="nav-link active">Overview</a>
+<a href="architecture.html" class="nav-link">Architecture</a>
+<a href="configuration.html" class="nav-link">Configuration</a>
+<a href="health.html" class="nav-link">Health Report</a>
+<div class="nav-group-title">MODULES</div>
+<a href="modules/c__users.html" class="nav-link nav-child">C:/Users</a>
+
+    </nav>
+</aside>
+<main class="main">
+    <h1>Overview</h1>
+<p>
+    NOMIK is a project analysis toolkit designed to process source code and represent its structure, dependencies, and relationships as a navigable graph. It helps developers understand large codebases by transforming static code into a dynamic, queryable graph database. The system primarily functions as a command-line interface (CLI) tool that parses project files, extracts relevant information, and persists it into a graph database like Neo4j.
+</p>
+
+<h2>Architecture Diagram</h2>
+<svg width="700" height="400" viewBox="0 0 700 400" xmlns="http://www.w3.org/2000/svg">
+    <!-- Define Arrowhead -->
+    <defs>
+        <marker id="arrowhead" markerWidth="10" markerHeight="7" refX="0" refY="3.5" orient="auto">
+            <polygon points="0 0, 10 3.5, 0 7" fill="#64748b" />
+        </marker>
+    </defs>
+
+    <!-- Nodes -->
+    <rect x="50" y="150" width="120" height="60" rx="10" ry="10" fill="#f8fafc" stroke="#334155" stroke-width="2" />
+    <text x="110" y="185" font-family="sans-serif" font-size="16" text-anchor="middle" fill="#334155">CLI</text>
+
+    <rect x="250" y="50" width="120" height="60" rx="10" ry="10" fill="#f8fafc" stroke="#334155" stroke-width="2" />
+    <text x="310" y="85" font-family="sans-serif" font-size="16" text-anchor="middle" fill="#334155">Core</text>
+
+    <rect x="250" y="250" width="120" height="60" rx="10" ry="10" fill="#f8fafc" stroke="#334155" stroke-width="2" />
+    <text x="310" y="285" font-family="sans-serif" font-size="16" text-anchor="middle" fill="#334155">Parser</text>
+
+    <rect x="450" y="150" width="120" height="60" rx="10" ry="10" fill="#f8fafc" stroke="#334155" stroke-width="2" />
+    <text x="510" y="185" font-family="sans-serif" font-size="16" text-anchor="middle" fill="#334155">Graph</text>
+
+    <rect x="620" y="150" width="60" height="60" rx="10" ry="10" fill="#f8fafc" stroke="#334155" stroke-width="2" />
+    <text x="650" y="185" font-family="sans-serif" font-size="14" text-anchor="middle" fill="#334155">Neo4j</text>
+
+    <!-- Arrows -->
+    <!-- CLI to Core (config, logging) -->
+    <path d="M170 180 Q210 130 250 80" stroke="#64748b" stroke-width="2" fill="none" marker-end="url(#arrowhead)" />
+    <text x="210" y="120" font-family="sans-serif" font-size="12" text-anchor="middle" fill="#64748b">Uses Config/Logger</text>
+
+    <!-- CLI to Parser (initiate parsing) -->
+    <path d="M170 180 Q210 230 250 280" stroke="#64748b" stroke-width="2" fill="none" marker-end="url(#arrowhead)" />
+    <text x="210" y="240" font-family="sans-serif" font-size="12" text-anchor="middle" fill="#64748b">Initiates</text>
+
+    <!-- Parser to Graph (parsed data) -->
+    <line x1="370" y1="280" x2="450" y2="195" stroke="#64748b" stroke-width="2" marker-end="url(#arrowhead)" />
+    <text x="410" y="250" font-family="sans-serif" font-size="12" text-anchor="middle" fill="#64748b">Sends Graph Data</text>
+
+    <!-- Graph to Neo4j (stores/queries) -->
+    <line x1="570" y1="180" x2="620" y2="180" stroke="#64748b" stroke-width="2" marker-end="url(#arrowhead)" />
+    <text x="595" y="170" font-family="sans-serif" font-size="12" text-anchor="middle" fill="#64748b">Persists/Queries</text>
+
+    <!-- Core to Parser, CLI, Graph (services) -->
+    <line x1="310" y1="110" x2="310" y2="250" stroke="#64748b" stroke-width="2" marker-end="url(#arrowhead)" />
+    <line x1="370" y1="80" x2="450" y2="165" stroke="#64748b" stroke-width="2" marker-end="url(#arrowhead)" />
+    <text x="360" y="120" font-family="sans-serif" font-size="12" text-anchor="middle" fill="#64748b">Provides Services</text>
+
+</svg>
+
+<h2>How It Works</h2>
+<p>
+    The NOMIK system operates by transforming source code into a structured graph representation. This process typically begins when a user invokes the command-line interface (CLI) to analyze a project. The <a href="modules/cli.html"><code>cli</code></a> module orchestrates the workflow, reading project configuration via the <a href="modules/core.html"><code>core</code></a> module, which handles environment variables and validation.
+</p>
+<p>
+    Once configured, the <a href="modules/cli.html"><code>cli</code></a> module delegates the parsing task to the <a href="modules/parser.html"><code>parser</code></a> module. The <a href="modules/parser.html"><code>parser</code></a> module traverses the project's source files, extracting abstract syntax tree (AST) information, function calls, variable usages, and other code elements. It generates unique node IDs for these elements, preparing them for graph representation.
+</p>
+<p>
+    The extracted data is then passed to the <a href="modules/graph.html"><code>graph</code></a> module. This module is responsible for connecting to the graph database (e.g., Neo4j, as indicated by <code>neo4j.driver.ts</code>), creating nodes and relationships based on the parsed data, and persisting them. The <a href="modules/graph.html"><code>graph</code></a> module encapsulates the database interactions, allowing for a decoupled data storage layer.
+</p>
+<p>
+    Throughout this process, the <a href="modules/core.html"><code>core</code></a> module provides fundamental utilities such as configuration loading, validation, and logging services, ensuring consistent behavior across all other modules.
+</p>
+
+<h2>Key Modules</h2>
+<ul>
+    <li>
+        <a href="modules/core.html"><code>core</code></a>: Provides foundational functionalities including configuration management, logging, and common utilities used throughout the system. It ensures consistent behavior and setup across different parts of NOMIK.
+    </li>
+    <li>
+        <a href="modules/cli.html"><code>cli</code></a>: The command-line interface module, responsible for user interaction, command parsing, and orchestrating the analysis workflow. It reads project configurations and initiates the parsing and graph generation process.
+    </li>
+    <li>
+        <a href="modules/parser.html"><code>parser</code></a>: This module is dedicated to static analysis of source code. It extracts structural information, identifies function calls, and generates raw data that can be transformed into a graph representation. Functions like <code>createNodeId</code> and <code>findEnclosingFunctionName</code> are central to its operation.
+    </li>
+    <li>
+        <a href="modules/graph.html"><code>graph</code></a>: Manages the interaction with the graph database. It's responsible for establishing connections (e.g., to Neo4j), translating parsed data into graph nodes and edges, and persisting them. Functions like <code>connect</code>, <code>disconnect</code>, and <code>createGraphService</code> are key.
+    </li>
+</ul>
+
+<h2>Key Functions</h2>
+<p>
+    Understanding these frequently called or critical functions will provide insight into the NOMIK system's core operations:
+</p>
+<ul>
+    <li>
+        <code>createNodeId</code> (<a href="C:\Users\GP78HX\Documents\GENOME\packages\parser\src\utils.ts"><code>parser/src/utils.ts</code></a>): A utility function within the <code>parser</code> module responsible for generating unique identifiers for nodes within the graph. This is crucial for ensuring data integrity and proper linking in the graph database.
+    </li>
+    <li>
+        <code>readProjectConfig</code> (<a href="C:\Users\GP78HX\Documents\GENOME\packages\cli\src\utils\project-config.ts"><code>cli/src/utils/project-config.ts</code></a>): Handles the loading of project-specific configuration. This function is vital for customizing NOMIK's behavior for different projects.
+    </li>
+    <li>
+        <code>connect</code> and <code>disconnect</code> (<a href="C:\Users\GP78HX\Documents\GENOME\packages\graph\src\drivers\neo4j.driver.ts"><code>graph/src/drivers/neo4j.driver.ts</code></a>): These functions manage the lifecycle of connections to the Neo4j graph database. They are fundamental for the <code>graph</code> module to store and retrieve data.
+    </li>
+    <li>
+        <code>createGraphService</code> (<a href="C:\Users\GP78HX\Documents\GENOME\packages\graph\src\graph.service.ts"><code>graph/src/graph.service.ts</code></a>): The primary entry point for interacting with the graph functionality. This function likely initializes and returns a service object that provides methods for graph manipulation.
+    </li>
+    <li>
+        <code>loadConfigFromEnv</code> and <code>validateConfig</code> (<a href="C:\Users\GP78HX\Documents\GENOME\packages\core\src\config\index.ts"><code>core/src/config/index.ts</code></a>): These functions in the <code>core</code> module are responsible for loading configuration settings from environment variables and ensuring their validity. This is essential for proper system startup and operation. See <a href="configuration.html">Configuration</a> for more details.
+    </li>
+    <li>
+        <code>findEnclosingFunctionName</code> (<a href="C:\Users\GP78HX\Documents\GENOME\packages\parser\src\extractors\ast-utils.ts"><code>parser/src/extractors/ast-utils.ts</code></a>): A utility within the <code>parser</code> module that helps determine the context of code elements by identifying the function they belong to.
+    </li>
+    <li>
+        <code>createLogger</code> (<a href="C:\Users\GP78HX\Documents\GENOME\packages\core\src\logger\index.ts"><code>core/src/logger/index.ts</code></a>): Initializes the logging system, providing a standardized way for all modules to emit informational, warning, and error messages.
+    </li>
+</ul>
+
+<h2>Technology Stack</h2>
+<p>
+    The NOMIK project is primarily built using TypeScript, leveraging its strong typing and modern features for robust development.
+</p>
+<ul>
+    <li><strong>Languages</strong>: TypeScript (79.3%), TSX (6.3%), JavaScript (1.1%), Markdown (13.2%).</li>
+    <li><strong>Core Framework/Libraries</strong>: The project structure suggests a custom-built solution with distinct modules for parsing, graph management, and CLI operations.</li>
+    <li><strong>Database</strong>: Implied use of <a href="database.html">Neo4j</a> as the graph database, based on the presence of <code>neo4j.driver.ts</code>.</li>
+    <li><strong>Configuration</strong>: Relies on environment variables for critical settings, including <code>NOMIK_PROJECT_ID</code>, <code>NOMIK_ROLE</code>, and <code>NOMIK_SAMPLING</code>. Refer to the <a href="configuration.html">Configuration</a> page for details on how to set these.</li>
+</ul>
+</main>
+<script src="assets/nav.js"></script>
+</body>
+</html>

@@ -1,0 +1,211 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Health Report — NOMIK Wiki</title>
+<link rel="stylesheet" href="assets/style.css">
+</head>
+<body>
+<aside class="sidebar">
+    <div class="sidebar-header">
+        <h1><a href="index.html" style="color:inherit;text-decoration:none">NOMIK</a></h1>
+        <div class="gen-info">Generated 2026-02-20</div>
+    </div>
+    <div class="sidebar-search">
+        <input type="text" id="search" placeholder="Search..." autocomplete="off" />
+    </div>
+    <nav class="sidebar-nav">
+        <a href="index.html" class="nav-link">Overview</a>
+<a href="architecture.html" class="nav-link">Architecture</a>
+<a href="configuration.html" class="nav-link">Configuration</a>
+<a href="health.html" class="nav-link active">Health Report</a>
+<div class="nav-group-title">MODULES</div>
+<a href="modules/c__users.html" class="nav-link nav-child">C:/Users</a>
+
+    </nav>
+</aside>
+<main class="main">
+    <h1>Health Report</h1>
+<p>
+This report provides an overview of the "NOMIK" codebase health, based on recent static analysis. Overall, the project demonstrates a healthy foundation with no detected dead code or duplicate functions, which is excellent for maintainability and avoiding wasted effort. The primary area for improvement identified is the presence of several "god files," which are modules containing a disproportionately large number of functions. Addressing these can significantly improve modularity, testability, and code readability.
+</p>
+
+<h2>Dead Code</h2>
+<p>
+Dead code refers to sections of a program that are never executed. While its presence doesn't directly cause runtime errors, it complicates maintenance, increases build times, and can lead to confusion for developers trying to understand the codebase. Removing dead code reduces the cognitive load and keeps the project lean.
+</p>
+<p>
+No dead code was detected in the "NOMIK" project at this time. This indicates efficient code management and a well-maintained codebase regarding unused functionality.
+</p>
+<table>
+    <thead>
+        <tr>
+            <th>Function Name</th>
+            <th>File Path</th>
+            <th>Recommendation</th>
+        </tr>
+    </thead>
+    <tbody>
+        <tr>
+            <td colspan="3">No dead code detected.</td>
+        </tr>
+    </tbody>
+</table>
+
+<h2>God Files</h2>
+<p>
+"God files" (or god objects/modules) are files that accumulate too much responsibility, often containing a large number of functions and significant lines of code. This anti-pattern can lead to several problems: increased coupling, reduced cohesion, difficulty in testing, and challenges in understanding and maintaining the code. Refactoring these files into smaller, more focused modules or classes can greatly enhance the project's architecture and developer experience.
+</p>
+<p>
+The following files have been identified as god files based on their high function count:
+</p>
+<table>
+    <thead>
+        <tr>
+            <th>File Path</th>
+            <th>Function Count</th>
+            <th>Line Count</th>
+            <th>Recommendation</th>
+        </tr>
+    </thead>
+    <tbody>
+        <tr>
+            <td><code>C:\Users\GP78HX\Documents\GENOME\packages\parser\src\extractors\db-operations.ts</code></td>
+            <td>17</td>
+            <td>630</td>
+            <td>
+                This file handles various database operations. Consider splitting it by the type of database operation (e.g., <code>create.ts</code>, <code>read.ts</code>, <code>update.ts</code>, <code>delete.ts</code>) or by the specific entity/schema they operate on. Extracting query building logic into a separate utility module could also be beneficial.
+            </td>
+        </tr>
+        <tr>
+            <td><code>C:\Users\GP78HX\Documents\GENOME\packages\graph\src\queries\write.ts</code></td>
+            <td>13</td>
+            <td>192</td>
+            <td>
+                Given its focus on graph write queries, this file could be refactored by separating concerns based on the type of graph element being written. For example, create <code>write-nodes.ts</code> and <code>write-relationships.ts</code> modules. Generic query building utilities could be moved to a shared <code>graph-query-utils.ts</code>.
+            </td>
+        </tr>
+        <tr>
+            <td><code>C:\Users\GP78HX\Documents\GENOME\packages\parser\src\extractors\calls.ts</code></td>
+            <td>12</td>
+            <td>487</td>
+            <td>
+                This extractor likely deals with identifying function calls. Consider if functionality can be grouped by language (if it supports multiple) or by the specific characteristics of the calls being extracted (e.g., external vs. internal calls, method calls vs. function calls). Creating dedicated sub-extractors for different call patterns might simplify this file.
+            </td>
+        </tr>
+        <tr>
+            <td><code>C:\Users\GP78HX\Documents\GENOME\packages\graph\src\drivers\neo4j.driver.ts</code></td>
+            <td>11</td>
+            <td>153</td>
+            <td>
+                As a Neo4j driver, this file might contain connection management, query execution, and result mapping. Consider extracting connection pool management into a separate service (e.g., <code>neo4j-connection-manager.ts</code>) and potentially separating generic query execution from specific data mapping logic.
+            </td>
+        </tr>
+        <tr>
+            <td><code>C:\Users\GP78HX\Documents\GENOME\packages\parser\src\extractors\classes.ts</code></td>
+            <td>11</td>
+            <td>202</td>
+            <td>
+                Similar to <code>calls.ts</code>, if this extractor handles classes from various languages, consider splitting it by language (e.g., <code>typescript-classes.ts</code>, <code>java-classes.ts</code>). If it's language-agnostic, perhaps it can be split by the type of class element being extracted (e.g., methods, properties, constructors).
+            </td>
+        </tr>
+        <tr>
+            <td><code>C:\Users\GP78HX\Documents\GENOME\packages\parser\src\extractors\rust.ts</code></td>
+            <td>11</td>
+            <td>265</td>
+            <td>
+                This file appears to be a Rust-specific extractor. Given its size, it could be refactored by extracting specific Rust AST node processing logic into dedicated sub-modules. For example, <code>rust-functions-extractor.ts</code>, <code>rust-structs-extractor.ts</code>, or <code>rust-impl-extractor.ts</code>.
+            </td>
+        </tr>
+        <tr>
+            <td><code>C:\Users\GP78HX\Documents\GENOME\packages\parser\src\resolvers\cross-file.ts</code></td>
+            <td>11</td>
+            <td>417</td>
+            <td>
+                Resolving cross-file references is a complex task. This file could benefit from splitting its responsibilities based on the type of entity being resolved (e.g., functions, classes, variables) or by the resolution strategy employed (e.g., import resolution, module path resolution). Create specific resolvers for distinct scenarios.
+            </td>
+        </tr>
+    </tbody>
+</table>
+
+<h2>Duplicate Functions</h2>
+<p>
+Duplicate functions are identical or near-identical blocks of code appearing in multiple places. This "copy-paste" programming leads to increased maintenance effort, as any bug fix or feature enhancement needs to be applied in all locations. It also inflates the codebase size and makes it harder to refactor. Consolidating duplicate logic into shared utility functions or modules is crucial for code health.
+</p>
+<p>
+No duplicate functions were detected in the "NOMIK" project. This is a significant strength, indicating that the development team effectively reuses code and adheres to the DRY (Don't Repeat Yourself) principle.
+</p>
+<table>
+    <thead>
+        <tr>
+            <th>Group ID</th>
+            <th>Original Function</th>
+            <th>Duplicate Functions</th>
+            <th>Recommendation</th>
+        </tr>
+    </thead>
+    <tbody>
+        <tr>
+            <td colspan="4">No duplicate functions detected.</td>
+        </tr>
+    </tbody>
+</table>
+
+<h2>Recommendations</h2>
+<p>
+Based on this health report, here are the prioritized recommendations for improving the "NOMIK" codebase:
+</p>
+<ol>
+    <li>
+        <h3>Address God Files</h3>
+        <p>
+            The most significant area for improvement is refactoring the identified "god files."
+            Prioritize the largest and most complex files first. Focus on:
+        </p>
+        <ul>
+            <li>
+                <strong>Module Splitting:</strong> Break down large files into smaller, more cohesive modules. Each new module should have a single, well-defined responsibility.
+            </li>
+            <li>
+                <strong>Responsibility Separation:</strong> Identify distinct concerns within a god file and extract them into separate functions, classes, or even dedicated modules.
+            </li>
+            <li>
+                <strong>Utility Extraction:</strong> Move common helper functions or generic logic into shared utility modules (e.g., <code>utils.ts</code>, <code>db-utils.ts</code>, <code>parser-helpers.ts</code>) to reduce duplication and improve reusability across the codebase.
+            </li>
+            <li>
+                <strong>Testing:</strong> As you refactor, ensure that new modules and functions are well-covered by unit tests. This will safeguard against introducing regressions and provide confidence in changes.
+            </li>
+        </ul>
+        <p>
+            Start with <a href="C:\Users\GP78HX\Documents\GENOME\packages\parser\src\extractors\db-operations.ts"><code>db-operations.ts</code></a> and <a href="C:\Users\GP78HX\Documents\GENOME\packages\parser\src\resolvers\cross-file.ts"><code>cross-file.ts</code></a> due to their high line and function counts.
+        </p>
+    </li>
+    <li>
+        <h3>Maintain Current Standards for Duplication and Dead Code</h3>
+        <p>
+            The project currently shows no signs of dead code or duplicate functions, which is excellent. Continue to enforce practices that prevent their introduction:
+        </p>
+        <ul>
+            <li>
+                <strong>Code Reviews:</strong> Maintain thorough code review processes to catch potential duplication or unused code before it's merged.
+            </li>
+            <li>
+                <strong>Static Analysis Tools:</strong> Continue using tools that identify dead code and duplication as part of your CI/CD pipeline.
+            </li>
+            <li>
+                <strong>Documentation:</strong> Keep <a href="contributing.html">Contributing Guidelines</a> updated with best practices for code reuse and removal of unused code.
+            </li>
+        </ul>
+    </li>
+    <li>
+        <h3>Regular Health Audits</h3>
+        <p>
+            Schedule regular health report generations to monitor progress on refactoring efforts and to identify new areas of concern as the codebase evolves. This proactive approach helps maintain code quality over the long term.
+        </p>
+    </li>
+</ol>
+</main>
+<script src="assets/nav.js"></script>
+</body>
+</html>

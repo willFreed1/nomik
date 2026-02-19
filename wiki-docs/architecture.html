@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Architecture — NOMIK Wiki</title>
+<link rel="stylesheet" href="assets/style.css">
+</head>
+<body>
+<aside class="sidebar">
+    <div class="sidebar-header">
+        <h1><a href="index.html" style="color:inherit;text-decoration:none">NOMIK</a></h1>
+        <div class="gen-info">Generated 2026-02-20</div>
+    </div>
+    <div class="sidebar-search">
+        <input type="text" id="search" placeholder="Search..." autocomplete="off" />
+    </div>
+    <nav class="sidebar-nav">
+        <a href="index.html" class="nav-link">Overview</a>
+<a href="architecture.html" class="nav-link active">Architecture</a>
+<a href="configuration.html" class="nav-link">Configuration</a>
+<a href="health.html" class="nav-link">Health Report</a>
+<div class="nav-group-title">MODULES</div>
+<a href="modules/c__users.html" class="nav-link nav-child">C:/Users</a>
+
+    </nav>
+</aside>
+<main class="main">
+    <h1>Architecture</h1>
+<p>NOMIK is designed as a monolithic application, leveraging a clear separation of concerns to manage complexity. This document provides an overview of the system's architecture, including its module structure, data flow, and the design patterns employed.</p>
+
+<h2 id="module-dependencies-diagram">Module Dependencies</h2>
+<p>The following diagram illustrates the high-level module structure of NOMIK. Currently, no explicit cross-module dependencies have been detected, indicating a highly decoupled internal structure.</p>
+<svg width="700" height="200" viewBox="0 0 700 200" xmlns="http://www.w3.org/2000/svg">
+  <rect x="0" y="0" width="700" height="200" fill="white" />
+
+  <!-- Modules -->
+  <rect x="250" y="80" rx="10" ry="10" width="200" height="40" fill="#f8fafc" stroke="#334155" stroke-width="1" />
+  <text x="350" y="105" font-family="sans-serif" font-size="14" text-anchor="middle" fill="#334155"><a href="modules/C__Users.html" style="text-decoration: none; fill: #334155;">C:/Users</a></text>
+
+  <!-- External APIs indicator -->
+  <circle cx="435" cy="85" r="5" fill="#ef4444" stroke="#dc2626" stroke-width="1"/>
+  <text x="445" y="88" font-family="sans-serif" font-size="10" fill="#334155">2 External APIs</text>
+</svg>
+
+<h2>Module Overview</h2>
+<p>NOMIK is organized into a single primary module, with a focus on internal decomposition rather than multi-module separation at the top level. Below is an overview of the identified module and its responsibilities.</p>
+<ul>
+  <li>
+    <h3><a href="modules/C__Users.html">C:/Users</a></h3>
+    <p>This module represents the core application logic and user-related functionalities within NOMIK. It contains a significant portion of the codebase, including 174 files and 464 functions, suggesting it encapsulates a broad range of features, potentially spanning data models, business logic, and API endpoints. The detection of 2 external APIs indicates that this module interacts with services or systems outside of the NOMIK application boundary, likely for data storage, third-party integrations, or external service consumption.</p>
+  </li>
+</ul>
+
+<h2>Data Flow</h2>
+<p>A typical request within NOMIK generally follows a layered architectural pattern. While the detailed internal flow within the <code>C:/Users</code> module would be complex, the high-level data flow involves an incoming request being processed through a series of logical layers, often interacting with external systems for data persistence or external service calls. Given the current module structure, the internal routing and processing largely occur within the <code>C:/Users</code> module.</p>
+<svg width="700" height="250" viewBox="0 0 700 250" xmlns="http://www.w3.org/2000/svg">
+  <rect x="0" y="0" width="700" height="250" fill="white" />
+
+  <!-- Components -->
+  <rect x="50" y="50" rx="10" ry="10" width="100" height="50" fill="#f8fafc" stroke="#334155" stroke-width="1" />
+  <text x="100" y="80" font-family="sans-serif" font-size="14" text-anchor="middle" fill="#334155">Client</text>
+
+  <rect x="200" y="50" rx="10" ry="10" width="120" height="50" fill="#f8fafc" stroke="#334155" stroke-width="1" />
+  <text x="260" y="80" font-family="sans-serif" font-size="14" text-anchor="middle" fill="#334155">HTTP API</text>
+
+  <rect x="200" y="150" rx="10" ry="10" width="120" height="50" fill="#f8fafc" stroke="#334155" stroke-width="1" />
+  <text x="260" y="180" font-family="sans-serif" font-size="14" text-anchor="middle" fill="#334155">Router</text>
+
+  <rect x="370" y="150" rx="10" ry="10" width="160" height="50" fill="#f8fafc" stroke="#334155" stroke-width="1" />
+  <text x="450" y="180" font-family="sans-serif" font-size="14" text-anchor="middle" fill="#334155"><a href="modules/C__Users.html" style="text-decoration: none; fill: #334155;">C:/Users Logic</a></text>
+
+  <rect x="580" y="150" rx="10" ry="10" width="100" height="50" fill="#f8fafc" stroke="#334155" stroke-width="1" />
+  <text x="630" y="180" font-family="sans-serif" font-size="14" text-anchor="middle" fill="#334155">External DB / API</text>
+
+  <!-- Arrows -->
+  <defs>
+    <marker id="arrowhead" markerWidth="10" markerHeight="7" refX="0" refY="3.5" orient="auto">
+      <polygon points="0 0, 10 3.5, 0 7" fill="#64748b" />
+    </marker>
+  </defs>
+
+  <line x1="150" y1="75" x2="200" y2="75" stroke="#64748b" stroke-width="2" marker-end="url(#arrowhead)" />
+  <line x1="260" y1="100" x2="260" y2="150" stroke="#64748b" stroke-width="2" marker-end="url(#arrowhead)" />
+  <line x1="320" y1="175" x2="370" y2="175" stroke="#64748b" stroke-width="2" marker-end="url(#arrowhead)" />
+  <line x1="530" y1="175" x2="580" y2="175" stroke="#64748b" stroke-width="2" marker-end="url(#arrowhead)" />
+  <line x1="630" y1="150" x2="630" y2="75" stroke="#64748b" stroke-width="2" marker-end="url(#arrowhead)" />
+  <line x1="580" y1="75" x2="320" y2="75" stroke="#64748b" stroke-width="2" marker-end="url(#arrowhead)" />
+</svg>
+
+<h3>Typical Request Flow:</h3>
+<ol>
+  <li><strong>Client Request:</strong> A client (e.g., web browser, mobile app) initiates a request to the NOMIK application via its HTTP API.</li>
+  <li><strong>HTTP API Endpoint:</strong> The request hits an appropriate HTTP API endpoint, which is responsible for initial parsing and validation.</li>
+  <li><strong>Router:</strong> The request is then passed to the Router, which determines the correct handler or controller within the <code>C:/Users</code> module based on the request's URL and method.</li>
+  <li><strong><code>C:/Users</code> Logic:</strong> The designated handler within the <code>C:/Users</code> module executes the core business logic. This may involve data manipulation, complex calculations, or orchestrating calls to other internal functions.</li>
+  <li><strong>External DB / API Interaction:</strong> If data persistence or external services are required, the logic within <code>C:/Users</code> interacts with an External Database (e.g., for CRUD operations) or another External API.</li>
+  <li><strong>Response Generation:</strong> After processing, a response is typically constructed by the <code>C:/Users</code> module.</li>
+  <li><strong>Response to Client:</strong> This response is then sent back through the HTTP API to the originating client.</li>
+</ol>
+
+<h2>Design Patterns</h2>
+<p>NOMIK's architecture incorporates several common design patterns to ensure maintainability, scalability, and clarity:</p>
+<ul>
+  <li><strong>Monolithic Architecture:</strong> The application is deployed as a single, unified unit. This simplifies deployment and development in the initial stages. The internal structure, however, strives for strong module cohesion and loose coupling.</li>
+  <li><strong>Layered Architecture:</strong> While not strictly enforced by separate top-level modules, the internal structure within <code>C:/Users</code> likely follows a layered approach (e.g., presentation, business logic, data access). This promotes separation of concerns and allows for independent development and testing of each layer.</li>
+  <li><strong>API-Driven Development:</strong> The system exposes a well-defined HTTP API, enabling various clients to interact with its functionalities. This promotes a clear contract between the frontend and backend components.</li>
+  <li><strong>External API Consumption:</strong> The identification of external API interactions points to a pattern of integrating with third-party services or other internal microservices to extend functionality or leverage specialized capabilities.</li>
+</ul>
+</main>
+<script src="assets/nav.js"></script>
+</body>
+</html>

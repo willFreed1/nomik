@@ -203,15 +203,23 @@ async function getFileDetail(graph: GraphService, filePath: string, projectId?: 
 
 function extractModule(filePath: string): string {
     const parts = filePath.replace(/\\/g, '/').split('/').filter(Boolean);
-    parts.pop();
+    parts.pop(); // remove filename
     if (!parts.length) return 'root';
-    if (parts[0] === 'packages' && parts.length >= 2) {
-        const pkg = parts[1]!;
-        const rest = parts.slice(2).filter(p => p !== 'src' && p !== 'source');
+    // Find 'packages' anywhere in the path (handles absolute paths)
+    const pkgIdx = parts.indexOf('packages');
+    if (pkgIdx !== -1 && pkgIdx + 1 < parts.length) {
+        const pkg = parts[pkgIdx + 1]!;
+        const rest = parts.slice(pkgIdx + 2).filter(p => p !== 'src' && p !== 'source');
         return rest.length > 0 ? `${pkg}/${rest[0]!}` : pkg;
     }
-    if (parts[0] === 'src' || parts[0] === 'source') parts.shift();
-    return parts.slice(0, 2).join('/') || 'root';
+    // Find 'src' or 'source' anywhere
+    const srcIdx = parts.findIndex(p => p === 'src' || p === 'source');
+    if (srcIdx !== -1) {
+        const after = parts.slice(srcIdx + 1);
+        return after.slice(0, 2).join('/') || parts[srcIdx - 1] || 'root';
+    }
+    // Fallback: last 2 meaningful dirs
+    return parts.slice(-2).join('/') || 'root';
 }
 
 // ── LLM Provider Abstraction ─────────────────────────────────────────
@@ -257,7 +265,7 @@ function createOpenAIClient(apiKey: string, model?: string): LLMClient {
 
 function createGeminiClient(apiKey: string, model?: string): LLMClient {
     const genAI = new GoogleGenerativeAI(apiKey);
-    const m = model || 'gemini-2.0-flash';
+    const m = model || 'gemini-2.5-flash';
     return {
         provider: 'gemini',
         async call(systemPrompt, userPrompt) {

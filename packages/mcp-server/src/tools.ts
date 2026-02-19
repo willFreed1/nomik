@@ -253,6 +253,18 @@ const TOOLS = {
             },
         },
     },
+    nm_generate_docs: {
+        name: 'nm_generate_docs',
+        description: 'Generate comprehensive documentation for a system/package by analyzing source code and graph context. Returns structured data about files, functions, routes, DB operations, and API calls for the specified system. The chat agent should use this data to write proper documentation explaining architecture, usage, and design patterns.',
+        inputSchema: {
+            type: 'object',
+            properties: {
+                system: { type: 'string', description: 'System/package name to generate docs for (e.g. "parser", "cli", "graph", "viz", "mcp-server", "watcher", "core", "github-bot")' },
+                project: { type: 'string', description: 'Project name to scope the analysis to. Overrides NOMIK_PROJECT_ID env var.' },
+            },
+            required: ['system'],
+        },
+    },
     nm_rules: {
         name: 'nm_rules',
         description: 'ALWAYS use this tool when asked about architecture rules, code quality policies, or whether the codebase follows best practices. Evaluates 9 configurable rules: dead code, god files, duplicates, high-fan-in, DB writes per route, circular imports, long functions, long files, security issues. Returns pass/fail per rule with violations.',
@@ -750,6 +762,96 @@ export async function handleCallTool(graph: GraphService, name: string, args: an
             } else {
                 return [{ type: 'text', text: JSON.stringify({ error: 'Provide either symbol or files parameter' }) }];
             }
+        }
+
+        case 'nm_generate_docs': {
+            const effectiveProjectId = eid(args);
+            const system = String(args.system || '').trim();
+            if (!system) {
+                return [{ type: 'text', text: JSON.stringify({ error: 'system parameter required (e.g. "parser", "cli", "graph")' }) }];
+            }
+
+            // Get all files for this system from the graph
+            const systemFiles = await graph.executeQuery<{
+                path: string; language: string; lineCount: number; functionCount: number;
+            }>(
+                `MATCH (f:File)${effectiveProjectId ? ' WHERE f.projectId = $projectId' : ''}
+                 WHERE f.path CONTAINS '/packages/${system}/'
+                 OPTIONAL MATCH (f)-[:CONTAINS]->(fn:Function)
+                 WITH f, count(fn) as functionCount
+                 RETURN f.path as path, COALESCE(f.language, 'unknown') as language,
+                        COALESCE(f.lineCount, 0) as lineCount, functionCount
+                 ORDER BY f.path`,
+                { projectId: effectiveProjectId, system },
+            );
+
+            if (systemFiles.length === 0) {
+                return [{ type: 'text', text: JSON.stringify({ error: `No files found for system "${system}". Available systems: cli, graph, parser, viz, mcp-server, watcher, core, github-bot` }) }];
+            }
+
+            // Get key functions for this system
+            const systemFunctions = await graph.executeQuery<{
+                name: string; filePath: string; isExported: boolean; callerCount: number; calleeCount: number;
+            }>(
+                `MATCH (fn:Function)${effectiveProjectId ? ' WHERE fn.projectId = $projectId' : ''}
+                 WHERE fn.filePath CONTAINS '/packages/${system}/'
+                 OPTIONAL MATCH (caller)-[:CALLS]->(fn)
+                 WITH fn, count(DISTINCT caller) as callerCount
+                 OPTIONAL MATCH (fn)-[:CALLS]->(callee)
+                 RETURN fn.name as name, fn.filePath as filePath,
+                        COALESCE(fn.isExported, false) as isExported,
+                        callerCount, count(DISTINCT callee) as calleeCount
+                 ORDER BY callerCount DESC, fn.name
+                 LIMIT 50`,
+                { projectId: effectiveProjectId, system },
+            );
+
+            // Get routes, DB ops, API calls for this system
+            const systemRoutes = await graph.executeQuery<{ method: string; path: string; handlerName: string; filePath: string }>(
+                `MATCH (r:Route)-[:HANDLES]->(fn:Function)
+                 WHERE fn.filePath CONTAINS '/packages/${system}/'${effectiveProjectId ? ' AND fn.projectId = $projectId' : ''}
+                 RETURN r.method as method, r.path as path, fn.name as handlerName, fn.filePath as filePath
+                 ORDER BY r.path`,
+                { projectId: effectiveProjectId, system },
+            );
+
+            const systemDbOps = await graph.executeQuery<{ tableName: string; operation: string; functionName: string; filePath: string }>(
+                `MATCH (fn:Function)-[r:READS_FROM|WRITES_TO]->(t:DBTable)
+                 WHERE fn.filePath CONTAINS '/packages/${system}/'${effectiveProjectId ? ' AND fn.projectId = $projectId' : ''}
+                 RETURN t.name as tableName, type(r) as operation, fn.name as functionName, fn.filePath as filePath
+                 ORDER BY t.name`,
+                { projectId: effectiveProjectId, system },
+            );
+
+            const systemApiCalls = await graph.executeQuery<{ endpoint: string; method: string; functionName: string; filePath: string }>(
+                `MATCH (fn:Function)-[r:CALLS_EXTERNAL]->(api:ExternalAPI)
+                 WHERE fn.filePath CONTAINS '/packages/${system}/'${effectiveProjectId ? ' AND fn.projectId = $projectId' : ''}
+                 RETURN COALESCE(api.endpoint, api.name) as endpoint, COALESCE(r.method, 'GET') as method, fn.name as functionName, fn.filePath as filePath
+                 ORDER BY api.endpoint`,
+                { projectId: effectiveProjectId, system },
+            );
+
+            // Return structured data for the chat agent to generate documentation
+            const systemContext = {
+                system,
+                summary: {
+                    fileCount: systemFiles.length,
+                    totalLines: systemFiles.reduce((sum, f) => sum + f.lineCount, 0),
+                    functionCount: systemFunctions.length,
+                    languages: [...new Set(systemFiles.map(f => f.language))],
+                    routeCount: systemRoutes.length,
+                    dbOperationCount: systemDbOps.length,
+                    apiCallCount: systemApiCalls.length,
+                },
+                files: systemFiles,
+                keyFunctions: systemFunctions.slice(0, 20),
+                routes: systemRoutes,
+                dbOperations: systemDbOps,
+                apiCalls: systemApiCalls,
+                instruction: `Generate comprehensive documentation for the ${system} system. Include: 1) Architecture overview explaining what this system does and how it fits in the project, 2) Key components with explanations of main files and functions, 3) API reference if routes exist, 4) Data operations if DB/API calls exist, 5) Usage examples and integration patterns. Write as proper documentation, not a statistical report.`
+            };
+
+            return [{ type: 'text', text: JSON.stringify(systemContext, null, 2) }];
         }
 
         case 'nm_rules': {

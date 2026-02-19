@@ -20,11 +20,12 @@
     "test": "turbo run test",
     "typecheck": "turbo run typecheck",
     "clean": "turbo run clean",
-    "nomik": "node packages/cli/dist/index.js",
+    "nomik": "node -r dotenv/config packages/cli/dist/index.js",
     "build:mcp": "turbo run build --filter=@nomik/mcp-server"
   },
   "devDependencies": {
     "@types/node": "^20.11.0",
+    "dotenv": "^17.3.1",
     "eslint": "^9.0.0",
     "prettier": "^3.2.0",
     "tsup": "^8.0.0",
