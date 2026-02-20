@@ -4,8 +4,6 @@ import { createGraphService, type GraphService } from '@nomik/graph';
 import { readProjectConfig } from '../utils/project-config.js';
 import { writeFileSync, mkdirSync } from 'fs';
 import { join } from 'path';
-import { generateHtmlWiki } from './wiki-html.js';
-import { extractGraphContext, generateLLMWiki, type LLMProvider } from './wiki-llm.js';
 
 // ────────────────────────────────────────────────────────────────────
 // Types for wiki data
@@ -105,11 +103,7 @@ export const wikiCommand = new Command('wiki')
     .option('--out <dir>', 'Output directory', './wiki')
     .option('--json', 'Output as JSON instead of markdown files')
     .option('--no-modules', 'Skip per-module detail pages')
-    .option('--html', 'Generate a single self-contained HTML documentation site')
-    .option('--generate', 'Generate LLM-powered documentation wiki')
-    .option('--provider <name>', 'LLM provider: anthropic, openai, or gemini (auto-detected from env vars)')
-    .option('--api-key <key>', 'API key for the LLM provider (or set ANTHROPIC_API_KEY / OPENAI_API_KEY / GEMINI_API_KEY)')
-    .action(async (opts: { out: string; json?: boolean; modules?: boolean; html?: boolean; generate?: boolean; provider?: string; apiKey?: string }) => {
+    .action(async (opts: { out: string; json?: boolean; modules?: boolean }) => {
         const envConfig = loadConfigFromEnv();
         const config = validateConfig({
             ...envConfig,
@@ -166,16 +160,6 @@ export const wikiCommand = new Command('wiki')
                 return;
             }
 
-            // ═══════════════════════════════════════════════
-            // LLM-powered wiki generation
-            // ═══════════════════════════════════════════════
-            if (opts.generate) {
-                console.log('  Extracting graph context...');
-                const ctx = await extractGraphContext(graph, projectId, projectName);
-                await generateLLMWiki(ctx, opts.out, opts.apiKey, opts.provider as LLMProvider | undefined);
-                return;
-            }
-
             // ── Group files by module (directory cluster) ──
             const moduleMap = new Map<string, typeof files>();
             for (const f of files) {
@@ -187,33 +171,6 @@ export const wikiCommand = new Command('wiki')
 
             mkdirSync(opts.out, { recursive: true });
             const now = new Date().toISOString().split('T')[0]!;
-
-            // ═══════════════════════════════════════════════
-            // HTML mode — single self-contained file
-            // ═══════════════════════════════════════════════
-            if (opts.html) {
-                console.log('  Generating HTML wiki...');
-                const moduleData = [];
-                if (opts.modules !== false) {
-                    for (const [mod, modFiles] of sortedModules) {
-                        const fileDetails = [];
-                        for (const f of modFiles) {
-                            const detail = await getFileDetail(graph, f.path, projectId);
-                            fileDetails.push({ path: f.path, language: f.language, lineCount: f.lineCount, ...detail });
-                        }
-                        moduleData.push({ name: mod, files: fileDetails });
-                    }
-                }
-                const html = generateHtmlWiki({
-                    projectName, generatedAt: now, stats, files, functions,
-                    deadCode, godFiles, duplicates, serviceLinks, modules: moduleData,
-                });
-                const outPath = join(opts.out, 'index.html');
-                writeFileSync(outPath, html);
-                console.log(`  📄 ${outPath}`);
-                console.log(`\n  ✅ HTML wiki generated — open ${outPath} in your browser\n`);
-                return;
-            }
 
             // ═══════════════════════════════════════════════
             // 1. Index page — overview + module links
