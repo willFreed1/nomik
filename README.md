@@ -171,7 +171,7 @@ nomik project list|create|switch|delete|info
 ```
 nomik/
 ├── @nomik/core        — Types (Zod), config, logger (Pino)
-├── @nomik/parser      — Tree-sitter AST extraction + 25 extractors
+├── @nomik/parser      — Tree-sitter AST extraction + 37 extractors
 ├── @nomik/graph       — Neo4j driver, queries, cache, rules engine
 ├── @nomik/watcher     — Chokidar file watcher
 ├── @nomik/mcp-server  — MCP server (21 tools, 9 resources, 6 prompts, sampling, roles)

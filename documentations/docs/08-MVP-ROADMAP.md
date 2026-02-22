@@ -20,7 +20,7 @@
 
 ### Core
 - [x] Multi-language parsing (TypeScript, JavaScript, Python, Rust, Markdown, SQL, C#, Django/Alembic)
-- [x] 25 extractors (code, data, infrastructure, config, security)
+- [x] 37 extractors (code, data, infrastructure, config, security, Python, Rust, docs)
 - [x] Neo4j graph with 17 node types and 19 edge types
 - [x] Multi-project isolation via `projectId`
 - [x] File watcher with debounced reindex

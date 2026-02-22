@@ -21,7 +21,7 @@ Command-line interface — **38 commands**.
 Shared types, configuration (Zod), error handling (`NomikError`), structured logging (Pino).
 
 ### 3. [Parser](./parser/README.md) (`@nomik/parser`)
-Intelligence engine — **25 extractors** for 7+ languages.
+Intelligence engine — **37 extractors** for 7+ languages.
 - **Languages**: TypeScript, JavaScript, Python, Rust, Markdown, SQL, C#/Django/Alembic migrations
 - **Categories**: code, API, data, infrastructure, config, security, Python runtime
 

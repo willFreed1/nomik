@@ -28,7 +28,7 @@
 
 | Language | Grammar | Extractors | Status |
 |---|---|---|---|
-| TypeScript / JavaScript | `tree-sitter-typescript` | All 25 extractors (code, data, infra, config, security) | Done |
+| TypeScript / JavaScript | `tree-sitter-typescript` | All 37 extractors (code, data, infra, config, security) | Done |
 | Python | `tree-sitter-python` | Functions, classes, imports, calls + runtime (Redis, Celery, Prometheus, OTel, brokers) | Done |
 | Rust | `tree-sitter-rust` | Functions, structs/enums/traits, use, calls | Done |
 | Markdown | Custom regex parser | Sections, headings | Done |
@@ -36,7 +36,7 @@
 | C# Migrations | Custom regex parser | Entity Framework migration → DB schema | Done |
 | Python Migrations | Custom regex parser | Django/Alembic migration → DB schema | Done |
 
-### Parser Extractors (25)
+### Parser Extractors (37)
 
 | Category | Extractors |
 |---|---|
@@ -45,8 +45,10 @@
 | **Data** | db-operations, db-schema (SQL/C#/Python), redis |
 | **Infrastructure** | queue, metrics, tracing, messaging, websocket, cron, events |
 | **Config** | docker, cicd, terraform, cloudformation, openapi-spec, graphql-schema, dependencies, dotenv, infra-config, swagger |
-| **Security** | secrets, feature-flags, env-vars |
-| **Python** | python-runtime (Redis, Celery, Prometheus, OTel, brokers) |
+| **Security** | secrets, feature-flags, env-vars, test-coverage |
+| **Python** | python, python-runtime (Redis, Celery, Prometheus, OTel, brokers) |
+| **Rust** | rust (functions, structs, enums, traits, use, calls) |
+| **Docs** | markdown (sections, headings) |
 
 ### Planned Languages
 

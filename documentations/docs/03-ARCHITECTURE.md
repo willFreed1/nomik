@@ -8,7 +8,7 @@
 │                                                                 │
 │  ┌───────────┐   ┌───────────┐   ┌──────────────────────────┐  │
 │  │  Parser   │──▶│  Graph    │◀──│  MCP Server              │  │
-│  │ (25 ext.) │   │  (Neo4j)  │   │  21 tools, 9 resources,  │  │
+│  │ (37 ext.) │   │  (Neo4j)  │   │  21 tools, 9 resources,  │  │
 │  └─────▲─────┘   └─────┬─────┘   │  6 prompts, sampling,    │  │
 │        │               │         │  role-scoped access       │  │
 │  ┌─────┴─────┐   ┌─────▼─────┐   └──────────▲───────────────┘  │
@@ -27,7 +27,7 @@
 ## Data Flow
 
 ```
-Source Code ──▶ Watcher ──▶ Parser (tree-sitter) ──▶ 25 Extractors
+Source Code ──▶ Watcher ──▶ Parser (tree-sitter) ──▶ 37 Extractors
                                                          │
                                               nodes + edges
                                                          ▼
@@ -39,7 +39,7 @@ Source Code ──▶ Watcher ──▶ Parser (tree-sitter) ──▶ 25 Extrac
 | Package | Purpose | Key Files |
 |---|---|---|
 | **@nomik/core** | Types (Zod), config, logger (Pino) | `types/`, `config/`, `logger/` |
-| **@nomik/parser** | Tree-sitter AST extraction, 25 extractors | `extractors/`, `resolvers/`, `parser.ts` |
+| **@nomik/parser** | Tree-sitter AST extraction, 37 extractors | `extractors/`, `resolvers/`, `parser.ts` |
 | **@nomik/graph** | Neo4j driver, queries, cache (30s TTL), rules engine | `queries/`, `drivers/`, `graph.service.ts` |
 | **@nomik/watcher** | Chokidar file watcher, debounced reindex | `watcher.ts` |
 | **@nomik/mcp-server** | MCP protocol (21 tools, 9 resources, 6 prompts) | `tools.ts`, `prompts.ts`, `roles.ts`, `sampling.ts` |
@@ -47,17 +47,19 @@ Source Code ──▶ Watcher ──▶ Parser (tree-sitter) ──▶ 25 Extrac
 | **@nomik/viz** | React + Three.js (3D) + Cytoscape.js (2D) | `components/`, `neo4j.ts` |
 | **@nomik-ai/cli** | Commander CLI, 38 commands | `commands/`, `utils/` |
 
-## Parser Extractors (25)
+## Parser Extractors (37)
 
 | Category | Extractors |
 |---|---|
-| **Code** | functions, classes, imports, exports, calls |
+| **Code** | functions, classes, imports, exports, calls, variables |
 | **API** | routes, api-calls, grpc/tRPC/GraphQL |
 | **Data** | db-operations, db-schema (SQL/C#/Python), redis |
 | **Infrastructure** | queue, metrics, tracing, messaging, websocket, cron, events |
 | **Config** | docker, cicd, terraform, cloudformation, openapi-spec, graphql-schema, dependencies, dotenv, infra-config, swagger |
 | **Security** | secrets, feature-flags, env-vars, test-coverage |
-| **Python** | python-runtime (Redis, Celery, Prometheus, OTel, brokers) |
+| **Python** | python, python-runtime (Redis, Celery, Prometheus, OTel, brokers) |
+| **Rust** | rust (functions, structs, enums, traits, use, calls) |
+| **Docs** | markdown (sections, headings) |
 
 ## Graph Query Modules
 
