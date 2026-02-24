@@ -8,6 +8,19 @@ const NODE_COLORS: Record<string, string> = {
     Function: '#10b981',
     Class: '#a855f7',
     Route: '#f59e0b',
+    Variable: '#60a5fa',
+    Event: '#c084fc',
+    EnvVar: '#a1a1aa',
+    Module: '#22d3ee',
+    DBTable: '#fb923c',
+    DBColumn: '#f97316',
+    ExternalAPI: '#818cf8',
+    CronJob: '#a3e635',
+    QueueJob: '#e879f9',
+    Metric: '#2dd4bf',
+    Span: '#38bdf8',
+    Topic: '#a78bfa',
+    SecurityIssue: '#ef4444',
 };
 
 /** Colors by edge type */
@@ -15,8 +28,13 @@ const EDGE_COLORS: Record<string, string> = {
     CONTAINS: '#334155',
     CALLS: '#f59e0b',
     DEPENDS_ON: '#38bdf8',
+    IMPORTS: '#6366f1',
+    EXPORTS: '#8b5cf6',
+    LISTENS_TO: '#c084fc',
     EXTENDS: '#a855f7',
-    IMPLEMENTS: '#d946ef',
+    USES_ENV: '#a1a1aa',
+    HAS_SECURITY_ISSUE: '#ef4444',
+    CALLS_EXTERNAL: '#818cf8',
 };
 
 /** Adaptive quality thresholds */

@@ -9,7 +9,7 @@ export interface ImpactResult {
     confidence?: number;
 }
 
-/** Analyse d'impact scope par projet — retourne la profondeur et le type de relation reels */
+/** Project-scoped impact analysis — returns actual depth and relationship type */
 export async function impactAnalysis(
     driver: GraphDriver,
     symbolName: string,
@@ -435,7 +435,7 @@ export async function graphStats(driver: GraphDriver, projectId?: string): Promi
     };
 }
 
-/** Noeuds modifies depuis une date donnee, scope par projet */
+/** Nodes modified since a given date, scoped by project */
 export async function recentChanges(
     driver: GraphDriver,
     since: string,

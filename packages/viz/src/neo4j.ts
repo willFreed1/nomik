@@ -11,8 +11,39 @@ export const driver = neo4j.driver(
 /** View mode for progressive loading */
 export type ViewMode = 'overview' | 'full';
 
+// ── Query result cache with TTL ──
+const CACHE_TTL_MS = 60_000; // 60 seconds
+const queryCache = new Map<string, { data: any; ts: number }>();
+
+function cacheKey(prefix: string, projectId?: string): string {
+    return `${prefix}:${projectId ?? 'all'}`;
+}
+
+function getCached<T>(key: string): T | null {
+    const entry = queryCache.get(key);
+    if (!entry) return null;
+    if (Date.now() - entry.ts > CACHE_TTL_MS) {
+        queryCache.delete(key);
+        return null;
+    }
+    return entry.data as T;
+}
+
+function setCache(key: string, data: any): void {
+    queryCache.set(key, { data, ts: Date.now() });
+}
+
+/** Invalidate all cache entries (call after project switch) */
+export function invalidateCache(): void {
+    queryCache.clear();
+}
+
 /** Fetch overview: Files + DEPENDS_ON only (fast for any project size) */
 export async function fetchGraphOverview(projectId?: string) {
+    const key = cacheKey('overview', projectId);
+    const cached = getCached<{ nodes: any[]; edges: any[] }>(key);
+    if (cached) { console.log('Overview from cache'); return cached; }
+
     const session = driver.session();
     try {
         console.log('Fetching overview...', projectId ? `(project: ${projectId})` : '(all)');
@@ -83,7 +114,9 @@ export async function fetchGraphOverview(projectId?: string) {
         });
 
         console.log('Overview loaded:', { nodes: nodes.size, edges: edges.length });
-        return { nodes: Array.from(nodes.values()), edges };
+        const result = { nodes: Array.from(nodes.values()), edges };
+        setCache(key, result);
+        return result;
     } finally {
         await session.close();
     }
@@ -91,19 +124,23 @@ export async function fetchGraphOverview(projectId?: string) {
 
 /** Fetch graph data, optionally filtered by projectId */
 export async function fetchGraphData(projectId?: string) {
+    const key = cacheKey('fullGraph', projectId);
+    const cached = getCached<{ nodes: any[]; edges: any[] }>(key);
+    if (cached) { console.log('Full graph from cache'); return cached; }
+
     const session = driver.session();
     try {
         console.log('Connecting to Neo4j...', projectId ? `(project: ${projectId})` : '(all projects)');
         const projectFilter = projectId
             ? 'AND n.projectId = $projectId AND m.projectId = $projectId'
             : '';
-        const result = await session.run(`
+        const queryResult = await session.run(`
       MATCH (n)-[r]->(m)
       WHERE NOT n:ScanMeta AND NOT m:ScanMeta AND NOT n:Project AND NOT m:Project
       ${projectFilter}
       RETURN n, r, m
     `, { projectId: projectId ?? null });
-        console.log('Query executed. Records:', result.records.length);
+        console.log('Query executed. Records:', queryResult.records.length);
 
         const nodes = new Map();
         const edges: any[] = [];
@@ -111,7 +148,7 @@ export async function fetchGraphData(projectId?: string) {
         // Helper to sanitize Neo4j 5.x elementIds (which contain colons) for Cytoscape
         const sanitize = (id: string) => id.replace(/:/g, '_');
 
-        result.records.forEach(record => {
+        queryResult.records.forEach(record => {
             const n = record.get('n');
             const m = record.get('m');
             const r = record.get('r');
@@ -175,10 +212,9 @@ export async function fetchGraphData(projectId?: string) {
 
         console.log('Parsed data:', { nodes: nodes.size, edges: edges.length });
 
-        return {
-            nodes: Array.from(nodes.values()),
-            edges
-        };
+        const result = { nodes: Array.from(nodes.values()), edges };
+        setCache(key, result);
+        return result;
     } catch (error) {
         console.error('Neo4j Driver Error:', error);
         throw error;
@@ -187,7 +223,7 @@ export async function fetchGraphData(projectId?: string) {
     }
 }
 
-/** Detail d'une fonction dead code ou god object */
+/** Detail of a dead code or god object function */
 export interface DeadCodeItem {
     name: string;
     filePath: string;
@@ -199,6 +235,18 @@ export interface GodObjectItem {
     depCount: number;
 }
 
+export interface GodFileItem {
+    filePath: string;
+    functionCount: number;
+    totalLines: number;
+}
+
+export interface DuplicateGroup {
+    bodyHash: string;
+    count: number;
+    functions: Array<{ name: string; filePath: string }>;
+}
+
 /** Health stats for a project (or all projects) */
 export interface HealthStats {
     nodeCount: number;
@@ -207,14 +255,34 @@ export interface HealthStats {
     functionCount: number;
     classCount: number;
     routeCount: number;
+    variableCount: number;
+    eventCount: number;
+    envVarCount: number;
+    moduleCount: number;
+    dbTableCount: number;
+    externalApiCount: number;
+    securityIssueCount: number;
     deadCodeCount: number;
     godObjectCount: number;
+    godFileCount: number;
+    duplicateCount: number;
     deadCodeItems: DeadCodeItem[];
     godObjectItems: GodObjectItem[];
+    godFileItems: GodFileItem[];
+    duplicateGroups: DuplicateGroup[];
+}
+
+/** Helper to safely extract a number from a Neo4j record field */
+function toNum(val: any): number {
+    return val?.toNumber?.() ?? val ?? 0;
 }
 
 /** Fetch health metrics from the graph */
 export async function fetchHealthStats(projectId?: string): Promise<HealthStats> {
+    const key = cacheKey('health', projectId);
+    const cached = getCached<HealthStats>(key);
+    if (cached) return cached;
+
     const session = driver.session();
     try {
         const nodeProjectFilter = projectId ? 'AND n.projectId = $projectId' : '';
@@ -223,7 +291,7 @@ export async function fetchHealthStats(projectId?: string): Promise<HealthStats>
         const pfShort = projectId ? '{projectId: $projectId}' : '';
         const params = { projectId: projectId ?? null };
 
-        // Counts
+        // All node type counts in a single query
         const counts = await session.run(`
             MATCH (n) WHERE NOT n:ScanMeta AND NOT n:Project ${nodeProjectFilter}
             RETURN
@@ -231,7 +299,14 @@ export async function fetchHealthStats(projectId?: string): Promise<HealthStats>
                 count(CASE WHEN n:File THEN 1 END) as fileCount,
                 count(CASE WHEN n:Function THEN 1 END) as functionCount,
                 count(CASE WHEN n:Class THEN 1 END) as classCount,
-                count(CASE WHEN n:Route THEN 1 END) as routeCount
+                count(CASE WHEN n:Route THEN 1 END) as routeCount,
+                count(CASE WHEN n:Variable THEN 1 END) as variableCount,
+                count(CASE WHEN n:Event THEN 1 END) as eventCount,
+                count(CASE WHEN n:EnvVar THEN 1 END) as envVarCount,
+                count(CASE WHEN n:Module THEN 1 END) as moduleCount,
+                count(CASE WHEN n:DBTable THEN 1 END) as dbTableCount,
+                count(CASE WHEN n:ExternalAPI THEN 1 END) as externalApiCount,
+                count(CASE WHEN n:SecurityIssue THEN 1 END) as securityIssueCount
         `, params);
         const c = counts.records[0]!;
 
@@ -242,9 +317,9 @@ export async function fetchHealthStats(projectId?: string): Promise<HealthStats>
             ${edgeProjectFilter}
             RETURN count(r) as edgeCount
         `, params);
-        const edgeCount = edgeResult.records[0]?.get('edgeCount')?.toNumber?.() ?? edgeResult.records[0]?.get('edgeCount') ?? 0;
+        const edgeCount = toNum(edgeResult.records[0]?.get('edgeCount'));
 
-        // Dead code — exclut constructeurs, methodes de classes, React, barrel re-exports
+        // Dead code — excludes constructors, class methods, React, barrel re-exports
         const deadCode = await session.run(`
             MATCH (f:Function)
             WHERE NOT (f)<-[:CALLS]-() AND NOT (f)<-[:HANDLES]-()
@@ -278,9 +353,8 @@ export async function fetchHealthStats(projectId?: string): Promise<HealthStats>
             name: r.get('name'),
             filePath: r.get('filePath') ?? '',
         }));
-        const deadCodeCount = deadCodeItems.length;
 
-        // God objects — couplage cross-fichier inattendu uniquement
+        // God objects — unexpected cross-file coupling only
         const godObjects = await session.run(`
             MATCH (f:Function ${pfShort})-[:CALLS]->(target)
             MATCH (ff:File)-[:CONTAINS]->(f)
@@ -295,22 +369,68 @@ export async function fetchHealthStats(projectId?: string): Promise<HealthStats>
         const godObjectItems: GodObjectItem[] = godObjects.records.map(r => ({
             name: r.get('name'),
             filePath: r.get('filePath') ?? '',
-            depCount: r.get('depCount')?.toNumber?.() ?? r.get('depCount') ?? 0,
+            depCount: toNum(r.get('depCount')),
         }));
-        const godObjectCount = godObjectItems.length;
 
-        return {
-            nodeCount: c.get('nodeCount')?.toNumber?.() ?? c.get('nodeCount') ?? 0,
-            fileCount: c.get('fileCount')?.toNumber?.() ?? c.get('fileCount') ?? 0,
-            functionCount: c.get('functionCount')?.toNumber?.() ?? c.get('functionCount') ?? 0,
-            classCount: c.get('classCount')?.toNumber?.() ?? c.get('classCount') ?? 0,
-            routeCount: c.get('routeCount')?.toNumber?.() ?? c.get('routeCount') ?? 0,
-            edgeCount: typeof edgeCount === 'number' ? edgeCount : 0,
-            deadCodeCount,
-            godObjectCount,
+        // God files — files with >10 functions
+        const godFiles = await session.run(`
+            MATCH (f:File)-[:CONTAINS]->(fn:Function)
+            WHERE true ${functionProjectFilter ? functionProjectFilter.replace('f.', 'fn.') : ''}
+            ${projectId ? 'AND f.projectId = $projectId' : ''}
+            WITH f, count(fn) as functionCount
+            WHERE functionCount > 10
+            RETURN f.path as filePath, functionCount, COALESCE(f.lineCount, 0) as totalLines
+            ORDER BY functionCount DESC
+        `, params);
+        const godFileItems: GodFileItem[] = godFiles.records.map(r => ({
+            filePath: r.get('filePath') ?? '',
+            functionCount: toNum(r.get('functionCount')),
+            totalLines: toNum(r.get('totalLines')),
+        }));
+
+        // Duplicates — functions with identical body hash
+        const duplicates = await session.run(`
+            MATCH (f:Function)
+            WHERE f.bodyHash IS NOT NULL ${functionProjectFilter}
+              AND (f.endLine - f.startLine) >= 3
+            WITH f.bodyHash as bodyHash, collect({name: f.name, filePath: f.filePath}) as funcs, count(*) as cnt
+            WHERE cnt > 1
+            RETURN bodyHash, cnt as count, funcs as functions
+            ORDER BY cnt DESC
+            LIMIT 50
+        `, params);
+        const duplicateGroups: DuplicateGroup[] = duplicates.records.map(r => ({
+            bodyHash: r.get('bodyHash'),
+            count: toNum(r.get('count')),
+            functions: r.get('functions') as Array<{ name: string; filePath: string }>,
+        }));
+
+        const result: HealthStats = {
+            nodeCount: toNum(c.get('nodeCount')),
+            fileCount: toNum(c.get('fileCount')),
+            functionCount: toNum(c.get('functionCount')),
+            classCount: toNum(c.get('classCount')),
+            routeCount: toNum(c.get('routeCount')),
+            variableCount: toNum(c.get('variableCount')),
+            eventCount: toNum(c.get('eventCount')),
+            envVarCount: toNum(c.get('envVarCount')),
+            moduleCount: toNum(c.get('moduleCount')),
+            dbTableCount: toNum(c.get('dbTableCount')),
+            externalApiCount: toNum(c.get('externalApiCount')),
+            securityIssueCount: toNum(c.get('securityIssueCount')),
+            edgeCount,
+            deadCodeCount: deadCodeItems.length,
+            godObjectCount: godObjectItems.length,
+            godFileCount: godFileItems.length,
+            duplicateCount: duplicateGroups.length,
             deadCodeItems,
             godObjectItems,
+            godFileItems,
+            duplicateGroups,
         };
+
+        setCache(key, result);
+        return result;
     } finally {
         await session.close();
     }

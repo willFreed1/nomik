@@ -1,6 +1,6 @@
 {
     "name": "@nomik-ai/cli",
-    "version": "0.1.0",
+    "version": "1.0.0",
     "description": "NOMIK — The Living Blueprint. AI-native code intelligence graph CLI. Scan, watch, query your codebase knowledge graph.",
     "type": "module",
     "main": "./dist/index.js",
@@ -21,12 +21,19 @@
         "mcp",
         "tree-sitter"
     ],
-    "author": "willFreed1",
+    "author": {
+        "name": "willFreed1",
+        "url": "https://github.com/willFreed1"
+    },
     "license": "MIT",
+    "homepage": "https://nomik.co",
     "repository": {
         "type": "git",
         "url": "https://github.com/willFreed1/NOMIK",
         "directory": "packages/cli"
+    },
+    "bugs": {
+        "url": "https://github.com/willFreed1/NOMIK/issues"
     },
     "engines": {
         "node": ">=20.0.0"
@@ -43,6 +50,7 @@
         "chalk": "^5.4.0",
         "chokidar": "^4.0.0",
         "commander": "^13.1.0",
+        "dotenv": "^17.3.1",
         "glob": "^11.0.0",
         "neo4j-driver": "^5.12.0",
         "ora": "^8.1.0",

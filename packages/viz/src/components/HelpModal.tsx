@@ -1,6 +1,6 @@
 import { useState } from 'react';
 
-/** Modal d'aide expliquant les interactions et les codes couleur */
+/** Help modal explaining interactions and color codes */
 export function HelpButton() {
     const [open, setOpen] = useState(false);
 
@@ -24,17 +24,39 @@ export function HelpButton() {
                         </div>
 
                         <div className="px-6 py-5 space-y-6 text-sm font-mono">
-                            {/* Node types */}
-                            <HelpSection title="Node Types">
+                            {/* Node types — all 17 */}
+                            <HelpSection title="Node Types (17)">
                                 <HelpRow color="bg-cyan-500" shape="rounded" label="File" desc="Source file (.ts, .tsx, .js)" />
                                 <HelpRow color="bg-emerald-500" shape="rounded-full" label="Function" desc="Function, method, or arrow function" />
                                 <HelpRow color="bg-purple-500" shape="diamond" label="Class" desc="Class declaration" />
+                                <HelpRow color="bg-amber-500" shape="hexagon" label="Route" desc="API endpoint / route handler" />
+                                <HelpRow color="bg-blue-400" shape="tag" label="Variable" desc="Module-level variable" />
+                                <HelpRow color="bg-purple-400" shape="star" label="Event" desc="Event listener or emitter" />
+                                <HelpRow color="bg-slate-400" shape="rounded" label="EnvVar" desc="Environment variable" />
+                                <HelpRow color="bg-cyan-400" shape="rounded" label="Module" desc="Logical module" />
+                                <HelpRow color="bg-orange-500" shape="barrel" label="DBTable" desc="Database table" />
+                                <HelpRow color="bg-orange-400" shape="rounded-full" label="DBColumn" desc="Database column" />
+                                <HelpRow color="bg-indigo-500" shape="pentagon" label="ExternalAPI" desc="External API endpoint" />
+                                <HelpRow color="bg-lime-400" shape="octagon" label="CronJob" desc="Scheduled job" />
+                                <HelpRow color="bg-fuchsia-400" shape="rhomboid" label="QueueJob" desc="Queue consumer / producer" />
+                                <HelpRow color="bg-teal-400" shape="triangle" label="Metric" desc="Observability metric" />
+                                <HelpRow color="bg-sky-400" shape="rounded" label="Span" desc="Tracing span" />
+                                <HelpRow color="bg-violet-400" shape="hexagon" label="Topic" desc="Message broker topic" />
+                                <HelpRow color="bg-red-500" shape="vee" label="SecurityIssue" desc="Security vulnerability" />
                             </HelpSection>
 
-                            {/* Edge types */}
-                            <HelpSection title="Edge Types">
+                            {/* Edge types — all 10 */}
+                            <HelpSection title="Edge Types (10)">
                                 <HelpEdge color="bg-slate-500" label="CONTAINS" desc="File contains a function or class" />
                                 <HelpEdge color="bg-amber-500" label="CALLS" desc="Function calls another function" />
+                                <HelpEdge color="bg-sky-400" label="DEPENDS_ON" desc="File depends on another file" />
+                                <HelpEdge color="bg-indigo-500" label="IMPORTS" desc="File imports from another file" />
+                                <HelpEdge color="bg-violet-500" label="EXPORTS" desc="Module exports a symbol" />
+                                <HelpEdge color="bg-purple-500" label="EXTENDS" desc="Class inheritance" />
+                                <HelpEdge color="bg-purple-400" label="LISTENS_TO" desc="Listens to an event" />
+                                <HelpEdge color="bg-slate-400" label="USES_ENV" desc="References an environment variable" />
+                                <HelpEdge color="bg-indigo-400" label="CALLS_EXTERNAL" desc="Calls an external API" />
+                                <HelpEdge color="bg-red-500" label="HAS_SECURITY_ISSUE" desc="Has a security vulnerability" />
                             </HelpSection>
 
                             {/* Impact overlay */}
@@ -63,11 +85,20 @@ export function HelpButton() {
                             <HelpSection title="Detail Panel (right side)">
                                 <p className="text-slate-400">Click any node to open the detail panel showing:</p>
                                 <ul className="text-slate-400 list-disc list-inside space-y-1 mt-2">
-                                    <li>Node type, name, and source file</li>
-                                    <li>Properties (exported, async, return type, etc.)</li>
+                                    <li>Node type badge, name, and source file</li>
+                                    <li>Properties (exported, async, return type, method, route, url, schedule)</li>
                                     <li><b className="text-amber-400">Calls</b> — functions this node calls</li>
                                     <li><b className="text-blue-400">Called by</b> — functions that call this node</li>
+                                    <li><b className="text-purple-400">Extends</b> — classes this node inherits from</li>
+                                    <li><b className="text-purple-300">Extended by</b> — classes that inherit from this node</li>
+                                    <li><b className="text-purple-300">Listens to</b> — events this node subscribes to</li>
+                                    <li><b className="text-sky-400">Depends on</b> — files/modules this node depends on</li>
+                                    <li><b className="text-sky-300">Depended on by</b> — files that depend on this node</li>
+                                    <li><b className="text-slate-400">Uses env vars</b> — environment variables referenced</li>
+                                    <li><b className="text-indigo-400">Calls external</b> — external API calls made</li>
+                                    <li><b className="text-red-400">Security issues</b> — linked vulnerabilities</li>
                                     <li><b className="text-slate-300">Contains</b> — child nodes (for files)</li>
+                                    <li><b className="text-cyan-400">Contained in</b> — parent file</li>
                                 </ul>
                             </HelpSection>
                         </div>
@@ -88,15 +119,25 @@ function HelpSection({ title, children }: { title: string; children: React.React
 }
 
 function HelpRow({ color, shape, label, desc }: { color: string; shape: string; label: string; desc: string }) {
-    const shapeClass = shape === 'diamond'
-        ? `w-3 h-3 ${color} rotate-45 flex-shrink-0`
-        : shape === 'rounded-full'
-        ? `w-3 h-3 ${color} rounded-full flex-shrink-0`
-        : `w-4 h-3 ${color} rounded flex-shrink-0`;
+    const shapeMap: Record<string, string> = {
+        'diamond': `w-3 h-3 ${color} rotate-45`,
+        'rounded-full': `w-3 h-3 ${color} rounded-full`,
+        'rounded': `w-4 h-3 ${color} rounded`,
+        'hexagon': `w-3.5 h-3 ${color} rounded-sm`,
+        'tag': `w-3.5 h-2.5 ${color} rounded-full`,
+        'star': `w-3.5 h-3.5 ${color} rounded-full`,
+        'barrel': `w-4 h-3 ${color} rounded-lg`,
+        'pentagon': `w-3.5 h-3.5 ${color} rounded-sm`,
+        'octagon': `w-3.5 h-3.5 ${color} rounded`,
+        'rhomboid': `w-4 h-3 ${color} skew-x-12 rounded-sm`,
+        'triangle': `w-0 h-0 border-l-[6px] border-r-[6px] border-b-[10px] border-l-transparent border-r-transparent border-b-current`,
+        'vee': `w-3.5 h-3 ${color} rounded-sm`,
+    };
+    const shapeClass = shapeMap[shape] ?? `w-4 h-3 ${color} rounded`;
 
     return (
         <div className="flex items-center gap-3">
-            <span className={shapeClass} />
+            <span className={`${shapeClass} flex-shrink-0`} />
             <span className="text-slate-200 w-20">{label}</span>
             <span className="text-slate-500">{desc}</span>
         </div>

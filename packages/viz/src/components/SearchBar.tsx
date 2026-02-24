@@ -7,7 +7,7 @@ interface SearchBarProps {
     cy: cytoscape.Core | null;
 }
 
-/** Barre de recherche pour trouver et focaliser un noeud */
+/** Search bar to find and focus a node */
 export function SearchBar({ cy }: SearchBarProps) {
     const [query, setQuery] = useState('');
     const [mode, setMode] = useState<SearchMode>('focus');

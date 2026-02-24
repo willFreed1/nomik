@@ -68,7 +68,8 @@ export function buildEnvDefinitionNodes(
     const edges: GraphEdge[] = [];
 
     for (const def of defs) {
-        const nodeId = createNodeId('env_var', def.name, '');
+        // Use same ID scheme as env-vars.ts so .env definitions merge with process.env references
+        const nodeId = createNodeId('env_var', '__global__', def.name);
         nodes.push({
             id: nodeId,
             type: 'env_var' as const,

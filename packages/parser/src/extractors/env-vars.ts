@@ -137,6 +137,9 @@ function tryProcessEnvSubscript(node: Parser.SyntaxNode): Omit<EnvVarInfo, 'call
     const innerProp = obj.childForFieldName('property');
     if (innerObj?.text !== 'process' || innerProp?.text !== 'env') return null;
 
+    // Only accept string literals — skip dynamic references like process.env[variable]
+    if (index.type !== 'string') return null;
+
     const raw = index.text.replace(/['"]/g, '');
     if (!raw) return null;
 
@@ -229,7 +232,8 @@ export function buildEnvVarNodesAndEdges(
     const seenEdges = new Set<string>();
 
     for (const ev of envVars) {
-        const envNodeId = createNodeId('env_var', filePath, ev.varName);
+        // Env var nodes are name-scoped (not file-scoped) — same var in multiple files = one node
+        const envNodeId = createNodeId('env_var', '__global__', ev.varName);
 
         if (!seenNodes.has(envNodeId)) {
             seenNodes.add(envNodeId);

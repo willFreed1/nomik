@@ -255,23 +255,20 @@ export function GraphViewer({ projectId, viewMode, onViewModeChange }: GraphView
                     cy.elements().removeClass('impact-source impact-callee impact-caller impact-edge faded search-match search-focus search-edge');
                     setSelectedNode(node);
 
-                    const callees = node.outgoers('edge[label="CALLS"]');
-                    const callers = node.incomers('edge[label="CALLS"]');
-                    const containsEdges = node.outgoers('edge[label="CONTAINS"]');
-                    const containedEdges = node.incomers('edge[label="CONTAINS"]');
-                    const dependsOut = node.outgoers('edge[label="DEPENDS_ON"]');
-                    const dependsIn = node.incomers('edge[label="DEPENDS_ON"]');
+                    // Gather all connected edges
+                    const allOutEdges = node.outgoers('edge');
+                    const allInEdges = node.incomers('edge');
+                    const allEdges = allOutEdges.union(allInEdges);
 
-                    const impactedEdges = callees.union(callers).union(containsEdges).union(containedEdges).union(dependsOut).union(dependsIn);
                     cy.elements().addClass('faded');
                     node.removeClass('faded').addClass('impact-source');
-                    callees.targets().removeClass('faded').addClass('impact-callee');
-                    callers.sources().removeClass('faded').addClass('impact-caller');
-                    impactedEdges.removeClass('faded').addClass('impact-edge');
-                    containsEdges.targets().removeClass('faded');
-                    containedEdges.sources().removeClass('faded');
-                    dependsOut.targets().removeClass('faded').addClass('impact-callee');
-                    dependsIn.sources().removeClass('faded').addClass('impact-caller');
+
+                    // Downstream (outgoing) targets
+                    allOutEdges.targets().removeClass('faded').addClass('impact-callee');
+                    // Upstream (incoming) sources
+                    allInEdges.sources().removeClass('faded').addClass('impact-caller');
+                    // All connected edges
+                    allEdges.removeClass('faded').addClass('impact-edge');
                 });
                 cy.on('tap', (evt) => {
                     if (evt.target === cy) {
@@ -295,7 +292,7 @@ export function GraphViewer({ projectId, viewMode, onViewModeChange }: GraphView
                 }
 
                 // ── LOD: Zoom-based level-of-detail ──
-                // When zoomed out, hide Function/Class to reduce visual clutter
+                // When zoomed out, hide non-File nodes to reduce visual clutter
                 const LOD_THRESHOLD = 0.6;
                 let lodState: 'detail' | 'overview' = 'detail';
                 cy.on('zoom', () => {
@@ -303,16 +300,14 @@ export function GraphViewer({ projectId, viewMode, onViewModeChange }: GraphView
                     if (z < LOD_THRESHOLD && lodState === 'detail') {
                         lodState = 'overview';
                         cy.batch(() => {
-                            cy.nodes('[label = "Function"], [label = "Class"]').style('display', 'none');
-                            cy.edges('[label = "CONTAINS"], [label = "CALLS"]').style('display', 'none');
+                            cy.nodes('[label != "File"]').style('display', 'none');
+                            cy.edges().style('display', 'none');
                             cy.edges('[label = "DEPENDS_ON"]').style('display', 'element');
                         });
                     } else if (z >= LOD_THRESHOLD && lodState === 'overview') {
                         lodState = 'detail';
                         cy.batch(() => {
-                            cy.nodes('[label = "Function"], [label = "Class"]').style('display', 'element');
-                            cy.edges('[label = "CONTAINS"], [label = "CALLS"]').style('display', 'element');
-                            cy.edges('[label = "DEPENDS_ON"]').style('display', 'element');
+                            cy.elements().style('display', 'element');
                         });
                     }
                 });

@@ -26,30 +26,37 @@ export function validateConfig(raw: unknown): NomikConfig {
 }
 
 export function loadConfigFromEnv(): Partial<NomikConfig> {
-    const env = process.env;
+    // Read directly from process.env (no aliasing — keeps env var extractor detection working)
+    const graphDriver = process.env['NOMIK_GRAPH_DRIVER'] as 'neo4j' | 'falkordb' | undefined;
+    const graphUri = process.env['NOMIK_GRAPH_URI'];
+    const graphUser = process.env['NOMIK_GRAPH_USER'];
+    const graphPass = process.env['NOMIK_GRAPH_PASS'];
+    const logLevel = process.env['NOMIK_LOG_LEVEL'] as NomikConfig['log']['level'] | undefined;
+    const mcpPort = process.env['NOMIK_MCP_PORT'];
+    const vizPort = process.env['NOMIK_VIZ_PORT'];
+
+    // Only include defined values — Zod schema defaults handle the rest
     return {
         graph: {
-            driver: (env['NOMIK_GRAPH_DRIVER'] as 'neo4j' | 'falkordb') ?? 'neo4j',
-            uri: env['NOMIK_GRAPH_URI'] ?? 'bolt://localhost:7687',
+            ...(graphDriver ? { driver: graphDriver } : {}),
+            ...(graphUri ? { uri: graphUri } : {}),
             auth: {
-                username: env['NOMIK_GRAPH_USER'] ?? 'neo4j',
-                password: env['NOMIK_GRAPH_PASS'] ?? 'nomik_local',
+                ...(graphUser ? { username: graphUser } : {}),
+                ...(graphPass ? { password: graphPass } : {}),
             },
-            maxConnectionPoolSize: 50,
-            connectionTimeoutMs: 5000,
-        },
+        } as NomikConfig['graph'],
         log: {
-            level: (env['NOMIK_LOG_LEVEL'] as NomikConfig['log']['level']) ?? 'info',
+            ...(logLevel ? { level: logLevel } : {}),
             pretty: true,
-        },
+        } as NomikConfig['log'],
         mcp: {
             transport: 'stdio' as const,
-            port: env['NOMIK_MCP_PORT'] ? parseInt(env['NOMIK_MCP_PORT'], 10) : 3334,
-        },
+            ...(mcpPort ? { port: parseInt(mcpPort, 10) } : {}),
+        } as NomikConfig['mcp'],
         viz: {
-            port: env['NOMIK_VIZ_PORT'] ? parseInt(env['NOMIK_VIZ_PORT'], 10) : 3333,
             theme: 'dark' as const,
-        },
+            ...(vizPort ? { port: parseInt(vizPort, 10) } : {}),
+        } as NomikConfig['viz'],
     };
 }
 

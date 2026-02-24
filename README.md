@@ -11,7 +11,7 @@ NOMIK builds a persistent **Knowledge Graph** of your entire codebase in Neo4j, 
 npm install -g @nomik-ai/cli
 
 cd your-project/
-nomik init                          # Config + Neo4j Docker + project setup
+nomik init                          # Config + Neo4j Docker + .env + project setup
 nomik scan .                        # Build the knowledge graph
 nomik setup-cursor                  # Connect to your IDE (or: setup-windsurf, setup-claude)
 nomik watch .                       # (Optional) Live graph updates on save
@@ -159,6 +159,12 @@ nomik project list|create|switch|delete|info
 | **Rust** | tree-sitter | functions, structs/enums/traits, use, calls |
 | **Markdown** | regex | sections (h1-h6) |
 | **SQL / C# / Python migrations** | regex | DB schema extraction (CREATE TABLE, EF, Django, Alembic) |
+| **YAML** | regex | Docker Compose, K8s, GitHub Actions, GitLab CI, CloudFormation, Prometheus, OpenAPI |
+| **Terraform** | regex | Resources, variables, modules, outputs (.tf, .tfvars) |
+| **GraphQL** | regex | Types, queries, mutations, subscriptions (.graphql, .gql) |
+| **Dockerfile** | regex | Base images, exposed ports, stages |
+| **.env** | regex | Environment variable definitions (.env, .env.local, .env.production) |
+| **JSON configs** | regex | package.json dependencies, OpenAPI specs, Grafana dashboards |
 
 ## Graph Schema
 
@@ -171,7 +177,7 @@ nomik project list|create|switch|delete|info
 ```
 nomik/
 ├── @nomik/core        — Types (Zod), config, logger (Pino)
-├── @nomik/parser      — Tree-sitter AST extraction + 37 extractors
+├── @nomik/parser      — Tree-sitter AST extraction + 37 extractors + config file parser
 ├── @nomik/graph       — Neo4j driver, queries, cache, rules engine
 ├── @nomik/watcher     — Chokidar file watcher
 ├── @nomik/mcp-server  — MCP server (21 tools, 9 resources, 6 prompts, sampling, roles)
@@ -191,7 +197,7 @@ nomik/
 | **IDE Support** | Cursor, Windsurf, Antigravity, Claude Desktop |
 | **Monorepo** | Turborepo + pnpm workspaces |
 | **Visualization** | Three.js (3D) + Cytoscape.js (2D) |
-| **Tests** | Vitest — 232 tests, 18 files |
+| **Tests** | Vitest — 232+ tests, 18+ files |
 
 ## Development
 

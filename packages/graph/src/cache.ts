@@ -1,4 +1,4 @@
-/** Cache TTL simple en memoire pour les requetes de lecture Neo4j */
+/** Simple in-memory TTL cache for Neo4j read queries */
 interface CacheEntry<T> {
     data: T;
     expiresAt: number;
@@ -25,9 +25,9 @@ export class QueryCache {
         return entry.data as T;
     }
 
-    /** Stocke une entree avec TTL */
+    /** Store an entry with TTL */
     set<T>(key: string, data: T): void {
-        // Eviction LRU basique si on depasse la taille max
+        // Basic LRU eviction if we exceed max size
         if (this.store.size >= this.maxSize) {
             const firstKey = this.store.keys().next().value;
             if (firstKey) this.store.delete(firstKey);
@@ -35,12 +35,12 @@ export class QueryCache {
         this.store.set(key, { data, expiresAt: Date.now() + this.ttlMs });
     }
 
-    /** Invalide toutes les entrees (apres un write) */
+    /** Invalidate all entries (after a write) */
     invalidateAll(): void {
         this.store.clear();
     }
 
-    /** Invalide les entrees dont la cle contient le pattern */
+    /** Invalidate entries whose key contains the pattern */
     invalidateByPattern(pattern: string): void {
         for (const key of this.store.keys()) {
             if (key.includes(pattern)) this.store.delete(key);

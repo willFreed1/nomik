@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { defineConfig, validateConfig, loadConfigFromEnv } from '../config/index.js';
 
 describe('defineConfig', () => {
-    it('retourne une config valide avec les valeurs par defaut', () => {
+    it('returns a valid config with default values', () => {
         const config = defineConfig({ target: { root: '/tmp/project' } });
 
         expect(config.target.root).toBe('/tmp/project');
@@ -13,7 +13,7 @@ describe('defineConfig', () => {
         expect(config.mcp.transport).toBe('stdio');
     });
 
-    it('accepte un override partiel', () => {
+    it('accepts a partial override', () => {
         const config = defineConfig({
             target: { root: '/tmp/project' },
             graph: { uri: 'bolt://custom:7687' },
@@ -23,18 +23,18 @@ describe('defineConfig', () => {
         expect(config.graph.driver).toBe('neo4j');
     });
 
-    it('lance ConfigError si target est absent', () => {
+    it('throws ConfigError if target is missing', () => {
         expect(() => validateConfig({})).toThrow('Invalid configuration');
         expect(() => validateConfig({})).toThrow('target');
     });
 
-    it('lance ConfigError si root est vide', () => {
+    it('does not throw if root is empty string', () => {
         expect(() => defineConfig({ target: { root: '' } })).not.toThrow();
     });
 });
 
 describe('validateConfig', () => {
-    it('valide et retourne une config complete', () => {
+    it('validates and returns a complete config', () => {
         const config = validateConfig({
             target: { root: './src' },
         });
@@ -44,7 +44,7 @@ describe('validateConfig', () => {
         expect(config.target.exclude).toContain('**/node_modules/**');
     });
 
-    it('rejette un driver invalide', () => {
+    it('rejects an invalid driver', () => {
         expect(() =>
             validateConfig({
                 target: { root: '.' },
@@ -53,7 +53,7 @@ describe('validateConfig', () => {
         ).toThrow('Invalid configuration');
     });
 
-    it('rejette un port negatif', () => {
+    it('rejects a negative port', () => {
         expect(() =>
             validateConfig({
                 target: { root: '.' },
@@ -64,16 +64,28 @@ describe('validateConfig', () => {
 });
 
 describe('loadConfigFromEnv', () => {
-    it('retourne les valeurs par defaut sans variables env', () => {
-        const config = loadConfigFromEnv();
+    it('returns partial config without env vars set', () => {
+        // Save and clear any existing env vars
+        const saved: Record<string, string | undefined> = {};
+        for (const k of ['NOMIK_GRAPH_DRIVER', 'NOMIK_GRAPH_URI', 'NOMIK_GRAPH_USER', 'NOMIK_GRAPH_PASS', 'NOMIK_LOG_LEVEL']) {
+            saved[k] = process.env[k];
+            delete process.env[k];
+        }
 
+        const config = loadConfigFromEnv();
         expect(config.graph).toBeDefined();
-        expect(config.graph!.driver).toBe('neo4j');
-        expect(config.graph!.uri).toBe('bolt://localhost:7687');
-        expect(config.log!.level).toBe('info');
+        // No hardcoded defaults — Zod schema provides defaults when validateConfig() is called
+        expect(config.log!.pretty).toBe(true);
+        expect(config.mcp!.transport).toBe('stdio');
+        expect(config.viz!.theme).toBe('dark');
+
+        // Restore
+        for (const [k, v] of Object.entries(saved)) {
+            if (v !== undefined) process.env[k] = v;
+        }
     });
 
-    it('lit NOMIK_GRAPH_URI depuis env', () => {
+    it('reads NOMIK_GRAPH_URI from env', () => {
         const original = process.env['NOMIK_GRAPH_URI'];
         process.env['NOMIK_GRAPH_URI'] = 'bolt://custom:9999';
 

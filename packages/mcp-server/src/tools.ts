@@ -1,10 +1,10 @@
 import type { GraphService } from '@nomik/graph';
 import { NomikError } from '@nomik/core';
 
-/** Labels Neo4j reconnus par le scan */
+/** Neo4j labels recognized by the scan */
 const KNOWN_LABELS = ['File', 'Function', 'Class', 'Variable', 'Module', 'Route', 'DBTable', 'DBColumn', 'ExternalAPI', 'CronJob', 'Event', 'EnvVar', 'QueueJob', 'Metric', 'Span', 'Topic', 'SecurityIssue'];
 
-/** Recupere le projectId depuis l'env (injecte par Cursor/IDE) */
+/** Get the projectId from env (injected by Cursor/IDE) */
 function getProjectId(): string | undefined {
     return process.env.NOMIK_PROJECT_ID || undefined;
 }

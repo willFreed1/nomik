@@ -38,7 +38,10 @@ AI interface via Model Context Protocol.
 
 ### 6. [Visualization](./viz/README.md) (`@nomik/viz`)
 React dashboard — 2D (Cytoscape.js) + 3D (Three.js).
-- Search, filter, layout selector, impact overlay, detail panel, stats panel
+- All **17 node types** rendered with distinct shapes/colors, all **10 edge types** with distinct styles
+- Search (ranked, focus/fit modes), filter (node/edge/directory), 4 layouts, impact overlay, detail panel
+- Stats panel: full node type breakdown, dead code, god objects, god files, duplicates, composite health score
+- Performance: 60s query cache, progressive streaming, adaptive styles/layouts, LOD zoom, 3D adaptive quality
 
 ### 7. [Watcher](./watcher/) (`@nomik/watcher`)
 Chokidar file watcher with debounced reindex and `projectId` support.

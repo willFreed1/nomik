@@ -11,16 +11,27 @@ Intelligence engine responsible for converting source code into nodes and edges 
 | Python | `tree-sitter-python` | `.py`, `.pyw` | functions, classes, imports, calls |
 | Rust | `tree-sitter-rust` | `.rs` | functions, structs/enums/traits, use, calls |
 | Markdown | Custom parser (regex) | `.md` | sections (h1-h6 headings, truncated content) |
+| YAML | Config parser (regex) | `.yml`, `.yaml` | Docker Compose, K8s, GitHub Actions, GitLab CI, CloudFormation, Prometheus, OpenAPI |
+| Terraform | Config parser (regex) | `.tf`, `.tfvars` | resources, variables, modules, outputs |
+| GraphQL | Config parser (regex) | `.graphql`, `.gql` | types, operations (Query/Mutation/Subscription) |
+| Dockerfile | Config parser (regex) | `Dockerfile`, `Dockerfile.*` | base images, exposed ports, stages |
+| .env | Config parser (regex) | `.env`, `.env.*` | environment variable definitions |
+| JSON config | Config parser (regex) | `package.json` | dependencies, OpenAPI specs, Grafana dashboards |
 
 Tree-sitter grammars are loaded on demand via `src/languages/registry.ts`.
+Config files are dispatched via `src/config-file-parser.ts` (no tree-sitter needed).
 
 ## Architecture
 
 ```mermaid
 graph LR
-    File -->|Read| TreeSitter
+    File -->|Read| Dispatch
+    Dispatch -->|Code files| TreeSitter
+    Dispatch -->|Config files| ConfigParser
     TreeSitter -->|AST| Extractors
+    ConfigParser -->|Regex| ConfigExtractors
     Extractors -->|Nodes+Edges| Resolvers
+    ConfigExtractors -->|Nodes+Edges| Output
     Resolvers -->|Cross-file| Pipeline
     Pipeline -->|Result| Output
 ```
@@ -29,7 +40,9 @@ graph LR
 
 ```
 src/
-├── parser.ts              # Orchestrator (481 lines)
+├── parser.ts              # Code file orchestrator (tree-sitter)
+├── config-file-parser.ts  # Config file dispatcher (.env, Dockerfile, YAML, Terraform, GraphQL, JSON)
+├── types.ts               # Shared types (ParseResult, ParserEngine)
 ├── extractors/            # AST → nodes/edges per file
 │   ├── functions.ts       # FunctionNode extraction
 │   ├── classes.ts         # ClassNode extraction

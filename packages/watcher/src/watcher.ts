@@ -18,7 +18,7 @@ export interface WatcherService {
     isRunning(): boolean;
 }
 
-/** Cree un watcher qui met a jour le graphe incrementalement */
+/** Creates a watcher that incrementally updates the graph */
 export function createWatcher(
     options: WatcherOptions,
     parser: ParserEngine,
@@ -31,7 +31,7 @@ export function createWatcher(
 
     const pendingFiles = new Map<string, NodeJS.Timeout>();
 
-    /** Exclut les chemins node_modules, dist, .git, docker meme si les symlinks passent le glob chokidar */
+    /** Exclude node_modules, dist, .git, docker paths even if symlinks bypass chokidar glob */
     function isExcludedPath(filePath: string): boolean {
         const normalized = filePath.replace(/\\/g, '/');
         return /\/node_modules\//.test(normalized)
@@ -40,7 +40,7 @@ export function createWatcher(
             || /\/docker\//.test(normalized);
     }
 
-    /** Re-parse et re-ingere un fichier modifie */
+    /** Re-parse and re-ingest a modified file */
     async function handleFileChange(filePath: string): Promise<void> {
         const abs = path.resolve(filePath);
         if (isExcludedPath(abs)) return;
@@ -139,7 +139,9 @@ export function createWatcher(
         fsWatcher.on('change', (fp) => scheduleReindex(fp as string));
         fsWatcher.on('add', (fp) => scheduleReindex(fp as string));
         fsWatcher.on('unlink', (fp) => {
-            logger.debug({ filePath: fp }, 'file deleted');
+            const abs = path.resolve(fp as string);
+            logger.info({ filePath: abs }, 'file deleted — cleaning graph');
+            graph.ingestFileData([], [], abs, options.projectId).catch(() => {});
         });
 
         running = true;

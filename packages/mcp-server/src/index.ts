@@ -9,7 +9,7 @@ import { handleListPrompts, handleGetPrompt } from './prompts';
 import { filterToolsByRole, filterPromptsByRole, filterResourcesByRole, getRole } from './roles';
 import { initSampling, isSamplingEnabled } from './sampling';
 
-const logLevel = (process.env.LOG_LEVEL as LogConfig['level']) || 'info';
+const logLevel = (process.env.NOMIK_LOG_LEVEL as LogConfig['level']) || 'info';
 const logger = createLogger({ level: logLevel, pretty: false }, process.stderr);
 setLogger(logger);
 
@@ -23,7 +23,7 @@ async function main() {
     }
     const graph = createGraphService(config.graph);
 
-    // Boucle de reconnexion au demarrage — attend que Neo4j soit pret
+    // Reconnection loop at startup — wait for Neo4j to be ready
     const MAX_CONNECT_RETRIES = 10;
     const CONNECT_RETRY_DELAY_MS = 3000;
     let connected = false;
@@ -50,7 +50,7 @@ async function main() {
     const server = new Server(
         {
             name: '@nomik/mcp-server',
-            version: '0.1.0',
+            version: '1.0.0',
         },
         {
             capabilities: {

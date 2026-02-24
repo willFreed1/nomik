@@ -3,7 +3,9 @@ import path from 'node:path';
 import Parser from 'tree-sitter';
 import { type ClassNode, type FunctionNode, type VariableNode, type ModuleNode, type GraphNode, type GraphEdge, ParseError, getLogger } from '@nomik/core';
 import type { FileNode } from '@nomik/core';
-import { detectLanguage, grammars } from './languages/index';
+import { detectLanguage, grammars, isConfigFile } from './languages/index';
+import { parseConfigFile } from './config-file-parser';
+import type { ParseResult, ParserEngine } from './types';
 import { extractFunctions } from './extractors/functions';
 import { extractClasses } from './extractors/classes';
 import { extractVariables } from './extractors/variables';
@@ -35,43 +37,10 @@ import { createNodeId, createFileHash } from './utils';
 import type { ImportInfo } from './extractors/imports';
 import type { ExportInfo } from './extractors/exports';
 import type { CallInfo } from './extractors/calls';
-import {
-    resolveCallEdges,
-    resolveFileCallEdges,
-    resolveVariableArrayReferenceEdges,
-    resolveVariableDeclarationAliasEdges,
-    resolveCrossFileCallEdges,
-    resolveFileCrossFileCallEdges,
-    buildImportedAliasFunctionIds,
-    buildImportedReceiverFileIds,
-    resolveImportedSymbolReferenceEdges,
-    resolveImportedArrayAliasCallEdges,
-    resolveExtendsEdges,
-    resolveImplementsEdges,
-    resolveRouteHandlesEdges,
-    resolveCrossFileHandlesEdges,
-    resolveFrameworkEntryEdges,
-} from './resolvers/index';
-import {
-    findAllPathAliases,
-    resolveImportPath,
-    resolveAliasImportMulti,
-} from './config/index';
+import { resolveCallEdges, resolveFileCallEdges, resolveVariableArrayReferenceEdges, resolveVariableDeclarationAliasEdges, resolveCrossFileCallEdges, resolveFileCrossFileCallEdges, buildImportedAliasFunctionIds, buildImportedReceiverFileIds, resolveImportedSymbolReferenceEdges, resolveImportedArrayAliasCallEdges, resolveExtendsEdges, resolveImplementsEdges, resolveRouteHandlesEdges, resolveCrossFileHandlesEdges, resolveFrameworkEntryEdges, } from './resolvers/index';
+import { findAllPathAliases, resolveImportPath, resolveAliasImportMulti, } from './config/index';
 
-export interface ParseResult {
-    file: FileNode;
-    nodes: GraphNode[];
-    edges: GraphEdge[];
-    imports: ImportInfo[];
-    exports: ExportInfo[];
-    calls: CallInfo[];
-    arrayAliases: Record<string, string[]>;
-}
-
-export interface ParserEngine {
-    parseFile(filePath: string): Promise<ParseResult>;
-    parseFiles(filePaths: string[]): Promise<ParseResult[]>;
-}
+export type { ParseResult, ParserEngine } from './types';
 
 const parserCache = new Map<string, Parser>();
 
@@ -104,6 +73,13 @@ export function createParserEngine(): ParserEngine {
             const md = parseMarkdown(absolutePath, content);
             logger.debug({ filePath: absolutePath, nodes: md.nodes.length, edges: md.edges.length }, 'parsed markdown');
             return { file: md.file, nodes: md.nodes, edges: md.edges, imports: [], exports: [], calls: [], arrayAliases: {} };
+        }
+
+        // Config files: dispatch to config-file-parser module (no tree-sitter)
+        if (isConfigFile(language)) {
+            const result = parseConfigFile(absolutePath, content, language);
+            logger.debug({ filePath: absolutePath, language, nodes: result.nodes.length, edges: result.edges.length }, 'parsed config file');
+            return result;
         }
 
         if (language === 'sql' || language === 'csharp') {

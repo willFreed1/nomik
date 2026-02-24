@@ -22,7 +22,7 @@ function isTransientNeo4jError(err: unknown): boolean {
         || name.includes('sessionexpired');
 }
 
-/** Retry avec backoff exponentiel pour les erreurs transientes Neo4j */
+/** Retry with exponential backoff for transient Neo4j errors */
 async function withRetry<T>(fn: () => Promise<T>, label: string, logger: ReturnType<typeof getLogger>): Promise<T> {
     let lastError: Error | undefined;
     for (let attempt = 0; attempt < MAX_RETRIES; attempt++) {

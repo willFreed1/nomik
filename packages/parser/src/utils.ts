@@ -15,7 +15,7 @@ export function createBodyHash(bodyText: string): string {
     return createHash('sha256').update(normalized).digest('hex').slice(0, 16);
 }
 
-/** Retourne le SHA complet + info du commit courant */
+/** Returns the full SHA + current commit info */
 export function getGitInfo(): { sha: string; shortSha: string; message: string; author: string; date: string } | null {
     try {
         const sha = execSync('git rev-parse HEAD', { encoding: 'utf-8', stdio: ['pipe', 'pipe', 'pipe'] }).trim();

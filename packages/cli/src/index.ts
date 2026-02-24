@@ -1,3 +1,4 @@
+import 'dotenv/config';
 import { Command } from 'commander';
 import { scanCommand } from './commands/scan.js';
 import { statusCommand } from './commands/status.js';
@@ -37,8 +38,8 @@ const program = new Command();
 
 program
     .name('nomik')
-    .description('NOMIK — The Living Blueprint')
-    .version('0.1.0');
+    .description('NOMIK — The Living Blueprint\nhttps://nomik.co — by @willFreed1')
+    .version('1.0.0');
 
 program.addCommand(initCommand);
 program.addCommand(scanCommand);

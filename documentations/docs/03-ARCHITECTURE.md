@@ -27,9 +27,11 @@
 ## Data Flow
 
 ```
-Source Code ──▶ Watcher ──▶ Parser (tree-sitter) ──▶ 37 Extractors
+Source Code ──▶ Watcher ──▶ Parser (tree-sitter) ──▶ 37 Code Extractors
+                                  │                        │
+                            Config Files ──▶ Config Parser ──▶ 12 Config Extractors
                                                          │
-                                              nodes + edges
+                                              nodes + edges (deduplicated)
                                                          ▼
     IDE AI ◀── MCP Server ◀── Graph (Neo4j) ──▶ CLI / Viz / REST API
 ```
@@ -39,9 +41,9 @@ Source Code ──▶ Watcher ──▶ Parser (tree-sitter) ──▶ 37 Extrac
 | Package | Purpose | Key Files |
 |---|---|---|
 | **@nomik/core** | Types (Zod), config, logger (Pino) | `types/`, `config/`, `logger/` |
-| **@nomik/parser** | Tree-sitter AST extraction, 37 extractors | `extractors/`, `resolvers/`, `parser.ts` |
+| **@nomik/parser** | Tree-sitter AST + config file extraction, 37 extractors | `extractors/`, `resolvers/`, `parser.ts`, `config-file-parser.ts` |
 | **@nomik/graph** | Neo4j driver, queries, cache (30s TTL), rules engine | `queries/`, `drivers/`, `graph.service.ts` |
-| **@nomik/watcher** | Chokidar file watcher, debounced reindex | `watcher.ts` |
+| **@nomik/watcher** | Chokidar file watcher, debounced reindex, file deletion cleanup | `watcher.ts` |
 | **@nomik/mcp-server** | MCP protocol (21 tools, 9 resources, 6 prompts) | `tools.ts`, `prompts.ts`, `roles.ts`, `sampling.ts` |
 | **@nomik/github-bot** | PR impact analysis webhook | `index.ts` |
 | **@nomik/viz** | React + Three.js (3D) + Cytoscape.js (2D) | `components/`, `neo4j.ts` |
@@ -55,7 +57,7 @@ Source Code ──▶ Watcher ──▶ Parser (tree-sitter) ──▶ 37 Extrac
 | **API** | routes, api-calls, grpc/tRPC/GraphQL |
 | **Data** | db-operations, db-schema (SQL/C#/Python), redis |
 | **Infrastructure** | queue, metrics, tracing, messaging, websocket, cron, events |
-| **Config** | docker, cicd, terraform, cloudformation, openapi-spec, graphql-schema, dependencies, dotenv, infra-config, swagger |
+| **Config** | docker, cicd, terraform, cloudformation, openapi-spec, graphql-schema, dependencies, dotenv, infra-config, swagger — all wired via `config-file-parser.ts` |
 | **Security** | secrets, feature-flags, env-vars, test-coverage |
 | **Python** | python, python-runtime (Redis, Celery, Prometheus, OTel, brokers) |
 | **Rust** | rust (functions, structs, enums, traits, use, calls) |

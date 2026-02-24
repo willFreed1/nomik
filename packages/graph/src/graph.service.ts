@@ -18,9 +18,9 @@ export interface GraphService {
     connect(): Promise<void>;
     disconnect(): Promise<void>;
     initSchema(): Promise<void>;
-    /** @deprecated Utilisez ingestBatch pour preserver les edges cross-fichier */
+    /** @deprecated Use ingestBatch to preserve cross-file edges */
     ingestFileData(nodes: GraphNode[], edges: GraphEdge[], filePath: string, projectId: string): Promise<void>;
-    /** Ingestion 3-phases : clear → upsert → edges (preserve les edges cross-fichier) */
+    /** 3-phase ingestion: clear → upsert → edges (preserves cross-file edges) */
     ingestBatch(results: ParseResult[], projectId: string): Promise<void>;
     getImpact(symbolName: string, depth?: number, projectId?: string, minConfidence?: number): Promise<ImpactResult[]>;
     getFileSymbols(filePath: string, projectId?: string): Promise<FileSymbol[]>;
@@ -44,20 +44,20 @@ export interface GraphService {
     getTestImpactForFiles(filePaths: string[], projectId?: string): Promise<Array<{ testFile: string; changedFile: string; reason: string }>>;
     healthCheck(): Promise<boolean>;
     executeQuery<T>(query: string, params?: Record<string, any>): Promise<T[]>;
-    // Gestion des projets
+    // Project management
     createProject(project: ProjectNode): Promise<void>;
     listProjects(): Promise<ProjectNode[]>;
     getProject(projectId: string): Promise<ProjectNode | null>;
     deleteProject(projectId: string): Promise<void>;
 }
 
-/** Cree un service graph avec cache TTL sur les lectures */
+/** Creates a graph service with TTL cache on reads */
 export function createGraphService(config: GraphConfig): GraphService {
     const logger = getLogger();
     const driver: GraphDriver = createNeo4jDriver(config);
     const cache = new QueryCache(30_000, 200);
 
-    /** Helper cache : retourne le cache si dispo, sinon execute et stocke */
+    /** Cache helper: returns cached value if available, otherwise executes and stores */
     async function cached<T>(key: string, fn: () => Promise<T>): Promise<T> {
         const hit = cache.get<T>(key);
         if (hit !== undefined) {
@@ -92,20 +92,20 @@ export function createGraphService(config: GraphConfig): GraphService {
         },
 
         async ingestBatch(results, projectId: string) {
-            // Phase 0 : Purger les fichiers obsoletes (exclus, supprimes, renommes)
+            // Phase 0: Purge stale files (excluded, deleted, renamed)
             const currentPaths = results.map(r => r.file.path);
             await purgeStaleFiles(driver, currentPaths, projectId);
             logger.debug({ projectId }, 'purged stale files from previous scans');
 
-            // Phase 1 : Supprimer les anciennes donnees de TOUS les fichiers d'abord
+            // Phase 1: Clear old data for ALL files first
             await clearFilesData(driver, currentPaths, projectId);
 
-            // Phase 2 : Creer TOUS les noeuds (result.nodes inclut deja le FileNode)
+            // Phase 2: Create ALL nodes (result.nodes already includes FileNode)
             const allNodes: GraphNode[] = [];
             for (const r of results) allNodes.push(...r.nodes);
             await upsertNodes(driver, allNodes, projectId);
 
-            // Phase 3 : Creer TOUTES les edges (intra + cross-fichier preservees)
+            // Phase 3: Create ALL edges (intra + cross-file preserved)
             const allEdges: GraphEdge[] = [];
             for (const r of results) {
                 allEdges.push(...r.edges);
@@ -203,7 +203,7 @@ export function createGraphService(config: GraphConfig): GraphService {
             return driver.runQuery<T>(query, params);
         },
 
-        // Gestion des projets
+        // Project management
         async createProject(project: ProjectNode) {
             await upsertProject(driver, project);
             cache.invalidateAll();

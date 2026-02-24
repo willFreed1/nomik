@@ -16,20 +16,49 @@ const NODE_COLORS: Record<string, string> = {
     File: '#06b6d4',
     Function: '#10b981',
     Class: '#a855f7',
+    Route: '#f59e0b',
+    Variable: '#60a5fa',
+    Event: '#c084fc',
+    EnvVar: '#a1a1aa',
+    Module: '#22d3ee',
+    DBTable: '#fb923c',
+    DBColumn: '#f97316',
+    ExternalAPI: '#818cf8',
+    CronJob: '#a3e635',
+    QueueJob: '#e879f9',
+    Metric: '#2dd4bf',
+    Span: '#38bdf8',
+    Topic: '#a78bfa',
+    SecurityIssue: '#ef4444',
 };
 
 const EDGE_COLORS: Record<string, string> = {
     CONTAINS: '#475569',
     CALLS: '#f59e0b',
     DEPENDS_ON: '#38bdf8',
+    IMPORTS: '#6366f1',
+    EXPORTS: '#8b5cf6',
+    LISTENS_TO: '#c084fc',
+    EXTENDS: '#a855f7',
+    USES_ENV: '#a1a1aa',
+    HAS_SECURITY_ISSUE: '#ef4444',
+    CALLS_EXTERNAL: '#818cf8',
 };
 
 /** Dynamic filter panel with checkbox groups for types, directories, and edges */
 export function FilterPanel({ cy, directories }: FilterPanelProps) {
     const [isOpen, setIsOpen] = useState(false);
-    const [nodeFilters, setNodeFilters] = useState<Record<string, boolean>>({ File: true, Function: true, Class: true });
+    const [nodeFilters, setNodeFilters] = useState<Record<string, boolean>>(() => {
+        const init: Record<string, boolean> = {};
+        for (const k of Object.keys(NODE_COLORS)) init[k] = true;
+        return init;
+    });
     const [dirFilters, setDirFilters] = useState<Record<string, boolean>>({});
-    const [edgeFilters, setEdgeFilters] = useState<Record<string, boolean>>({ CONTAINS: true, CALLS: true, DEPENDS_ON: true });
+    const [edgeFilters, setEdgeFilters] = useState<Record<string, boolean>>(() => {
+        const init: Record<string, boolean> = {};
+        for (const k of Object.keys(EDGE_COLORS)) init[k] = true;
+        return init;
+    });
     const [counts, setCounts] = useState<Record<string, number>>({});
     const panelRef = useRef<HTMLDivElement>(null);
 
@@ -44,8 +73,8 @@ export function FilterPanel({ cy, directories }: FilterPanelProps) {
     useEffect(() => {
         if (!cy) return;
         const c: Record<string, number> = {};
-        ['File', 'Function', 'Class'].forEach(l => { c[l] = cy.nodes(`[label="${l}"]`).length; });
-        ['CONTAINS', 'CALLS', 'DEPENDS_ON'].forEach(l => { c[l] = cy.edges(`[label="${l}"]`).length; });
+        for (const l of Object.keys(NODE_COLORS)) { c[l] = cy.nodes(`[label="${l}"]`).length; }
+        for (const l of Object.keys(EDGE_COLORS)) { c[l] = cy.edges(`[label="${l}"]`).length; }
         setCounts(c);
     }, [cy]);
 
@@ -145,7 +174,7 @@ export function FilterPanel({ cy, directories }: FilterPanelProps) {
                     {/* Node Types */}
                     <div>
                         <h4 className="text-[10px] font-mono text-slate-500 uppercase tracking-wider mb-1.5">Node Types</h4>
-                        {Object.entries(NODE_COLORS).map(([type, color]) => (
+                        {Object.entries(NODE_COLORS).filter(([type]) => (counts[type] ?? 0) > 0).map(([type, color]) => (
                             <label key={type} className="flex items-center gap-2 py-0.5 cursor-pointer group">
                                 <input
                                     type="checkbox"
@@ -189,7 +218,7 @@ export function FilterPanel({ cy, directories }: FilterPanelProps) {
                     {/* Edge Types */}
                     <div>
                         <h4 className="text-[10px] font-mono text-slate-500 uppercase tracking-wider mb-1.5">Edge Types</h4>
-                        {Object.entries(EDGE_COLORS).map(([type, color]) => (
+                        {Object.entries(EDGE_COLORS).filter(([type]) => (counts[type] ?? 0) > 0).map(([type, color]) => (
                             <label key={type} className="flex items-center gap-2 py-0.5 cursor-pointer group">
                                 <input
                                     type="checkbox"

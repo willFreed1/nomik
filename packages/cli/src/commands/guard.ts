@@ -10,17 +10,23 @@ export const guardCommand = new Command('guard')
     .option('--dead-code <n>', 'Max allowed dead code count', '5')
     .option('--god-files <n>', 'Max allowed god files', '3')
     .option('--duplicates <n>', 'Max allowed duplicate groups', '2')
-    .option('--god-file-threshold <n>', 'Function count to flag a god file', '10')
+    .option('--god-file-threshold <n>', 'Function count to flag a god file', '15')
     .option('--install-hook', 'Install as git pre-commit hook')
+    .option('--uninstall-hook', 'Remove the NOMIK pre-commit hook')
     .option('--json', 'Output results as JSON')
     .option('--ci', 'CI mode — exit code 1 on failure, no interactive output')
     .action(async (opts: {
         deadCode: string; godFiles: string; duplicates: string;
-        godFileThreshold: string; installHook?: boolean; json?: boolean; ci?: boolean;
+        godFileThreshold: string; installHook?: boolean; uninstallHook?: boolean; json?: boolean; ci?: boolean;
     }) => {
         // Install git hook mode
         if (opts.installHook) {
             return installPreCommitHook();
+        }
+
+        // Uninstall git hook mode
+        if (opts.uninstallHook) {
+            return uninstallPreCommitHook();
         }
 
         const envConfig = loadConfigFromEnv();
@@ -132,8 +138,9 @@ function installPreCommitHook(): void {
     const hookPath = path.join(hooksDir, 'pre-commit');
     const hookContent = `#!/bin/sh
 # NOMIK quality gate — installed by 'nomik guard --install-hook'
+# Remove with: nomik guard --uninstall-hook
 echo "🛡️  Running NOMIK guard..."
-npx nomik guard --ci
+npx @nomik-ai/cli guard --ci
 if [ $? -ne 0 ]; then
     echo "❌ NOMIK guard failed. Fix issues before committing."
     exit 1
@@ -157,4 +164,21 @@ fi
 
     console.log(`  Hook path: ${hookPath}`);
     console.log('  The hook will run `nomik guard --ci` before each commit.\n');
+}
+
+function uninstallPreCommitHook(): void {
+    const hookPath = path.resolve('.git', 'hooks', 'pre-commit');
+    if (!fs.existsSync(hookPath)) {
+        console.log('  ℹ️  No pre-commit hook found — nothing to remove\n');
+        return;
+    }
+
+    const content = fs.readFileSync(hookPath, 'utf-8');
+    if (!content.includes('nomik guard')) {
+        console.log('  ℹ️  Pre-commit hook exists but is not a NOMIK hook — skipping\n');
+        return;
+    }
+
+    fs.unlinkSync(hookPath);
+    console.log('  ✅ NOMIK pre-commit hook removed\n');
 }

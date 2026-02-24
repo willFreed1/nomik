@@ -1,7 +1,7 @@
 import type { GraphDriver } from '../drivers/driver.interface.js';
 import type { GraphNode, GraphEdge, ProjectNode } from '@nomik/core';
 
-/** Upsert par lots avec UNWIND — chaque noeud reçoit le projectId */
+/** Batch upsert with UNWIND — each node receives the projectId */
 export async function upsertNodes(driver: GraphDriver, nodes: GraphNode[], projectId: string): Promise<void> {
     const grouped = groupByType(nodes);
     for (const [type, batch] of Object.entries(grouped)) {
@@ -17,7 +17,7 @@ export async function upsertNodes(driver: GraphDriver, nodes: GraphNode[], proje
     }
 }
 
-/** Supprime les donnees de plusieurs fichiers d'un projet en une passe (performance scan) */
+/** Delete data for multiple files in a project in one pass (scan performance) */
 export async function clearFilesData(driver: GraphDriver, filePaths: string[], projectId: string): Promise<void> {
     if (filePaths.length === 0) return;
     await driver.runWrite(
@@ -61,7 +61,7 @@ export async function createEdges(driver: GraphDriver, edges: GraphEdge[], proje
     }
 }
 
-/** Supprime les donnees d'un fichier dans un projet specifique */
+/** Delete data for a single file in a specific project */
 export async function clearFileData(driver: GraphDriver, filePath: string, projectId: string): Promise<void> {
     await driver.runWrite(
         `MATCH (f:File {path: $path, projectId: $projectId})-[:CONTAINS]->(n) DETACH DELETE n`,
@@ -73,22 +73,22 @@ export async function clearFileData(driver: GraphDriver, filePath: string, proje
     );
 }
 
-/** Purge les noeuds obsoletes d'un projet : fichiers qui ne sont plus dans le scan courant
- *  Typiquement : fichiers exclus (public/, .min.js), fichiers supprimes, fichiers renommes
+/** Purge stale nodes from a project: files no longer in the current scan.
+ *  Typically: excluded files (public/, .min.js), deleted files, renamed files.
  */
 export async function purgeStaleFiles(
     driver: GraphDriver,
     currentFilePaths: string[],
     projectId: string,
 ): Promise<void> {
-    // D'abord supprimer les noeuds CONTENUS par les fichiers obsoletes
+    // First delete nodes CONTAINED by stale files
     await driver.runWrite(
         `MATCH (f:File {projectId: $projectId})-[:CONTAINS]->(n)
          WHERE NOT f.path IN $currentPaths
          DETACH DELETE n`,
         { currentPaths: currentFilePaths, projectId },
     );
-    // Puis les File nodes eux-memes
+    // Then the File nodes themselves
     await driver.runWrite(
         `MATCH (f:File {projectId: $projectId})
          WHERE NOT f.path IN $currentPaths
@@ -97,7 +97,7 @@ export async function purgeStaleFiles(
     );
 }
 
-/** Cree ou met a jour un noeud Project */
+/** Create or update a Project node */
 export async function upsertProject(driver: GraphDriver, project: ProjectNode): Promise<void> {
     await driver.runWrite(
         `MERGE (p:Project {id: $id})
@@ -107,21 +107,21 @@ export async function upsertProject(driver: GraphDriver, project: ProjectNode): 
     );
 }
 
-/** Supprime toutes les donnees d'un projet (noeuds + relations attachees) */
+/** Delete all data for a project (nodes + attached relationships) */
 export async function deleteProjectData(driver: GraphDriver, projectId: string): Promise<void> {
-    // DETACH DELETE supprime les noeuds ET leurs relations attachees en une seule passe
+    // DETACH DELETE removes nodes AND their attached relationships in one pass
     await driver.runWrite(
         `MATCH (n {projectId: $projectId}) DETACH DELETE n`,
         { projectId },
     );
-    // Le noeud Project a id = projectId (pas de propriete projectId sur lui-meme)
+    // The Project node has id = projectId (no projectId property on itself)
     await driver.runWrite(
         `MATCH (p:Project {id: $projectId}) DELETE p`,
         { projectId },
     );
 }
 
-/** Liste tous les projets */
+/** List all projects */
 export async function listProjects(driver: GraphDriver): Promise<ProjectNode[]> {
     return driver.runQuery<ProjectNode>(
         `MATCH (p:Project)
@@ -131,7 +131,7 @@ export async function listProjects(driver: GraphDriver): Promise<ProjectNode[]> 
     );
 }
 
-/** Recupere un projet par ID */
+/** Get a project by ID */
 export async function getProject(driver: GraphDriver, projectId: string): Promise<ProjectNode | null> {
     const results = await driver.runQuery<ProjectNode>(
         `MATCH (p:Project {id: $id})

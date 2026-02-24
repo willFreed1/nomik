@@ -47,7 +47,7 @@ export interface RulesConfig {
 const DEFAULT_RULES: Required<RulesConfig> = {
     maxDeadCode: 5,
     maxGodFiles: 3,
-    maxGodFileThreshold: 10,
+    maxGodFileThreshold: 15,
     maxDuplicates: 2,
     maxFunctionCallers: 50,
     maxDbWritesPerRoute: 3,

@@ -3,7 +3,7 @@ import { GraphViewer } from './components/GraphViewer';
 import { Graph3DViewer } from './components/Graph3DViewer';
 import { ProjectSelector } from './components/ProjectSelector';
 import { StatsPanel } from './components/StatsPanel';
-import { fetchProjects, fetchHealthStats, type HealthStats, type ViewMode } from './neo4j';
+import { fetchProjects, fetchHealthStats, invalidateCache, type HealthStats, type ViewMode } from './neo4j';
 
 function App() {
     const [mode, setMode] = useState<'3d' | '2d'>('3d');
@@ -33,6 +33,7 @@ function App() {
 
     // Reload stats when project changes
     useEffect(() => {
+        invalidateCache();
         setStatsLoading(true);
         fetchHealthStats(selectedProjectId)
             .then(s => { setStats(s); setStatsLoading(false); })

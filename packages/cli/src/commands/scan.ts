@@ -16,31 +16,38 @@ export const scanCommand = new Command('scan')
             ...envConfig,
             target: {
                 root: targetPath,
-                include: ['**/*.ts', '**/*.tsx', '**/*.js', '**/*.jsx', '**/*.md', '**/*.py', '**/*.rs', '**/*.sql', '**/*.cs'],
+                include: [
+                    '**/*.ts', '**/*.tsx', '**/*.js', '**/*.jsx', '**/*.md', '**/*.py', '**/*.rs', '**/*.sql', '**/*.cs',
+                    '**/*.yml', '**/*.yaml', '**/*.tf', '**/*.tfvars', '**/*.graphql', '**/*.gql',
+                    '**/Dockerfile', '**/Dockerfile.*', '**/.env', '**/.env.*',
+                    '**/package.json', '**/requirements.txt',
+                ],
                 exclude: [
                     '**/node_modules/**', '**/dist/**', '**/build/**', '**/out/**',
                     '**/.next/**', '**/.nuxt/**', '**/.svelte-kit/**', '**/coverage/**',
                     '**/public/**', '**/*.test.*', '**/*.spec.*', '**/*.d.ts',
                     '**/__pycache__/**', '**/target/**', '**/.venv/**', '**/venv/**',
                     '**/*.min.js', '**/*.min.css', '**/*.bundle.js',
+                    '**/pnpm-lock.yaml', '**/yarn.lock', '**/package-lock.json',
+                    '**/wiki/**',
                 ],
             },
         });
 
         const gitInfo = getGitInfo();
 
-        // Resolution du projet : config locale > option CLI > auto-creation
+        // Project resolution: local config > CLI option > auto-creation
         let localConfig = readProjectConfig();
         let projectId: string;
 
         if (opts.project) {
-            // Option CLI explicite
+            // Explicit CLI option
             const node = createProjectNode(opts.project);
             projectId = node.id;
         } else if (localConfig) {
             projectId = localConfig.projectId;
         } else {
-            // Auto-creation depuis le nom du repertoire
+            // Auto-create from directory name
             const name = defaultProjectName();
             const node = createProjectNode(name);
             projectId = node.id;

@@ -1,8 +1,8 @@
-/** Layouts disponibles pour le graphe */
+/** Available graph layouts */
 
 export type LayoutName = 'cose' | 'breadthfirst' | 'concentric' | 'circle';
 
-/** Force-directed : noeuds se repoussent, edges attirent */
+/** Force-directed: nodes repel, edges attract */
 export const coseLayout = {
     name: 'cose' as const,
     animate: false,              // Pre-compute positions, no visible organizing
@@ -22,7 +22,7 @@ export const coseLayout = {
     padding: 40,
 };
 
-/** Hierarchique : montre la profondeur (File → Function/Class) */
+/** Hierarchical: shows depth (File → Function/Class) */
 export const breadthfirstLayout = {
     name: 'breadthfirst' as const,
     animate: false,
@@ -37,7 +37,7 @@ export const breadthfirstLayout = {
     maximal: false,
 };
 
-/** Concentrique : les noeuds les plus connectes au centre */
+/** Concentric: most connected nodes at center */
 export const concentricLayout = {
     name: 'concentric' as const,
     animate: false,
@@ -50,7 +50,7 @@ export const concentricLayout = {
     minNodeSpacing: 30,
 };
 
-/** Circulaire : tous les noeuds en cercle */
+/** Circular: all nodes in a circle */
 export const circleLayout = {
     name: 'circle' as const,
     animate: false,
@@ -60,7 +60,7 @@ export const circleLayout = {
     padding: 40,
 };
 
-/** Retourne le layout par nom */
+/** Returns layout by name */
 export function getLayout(name: LayoutName) {
     switch (name) {
         case 'breadthfirst': return breadthfirstLayout;
@@ -96,5 +96,5 @@ export function getAdaptiveLayout(elementCount: number) {
     return coseLayout;
 }
 
-/** Export par defaut (retro-compatible) */
+/** Default export (backward-compatible) */
 export const graphLayout = coseLayout;

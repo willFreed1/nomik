@@ -1,13 +1,20 @@
 {
   "name": "nomik",
-  "version": "0.1.0",
+  "version": "1.0.0",
   "private": true,
   "description": "The Living Blueprint — AI-native code intelligence graph",
-  "author": "willFreed1",
+  "author": {
+    "name": "willFreed1",
+    "url": "https://github.com/willFreed1"
+  },
   "license": "MIT",
+  "homepage": "https://nomik.co",
   "repository": {
     "type": "git",
-    "url": "https://github.com/willFreed1/nomik"
+    "url": "https://github.com/willFreed1/NOMIK"
+  },
+  "bugs": {
+    "url": "https://github.com/willFreed1/NOMIK/issues"
   },
   "engines": {
     "node": ">=20.0.0",

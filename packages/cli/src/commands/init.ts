@@ -4,6 +4,34 @@ import { execSync } from 'node:child_process';
 import { Command } from 'commander';
 import { readProjectConfig, writeProjectConfig, createProjectNode, defaultProjectName, PROJECT_CONFIG_VERSION } from '../utils/project-config.js';
 
+const ENV_TEMPLATE = `# NOMIK — Environment Configuration
+# All values below are defaults. Override as needed.
+
+# Graph database
+NOMIK_GRAPH_DRIVER=neo4j
+NOMIK_GRAPH_URI=bolt://localhost:7687
+NOMIK_GRAPH_USER=neo4j
+NOMIK_GRAPH_PASS=nomik_local
+
+# Logging
+NOMIK_LOG_LEVEL=info
+
+# Server ports
+NOMIK_MCP_PORT=3334
+NOMIK_VIZ_PORT=3333
+
+# Project (auto-set by nomik init)
+NOMIK_PROJECT_ID=
+
+# MCP Sampling (set to true to enable AI sampling)
+NOMIK_SAMPLING=false
+
+# AI API Keys (optional — used by MCP sampling)
+ANTHROPIC_API_KEY=
+GEMINI_API_KEY=
+OPENAI_API_KEY=
+`;
+
 const CONFIG_TEMPLATE = `import { defineConfig } from '@nomik/core';
 
 export default defineConfig({
@@ -12,11 +40,7 @@ export default defineConfig({
     include: ['**/*.ts', '**/*.tsx', '**/*.js', '**/*.jsx', '**/*.md', '**/*.py', '**/*.rs'],
     exclude: ['**/node_modules/**', '**/dist/**', '**/*.test.*', '**/*.spec.*', '**/*.d.ts', '**/__pycache__/**', '**/target/**', '**/.venv/**'],
   },
-  graph: {
-    driver: 'neo4j',
-    uri: 'bolt://localhost:7687',
-    auth: { username: 'neo4j', password: 'nomik_local' },
-  },
+  // Graph connection reads from .env (NOMIK_GRAPH_URI, NOMIK_GRAPH_USER, NOMIK_GRAPH_PASS)
   parser: {
     languages: ['typescript', 'python', 'rust'],
   },
@@ -48,7 +72,7 @@ volumes:
   nomik-data:
 `;
 
-/** Verifie si Docker est disponible */
+/** Check if Docker is available */
 function hasDocker(): boolean {
     try {
         execSync('docker --version', { stdio: 'pipe' });
@@ -56,7 +80,7 @@ function hasDocker(): boolean {
     } catch { return false; }
 }
 
-/** Verifie si le container Neo4j tourne deja */
+/** Check if the Neo4j container is already running */
 function isNeo4jRunning(): boolean {
     try {
         const out = execSync('docker ps --filter name=nomik-neo4j --format "{{.Status}}"', { stdio: 'pipe' }).toString().trim();
@@ -72,7 +96,16 @@ export const initCommand = new Command('init')
         console.log('  \x1b[36m\x1b[1mNOMIK — Project Initialization\x1b[0m');
         console.log('');
 
-        // 1. Config file
+        // 1. .env file
+        const envPath = path.resolve('.env');
+        if (fs.existsSync(envPath)) {
+            console.log('  \x1b[32m\u2713\x1b[0m .env already exists');
+        } else {
+            fs.writeFileSync(envPath, ENV_TEMPLATE, 'utf-8');
+            console.log('  \x1b[32m\u2713\x1b[0m Created .env with default NOMIK configuration');
+        }
+
+        // 2. Config file
         const configPath = path.resolve('nomik.config.ts');
         if (fs.existsSync(configPath)) {
             console.log('  \x1b[32m\u2713\x1b[0m nomik.config.ts already exists');
@@ -81,7 +114,7 @@ export const initCommand = new Command('init')
             console.log('  \x1b[32m\u2713\x1b[0m Created nomik.config.ts');
         }
 
-        // 2. Docker Compose
+        // 3. Docker Compose
         if (opts.docker) {
             if (!hasDocker()) {
                 console.log('  \x1b[33m!\x1b[0m Docker not found. Install Docker Desktop to use Neo4j.');
@@ -107,7 +140,7 @@ export const initCommand = new Command('init')
             console.log('  \x1b[2m  Skipping Docker setup (--no-docker)\x1b[0m');
         }
 
-        // 3. Auto-creation du projet local (.nomik/project.json)
+        // 4. Auto-creation of local project (.nomik/project.json)
         const existing = readProjectConfig();
         if (existing) {
             console.log(`  \x1b[32m\u2713\x1b[0m Project already configured: ${existing.projectName} (${existing.projectId})`);
@@ -115,11 +148,18 @@ export const initCommand = new Command('init')
             const name = defaultProjectName();
             const node = createProjectNode(name);
             writeProjectConfig({ version: PROJECT_CONFIG_VERSION, projectId: node.id, projectName: name, createdAt: new Date().toISOString() });
+
+            // Update .env with the project ID
+            if (fs.existsSync(envPath)) {
+                let envContent = fs.readFileSync(envPath, 'utf-8');
+                envContent = envContent.replace(/^NOMIK_PROJECT_ID=.*$/m, `NOMIK_PROJECT_ID=${node.id}`);
+                fs.writeFileSync(envPath, envContent, 'utf-8');
+            }
             console.log(`  \x1b[32m\u2713\x1b[0m Project created: ${name} (${node.id})`);
             console.log('  \x1b[2m  .nomik/project.json written — commit this file to share with your team\x1b[0m');
         }
 
-        // 4. .gitignore check
+        // 5. .gitignore check
         const gitignorePath = path.resolve('.gitignore');
         if (fs.existsSync(gitignorePath)) {
             const content = fs.readFileSync(gitignorePath, 'utf-8');

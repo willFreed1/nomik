@@ -156,7 +156,8 @@ function parseSince(since: string): string {
     return new Date(Date.now() - 86400_000).toISOString();
 }
 
-function shortenPath(filePath: string): string {
+function shortenPath(filePath: string | null | undefined): string {
+    if (!filePath) return '(unknown)';
     const parts = filePath.replace(/\\/g, '/').split('/');
     if (parts.length <= 3) return filePath;
     return `.../${parts.slice(-3).join('/')}`;
