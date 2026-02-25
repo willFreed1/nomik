@@ -76,21 +76,20 @@ function resolveExtendsConfigPath(configPath: string, extendsValue: string): str
     return candidate;
 }
 
-/** Decouvre TOUS les tsconfig.json/jsconfig.json dans l'arborescence des fichiers scannes
- *  Supporte les monorepos : web-app/tsconfig.json, backend/tsconfig.json, etc.
- *  Retourne les configs triees par profondeur (le plus profond en premier)
- *  pour que la resolution nearest-match fonctionne correctement.
+/** Discover all tsconfig.json/jsconfig.json in the scanned files' directory trees.
+ *  Supports monorepos: web-app/tsconfig.json, backend/tsconfig.json, etc.
+ *  Returns configs sorted by depth (deepest first) so nearest-match resolution works.
  */
 export function findAllPathAliases(filePaths: string[]): PathAliasConfig[] {
     const configs: PathAliasConfig[] = [];
     const checkedDirs = new Set<string>();
     const configNames = ['tsconfig.json', 'jsconfig.json'];
 
-    // Parcourir chaque fichier et remonter son arborescence
+    // Walk up each file's directory tree looking for tsconfig/jsconfig
     for (const fp of filePaths) {
         let dir = path.dirname(fp);
         while (dir !== path.dirname(dir)) {
-            if (checkedDirs.has(dir)) break; // Deja verifie ce repertoire et ses parents
+            if (checkedDirs.has(dir)) break; // Already checked this dir and its parents
             checkedDirs.add(dir);
 
             for (const name of configNames) {
@@ -98,7 +97,7 @@ export function findAllPathAliases(filePaths: string[]): PathAliasConfig[] {
                 if (fs.existsSync(configPath)) {
                     const config = parseTsConfigFile(configPath);
                     if (config) configs.push(config);
-                    break; // Un seul config par repertoire
+                    break; // One config per directory
                 }
             }
 
@@ -106,14 +105,14 @@ export function findAllPathAliases(filePaths: string[]): PathAliasConfig[] {
         }
     }
 
-    // Trier par profondeur decroissante (le plus profond en premier)
-    // pour que nearest-match fonctionne : web-app/tsconfig.json avant ./tsconfig.json
+    // Sort by descending depth (deepest first)
+    // so nearest-match works: web-app/tsconfig.json before ./tsconfig.json
     configs.sort((a, b) => b.configDir.length - a.configDir.length);
     return configs;
 }
 
-/** Resolution d'un import relatif vers l'id du fichier cible
- *  Gere le remapping ESM .js → .ts et les extensions Python/Rust
+/** Resolve a relative import to the target file's ID.
+ *  Handles ESM remapping .js → .ts and Python/Rust extensions.
  */
 export function resolveImportPath(
     importerPath: string,
@@ -123,7 +122,7 @@ export function resolveImportPath(
     const dir = path.dirname(importerPath);
     const base = path.resolve(dir, importSource);
 
-    // Remapping ESM : import './foo.js' → chercher foo.ts d'abord
+    // ESM remapping: import './foo.js' → try foo.ts first
     const stripped = base.replace(/\.(js|jsx|mjs|cjs)$/, '');
     const hasJsExt = stripped !== base;
 

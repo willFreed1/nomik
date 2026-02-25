@@ -95,10 +95,10 @@ export const scanCommand = new Command('scan')
                 logger.info({ old: existing.rootPath, new: process.cwd() }, 'project rootPath updated (folder rename detected)');
             }
 
-            // Ingestion 3-phases : preserve les edges cross-fichier (DEPENDS_ON, CALLS)
+            // 3-phase ingestion: preserves cross-file edges (DEPENDS_ON, CALLS)
             await graph.ingestBatch(results, projectId);
 
-            // Stocker les metadonnees du scan (git SHA, timestamp) avec projectId
+            // Store scan metadata (git SHA, timestamp) with projectId
             if (gitInfo) {
                 await graph.executeQuery(
                     `MERGE (s:ScanMeta {sha: $sha, projectId: $projectId})

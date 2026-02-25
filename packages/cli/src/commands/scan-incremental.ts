@@ -102,7 +102,7 @@ export const scanIncrementalCommand = new Command('scan:incremental')
                 .filter(f => fs.existsSync(f));
 
             // Filter to supported extensions
-            const supportedExts = new Set(['.ts', '.tsx', '.js', '.jsx', '.py', '.rs', '.md', '.sql', '.cs']);
+            const supportedExts = new Set(['.ts', '.tsx', '.js', '.jsx', '.py', '.rs', '.md', '.sql', '.cs', '.yml', '.yaml', '.tf', '.tfvars', '.graphql', '.gql', '.env', '.json']);
             const excludePatterns = ['node_modules', 'dist', 'build', '.next', '.nuxt', 'coverage', '__pycache__', 'target', '.venv'];
             const filesToScan = changedPaths.filter(f => {
                 const ext = path.extname(f).toLowerCase();

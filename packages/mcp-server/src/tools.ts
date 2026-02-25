@@ -1,5 +1,6 @@
 import type { GraphService } from '@nomik/graph';
 import { NomikError } from '@nomik/core';
+import { isSamplingEnabled, sampleImpactSummary, sampleHealthSummary, sampleMigrationPlan } from './sampling';
 
 /** Neo4j labels recognized by the scan */
 const KNOWN_LABELS = ['File', 'Function', 'Class', 'Variable', 'Module', 'Route', 'DBTable', 'DBColumn', 'ExternalAPI', 'CronJob', 'Event', 'EnvVar', 'QueueJob', 'Metric', 'Span', 'Topic', 'SecurityIssue'];
@@ -328,7 +329,12 @@ export async function handleCallTool(graph: GraphService, name: string, args: an
             const depth = Number(args.depth) || 3;
             const minConf = Number(args.minConfidence) || 0;
             const impacts = await graph.getImpact(symId, depth, effectiveProjectId, minConf);
-            return [{ type: 'text', text: JSON.stringify(impacts, null, 2) }];
+            const result: any = { impacts };
+            if (isSamplingEnabled()) {
+                const summary = await sampleImpactSummary(symId, impacts);
+                if (summary) result.aiSummary = summary;
+            }
+            return [{ type: 'text', text: JSON.stringify(result, null, 2) }];
         }
 
         case 'nm_trace': {
@@ -471,7 +477,7 @@ export async function handleCallTool(graph: GraphService, name: string, args: an
                 result.godObjects = await graph.getGodObjects(threshold, effectiveProjectId);
             }
             if (args.includeGodFiles) {
-                const threshold = Number(args.godFileThreshold) || 10;
+                const threshold = Number(args.godFileThreshold) || 15;
                 result.godFiles = await graph.getGodFiles(threshold, effectiveProjectId);
             }
             if (args.includeDuplicates) {
@@ -486,6 +492,11 @@ export async function handleCallTool(graph: GraphService, name: string, args: an
                 { projectId: effectiveProjectId }
             );
             result.edgeTypes = edgeCounts;
+
+            if (isSamplingEnabled()) {
+                const summary = await sampleHealthSummary(result);
+                if (summary) result.aiSummary = summary;
+            }
 
             return [{ type: 'text', text: JSON.stringify(result, null, 2) }];
         }
@@ -597,7 +608,7 @@ export async function handleCallTool(graph: GraphService, name: string, args: an
 
             if (section === 'all' || section === 'health') {
                 const deadCode = await graph.getDeadCode(effectiveProjectId);
-                const godFiles = await graph.getGodFiles(10, effectiveProjectId);
+                const godFiles = await graph.getGodFiles(15, effectiveProjectId);
                 const duplicates = await graph.getDuplicates(effectiveProjectId);
                 wiki.health = { deadCode, godFiles, duplicates };
             }
@@ -637,7 +648,7 @@ export async function handleCallTool(graph: GraphService, name: string, args: an
             const duplicateThreshold = Number(args.duplicateThreshold) || 2;
 
             const deadCode = await graph.getDeadCode(effectiveProjectId);
-            const godFiles = await graph.getGodFiles(10, effectiveProjectId);
+            const godFiles = await graph.getGodFiles(15, effectiveProjectId);
             const duplicates = await graph.getDuplicates(effectiveProjectId);
 
             const checks = {
@@ -674,13 +685,18 @@ export async function handleCallTool(graph: GraphService, name: string, args: an
                 if (e.filePath) addAffected(e.filePath, `${e.edgeType}: ${e.targetType}:${e.targetName}`);
             }
 
-            return [{ type: 'text', text: JSON.stringify({
+            const renameResult: any = {
                 symbol: explain.symbol,
                 callerCount: explain.incomingEdges.filter(e => e.edgeType === 'CALLS').length,
                 importerCount: explain.incomingEdges.filter(e => e.edgeType === 'DEPENDS_ON').length,
                 affectedFiles,
                 totalReferences: explain.incomingEdges.length + explain.outgoingEdges.length,
-            }, null, 2) }];
+            };
+            if (isSamplingEnabled()) {
+                const plan = await sampleMigrationPlan(symbolName, renameResult);
+                if (plan) renameResult.aiMigrationPlan = plan;
+            }
+            return [{ type: 'text', text: JSON.stringify(renameResult, null, 2) }];
         }
 
         case 'nm_diff': {

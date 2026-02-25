@@ -81,7 +81,7 @@ describe('clearFileData', () => {
         driver = createMockDriver();
     });
 
-    it('supprime les enfants puis le fichier avec projectId', async () => {
+    it('deletes children then the file with projectId', async () => {
         await clearFileData(driver, '/src/index.ts', TEST_PROJECT_ID);
 
         expect(driver.runWrite).toHaveBeenCalledTimes(2);
@@ -131,15 +131,15 @@ describe('deleteProjectData', () => {
         driver = createMockDriver();
     });
 
-    it('supprime noeuds+relations puis le Project en 2 etapes', async () => {
+    it('deletes nodes+relations then the Project in 2 steps', async () => {
         await deleteProjectData(driver, 'my-api');
 
         expect(driver.runWrite).toHaveBeenCalledTimes(2);
         const calls = (driver.runWrite as any).mock.calls;
-        // DETACH DELETE supprime noeuds + relations attachees
+        // DETACH DELETE removes nodes + attached relationships
         expect(calls[0][0]).toContain('DETACH DELETE');
         expect(calls[0][1].projectId).toBe('my-api');
-        // Le Project meta-noeud lui-meme
+        // The Project meta-node itself
         expect(calls[1][0]).toContain(':Project');
     });
 });
