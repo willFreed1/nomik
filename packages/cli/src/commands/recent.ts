@@ -3,7 +3,7 @@ import { loadConfigFromEnv, createLogger, setLogger } from '@nomik/core';
 import { createGraphService } from '@nomik/graph';
 import { readProjectConfig } from '../utils/project-config.js';
 
-/** Commande CLI pour voir les changements recents dans le graphe */
+/** CLI command to view recent changes in the graph */
 export const recentCommand = new Command('recent')
     .description('Show recently changed nodes in the knowledge graph')
     .option('-s, --since <date>', 'ISO date string (default: 24h ago)')

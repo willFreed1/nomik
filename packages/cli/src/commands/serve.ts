@@ -5,7 +5,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-/** Commande serve : lance le MCP server et optionnellement le dashboard viz */
+/** serve command: start the MCP server and optionally the viz dashboard */
 export const serveCommand = new Command('serve')
     .description('Start MCP server and visualization dashboard')
     .option('--no-viz', 'Skip visualization dashboard')

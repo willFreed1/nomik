@@ -279,7 +279,7 @@ export async function handleListTools() {
     return Object.values(TOOLS);
 }
 
-/** Extraction des proprietes depuis un record Neo4j */
+/** Extract properties from a Neo4j record */
 function extractNodeData(record: any): Record<string, unknown> {
     const node = record.n;
     if (!node) return {};

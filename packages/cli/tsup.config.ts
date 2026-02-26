@@ -1,6 +1,6 @@
 import { defineConfig } from 'tsup';
 
-/** Bundle CLI + MCP server en fichiers autonomes pour distribution npm */
+/** Bundle CLI + MCP server as standalone files for npm distribution */
 export default defineConfig([
     {
         entry: { index: 'src/index.ts' },
@@ -16,6 +16,7 @@ export default defineConfig([
         format: ['esm'],
         outDir: 'dist',
         dts: false,
+        banner: { js: '#!/usr/bin/env node' },
         noExternal: ['@nomik/core', '@nomik/graph', '@modelcontextprotocol/sdk'],
         external: ['neo4j-driver', 'pino', 'pino-pretty', 'zod'],
     },

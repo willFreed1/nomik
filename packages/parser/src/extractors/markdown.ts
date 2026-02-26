@@ -10,7 +10,7 @@ export interface MarkdownSection {
     content: string;
 }
 
-/** Parse un fichier markdown et extrait les sections comme noeuds */
+/** Parse a markdown file and extract sections as nodes */
 export function parseMarkdown(filePath: string, content: string): {
     file: FileNode;
     nodes: GraphNode[];

@@ -3,7 +3,7 @@ import { createLogger, setLogger, loadConfigFromEnv, validateConfig } from '@nom
 import { createGraphService } from '@nomik/graph';
 import { readProjectConfig, writeProjectConfig, createProjectNode, PROJECT_CONFIG_VERSION } from '../utils/project-config.js';
 
-/** Commande principale : nomik project <sous-commande> */
+/** Main command: nomik project <subcommand> */
 export const projectCommand = new Command('project')
     .description('Manage NOMIK projects (multi-project isolation)');
 

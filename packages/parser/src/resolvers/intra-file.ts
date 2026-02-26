@@ -5,7 +5,7 @@ import type { CallInfo } from '../extractors/calls.js';
 // Intra-file edge resolution
 // ────────────────────────────────────────────────────────────────────────
 
-/** Resolution des appels intra-fichier en edges CALLS (caller et callee dans le meme fichier) */
+/** Resolve intra-file calls into CALLS edges (caller and callee in the same file) */
 export function resolveCallEdges(calls: CallInfo[], funcMap: Map<string, string>): CallsEdge[] {
     const edges: CallsEdge[] = [];
     const seen = new Set<string>();
@@ -35,7 +35,7 @@ export function resolveCallEdges(calls: CallInfo[], funcMap: Map<string, string>
     return edges;
 }
 
-/** Edges CALLS depuis le contexte fichier (appels dans callbacks anonymes ou top-level) */
+/** CALLS edges from the file context (calls in anonymous callbacks or top-level) */
 export function resolveFileCallEdges(calls: CallInfo[], funcMap: Map<string, string>, fileId: string): CallsEdge[] {
     const edges: CallsEdge[] = [];
     const seen = new Set<string>();

@@ -91,7 +91,7 @@ export function buildImportedAliasFunctionIds(
     return map;
 }
 
-/** Resolution cross-fichier avec multi-map (gere les noms de fonctions dupliques) */
+/** Cross-file resolution with multi-map (handles duplicate function names) */
 export function resolveCrossFileCallEdges(
     calls: CallInfo[],
     localIds: Set<string>,
@@ -198,7 +198,7 @@ function collectExportedNames(targetResult: ParseResult): Set<string> {
     return names;
 }
 
-/** Resolution cross-fichier des appels __file__ (File → fonctions dans autres fichiers) */
+/** Cross-file resolution of __file__ calls (File → functions in other files) */
 export function resolveFileCrossFileCallEdges(
     calls: CallInfo[],
     localIds: Set<string>,

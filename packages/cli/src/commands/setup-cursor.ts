@@ -3,7 +3,7 @@ import { createLogger, setLogger } from '@nomik/core';
 import { readProjectConfig } from '../utils/project-config.js';
 import { setupMcpClientConfig } from '../utils/mcp-config.js';
 
-/** Commande setup-cursor : configure automatiquement .cursor/mcp.json */
+/** setup-cursor command: auto-configure .cursor/mcp.json */
 export const setupCursorCommand = new Command('setup-cursor')
     .description('Auto-configure Cursor IDE to use NOMIK MCP server')
     .option('--global', 'Configure globally for all projects (user-level)')

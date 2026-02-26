@@ -21,7 +21,7 @@ export interface SetupMcpClientResult {
     mcpPath: string;
 }
 
-/** Detecte le chemin du MCP server (installe globalement ou local) */
+/** Detect the MCP server path (globally installed or local) */
 export function findMcpServerPath(): string {
     // Prefer paths relative to the running CLI bundle.
     const cliDir = path.dirname(fileURLToPath(import.meta.url));
@@ -80,7 +80,7 @@ export function setupMcpClientConfig(opts: SetupMcpClientOptions): SetupMcpClien
         fs.mkdirSync(configDir, { recursive: true });
     }
 
-    // Merge avec config existante si elle existe
+    // Merge with existing config if present
     let existing: Record<string, any> = {};
     if (fs.existsSync(configPath)) {
         try {

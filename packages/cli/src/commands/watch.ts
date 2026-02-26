@@ -5,7 +5,7 @@ import { createGraphService } from '@nomik/graph';
 import { createWatcher } from '@nomik/watcher';
 import { readProjectConfig, defaultProjectName, createProjectNode } from '../utils/project-config.js';
 
-/** Commande watch : surveille les fichiers et met a jour le graphe en temps reel */
+/** watch command: monitor files and update the graph in real time */
 export const watchCommand = new Command('watch')
     .description('Watch files and incrementally update the graph')
     .argument('[path]', 'Root directory to watch', '.')

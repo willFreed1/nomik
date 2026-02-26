@@ -13,7 +13,7 @@ export interface PathAliasConfig {
     aliases: Map<string, string>; // prefix → resolved target directory
 }
 
-/** Parse un fichier tsconfig.json/jsconfig.json et extrait les path aliases */
+/** Parse a tsconfig.json/jsconfig.json file and extract path aliases */
 export function parseTsConfigFile(configPath: string, visited: Set<string> = new Set()): PathAliasConfig | null {
     const absoluteConfigPath = path.resolve(configPath);
     if (visited.has(absoluteConfigPath)) return null;
@@ -160,8 +160,8 @@ export function resolveImportPath(
     return null;
 }
 
-/** Resout un import avec alias en cherchant le tsconfig le plus proche du fichier importeur
- *  Monorepo-safe : chaque sous-projet peut avoir ses propres aliases
+/** Resolve an aliased import by finding the closest tsconfig to the importing file
+ *  Monorepo-safe: each sub-project can have its own aliases
  */
 export function resolveAliasImportMulti(
     importSource: string,

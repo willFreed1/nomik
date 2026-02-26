@@ -4,10 +4,10 @@ import { glob } from 'glob';
 import type { TargetConfig } from '@nomik/core';
 import { isSupportedFile } from './languages/index';
 
-/** Chemins a exclure meme si le glob les laisse passer (symlinks pnpm) */
+/** Paths to exclude even if the glob lets them through (pnpm symlinks) */
 const HARD_EXCLUDE = /[\\/](node_modules|dist|\.git|docker|\.next|\.nuxt|\.svelte-kit|build|coverage|public|out|\.turbo)[\\/]/;
 
-/** Fichiers minifies/bundles a toujours exclure */
+/** Minified/bundled files to always exclude */
 const HARD_EXCLUDE_FILE = /\.(min|bundle)\.(js|css|mjs)$/;
 
 export async function discoverFiles(config: TargetConfig): Promise<string[]> {

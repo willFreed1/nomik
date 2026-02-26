@@ -47,8 +47,8 @@ export async function findDeadCode(driver: GraphDriver, projectId?: string): Pro
     );
 }
 
-/** Detection de god objects — ne compte que le couplage cross-fichier inattendu
- *  Exclut : dispatch intra-fichier et appels vers des fichiers directement importes (DEPENDS_ON)
+/** Detect god objects — only counts unexpected cross-file coupling
+ *  Excludes: intra-file dispatch and calls to directly imported files (DEPENDS_ON)
  */
 export async function findGodObjects(
     driver: GraphDriver,
@@ -73,8 +73,8 @@ export async function findGodObjects(
     );
 }
 
-/** Detection de god files — fichiers avec trop de fonctions (responsabilites)
- *  Indicateur de mauvaise modularisation : un fichier avec >N fonctions est suspect
+/** Detect god files — files with too many functions (responsibilities)
+ *  Indicator of poor modularization: a file with >N functions is suspect
  */
 export async function findGodFiles(
     driver: GraphDriver,
@@ -97,8 +97,8 @@ export async function findGodFiles(
     );
 }
 
-/** Detection de code duplique — fonctions avec le meme bodyHash dans des fichiers differents
- *  Indicateur de copier-coller : fonctions identiques (apres normalisation whitespace)
+/** Detect duplicate code — functions with the same bodyHash in different files
+ *  Indicator of copy-paste: identical functions (after whitespace normalization)
  */
 export async function findDuplicates(
     driver: GraphDriver,

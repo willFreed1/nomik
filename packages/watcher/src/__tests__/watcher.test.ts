@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 
-/** Test de la regex d'exclusion des chemins (meme logique que isExcludedPath dans watcher.ts) */
+/** Test the path exclusion regex (same logic as isExcludedPath in watcher.ts) */
 function isExcludedPath(filePath: string): boolean {
     const normalized = filePath.replace(/\\/g, '/');
     return /\/node_modules\//.test(normalized)

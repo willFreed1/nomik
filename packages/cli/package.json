@@ -5,11 +5,16 @@
     "type": "module",
     "main": "./dist/index.js",
     "bin": {
-        "nomik": "./dist/index.js"
+        "nomik": "./dist/index.js",
+        "nomik-mcp": "./dist/mcp-server.js"
     },
     "files": [
-        "dist"
+        "dist",
+        "README.md"
     ],
+    "publishConfig": {
+        "access": "public"
+    },
     "keywords": [
         "code-intelligence",
         "knowledge-graph",
@@ -29,11 +34,11 @@
     "homepage": "https://nomik.co",
     "repository": {
         "type": "git",
-        "url": "https://github.com/willFreed1/NOMIK",
+        "url": "https://github.com/willFreed1/nomik",
         "directory": "packages/cli"
     },
     "bugs": {
-        "url": "https://github.com/willFreed1/NOMIK/issues"
+        "url": "https://github.com/willFreed1/nomik/issues"
     },
     "engines": {
         "node": ">=20.0.0"
@@ -47,13 +52,11 @@
         "prepublishOnly": "pnpm run build"
     },
     "dependencies": {
-        "chalk": "^5.4.0",
         "chokidar": "^4.0.0",
         "commander": "^13.1.0",
         "dotenv": "^17.3.1",
         "glob": "^11.0.0",
         "neo4j-driver": "^5.12.0",
-        "ora": "^8.1.0",
         "pino": "^9.0.0",
         "pino-pretty": "^13.0.0",
         "tree-sitter": "^0.22.0",

@@ -59,9 +59,9 @@ export function resolveImplementsEdges(
     return edges;
 }
 
-/** Resolution des edges HANDLES : Route → handler function (intra-fichier)
- *  Cree un lien semantique entre un noeud Route et la fonction qui le gere
- *  Gere les handlers locaux et les member_expression (controller.method)
+/** Resolve HANDLES edges: Route → handler function (intra-file)
+ *  Creates a semantic link between a Route node and the function that handles it
+ *  Handles local handlers and member_expression (controller.method)
  */
 export function resolveRouteHandlesEdges(
     routes: GraphNode[],
@@ -89,9 +89,9 @@ export function resolveRouteHandlesEdges(
     return edges;
 }
 
-/** Resolution des edges HANDLES cross-fichier : Route → Function dans un autre fichier
- *  Cas typique : attributeRoutes.ts contient router.get('/sets', attributeController.getAllSets)
- *  mais getAllSets est defini dans attributeController.ts
+/** Resolve cross-file HANDLES edges: Route → Function in another file
+ *  Typical case: attributeRoutes.ts contains router.get('/sets', attributeController.getAllSets)
+ *  but getAllSets is defined in attributeController.ts
  */
 export function resolveCrossFileHandlesEdges(
     nodes: GraphNode[],
@@ -140,7 +140,7 @@ export function extractHandlerMethodName(handlerName: string): string {
 // Framework Entry Point Detection (Next.js, Nuxt, etc.)
 // ────────────────────────────────────────────────────────────────────────
 
-/** Framework entry point patterns — fonctions automatiquement invoquees par le framework */
+/** Framework entry point patterns — functions automatically invoked by the framework */
 const FRAMEWORK_ENTRY_PATTERNS: Array<{
     filePattern: RegExp;
     functionNames: string[];

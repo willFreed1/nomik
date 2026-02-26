@@ -2,7 +2,7 @@ import { Command } from 'commander';
 import { loadConfigFromEnv, createLogger, setLogger } from '@nomik/core';
 import { createGraphService } from '@nomik/graph';
 
-/** Commande CLI pour executer du Cypher brut */
+/** CLI command to execute raw Cypher queries */
 export const queryCommand = new Command('query')
     .description('Execute a raw Cypher query against the knowledge graph')
     .argument('<cypher>', 'Cypher query string')

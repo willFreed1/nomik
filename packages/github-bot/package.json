@@ -1,6 +1,7 @@
 {
   "name": "@nomik/github-bot",
   "version": "1.0.0",
+  "private": true,
   "description": "NOMIK GitHub App — PR impact analysis bot",
   "type": "module",
   "main": "dist/index.js",

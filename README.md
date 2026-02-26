@@ -170,7 +170,7 @@ nomik project list|create|switch|delete|info
 
 **17 Node Types**: `File`, `Function`, `Class`, `Variable`, `Module`, `Route`, `ExternalAPI`, `DBTable`, `DBColumn`, `CronJob`, `Event`, `EnvVar`, `QueueJob`, `Metric`, `Span`, `Topic`, `SecurityIssue`
 
-**19 Edge Types**: `CONTAINS`, `CALLS`, `DEPENDS_ON`, `EXTENDS`, `IMPLEMENTS`, `HANDLES`, `EXPORTS`, `CALLS_EXTERNAL`, `READS_FROM`, `WRITES_TO`, `EMITS`, `LISTENS_TO`, `USES_ENV`, `PRODUCES_JOB`, `CONSUMES_JOB`, `USES_METRIC`, `STARTS_SPAN`, `PRODUCES_MESSAGE`, `CONSUMES_MESSAGE`
+**23 Edge Types**: `CONTAINS`, `IMPORTS`, `EXPORTS`, `EXTENDS`, `IMPLEMENTS`, `CALLS`, `DEPENDS_ON`, `HANDLES`, `READS_FROM`, `WRITES_TO`, `CALLS_EXTERNAL`, `TRIGGERS`, `EMITS`, `LISTENS_TO`, `USES_ENV`, `PRODUCES_JOB`, `CONSUMES_JOB`, `USES_METRIC`, `STARTS_SPAN`, `PRODUCES_MESSAGE`, `CONSUMES_MESSAGE`, `HAS_SECURITY_ISSUE`, `SCHEDULES`
 
 ## Architecture
 

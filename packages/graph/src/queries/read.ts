@@ -99,7 +99,7 @@ export async function getFileSymbols(
     );
 }
 
-/** Chemin le plus court entre deux entites avec detail des noeuds et relations */
+/** Shortest path between two entities with node and relationship details */
 export interface PathStep {
     nodeName: string;
     nodeType: string;

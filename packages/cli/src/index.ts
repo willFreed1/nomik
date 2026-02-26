@@ -38,7 +38,7 @@ const program = new Command();
 
 program
     .name('nomik')
-    .description('NOMIK — The Living Blueprint\nhttps://nomik.co — by @willFreed1')
+    .description('Nomik — The Living Blueprint\nhttps://nomik.co — by @willFreed1')
     .version('1.0.0');
 
 program.addCommand(initCommand);

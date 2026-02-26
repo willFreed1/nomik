@@ -22,7 +22,7 @@
 
 - **Path**: `Documents/GENOME/README.md`
 - **Language**: markdown
-- **Lines**: 220
+- **Lines**: 226
 
 ---
 
@@ -54,7 +54,7 @@
 
 - **Path**: `documentations/docs/03-ARCHITECTURE.md`
 - **Language**: markdown
-- **Lines**: 99
+- **Lines**: 101
 
 ---
 
@@ -110,7 +110,7 @@
 
 - **Path**: `documentations/docs/10-PROGRESS-TRACKER.md`
 - **Language**: markdown
-- **Lines**: 202
+- **Lines**: 240
 
 ---
 
@@ -174,7 +174,7 @@
 
 - **Path**: `technical/parser/README.md`
 - **Language**: markdown
-- **Lines**: 193
+- **Lines**: 206
 
 ---
 
@@ -221,14 +221,14 @@
 
 - **Path**: `src/commands/changelog.ts`
 - **Language**: typescript
-- **Lines**: 215
+- **Lines**: 216
 
 ### Functions (3)
 
 | Function | Lines | Exported | Callers | Callees |
 |---|---|---|---|---|
-| `shortenPath` | 159-163 | — | 1 | 0 |
-| `generateMarkdown` | 165-214 | — | 0 | 1 |
+| `shortenPath` | 159-164 | — | 1 | 0 |
+| `generateMarkdown` | 166-215 | — | 0 | 1 |
 | `parseSince` | 139-157 | — | 0 | 0 |
 
 ---
@@ -259,14 +259,14 @@
 
 | Function | Lines | Exported | Callers | Callees |
 |---|---|---|---|---|
-| `cors` | 13-20 | — | 1 | 0 |
 | `json` | 8-11 | — | 1 | 0 |
+| `cors` | 13-20 | — | 1 | 0 |
 | `buildRoutes` | 22-167 | — | 0 | 4 |
 
 <details><summary>Call graph details (1 functions)</summary>
 
 #### `buildRoutes`
-- **Calls**: get, evaluateRules, cors, json
+- **Calls**: evaluateRules, json, cors, get
 
 </details>
 
@@ -342,8 +342,8 @@
 
 | Function | Lines | Exported | Callers | Callees |
 |---|---|---|---|---|
-| `isNeo4jRunning` | 84-89 | — | 0 | 0 |
 | `hasDocker` | 76-81 | — | 0 | 0 |
+| `isNeo4jRunning` | 84-89 | — | 0 | 0 |
 
 ---
 
@@ -373,23 +373,23 @@
 
 | Function | Lines | Exported | Callers | Callees |
 |---|---|---|---|---|
-| `getRiskLevel` | 496-503 | ✅ | 1 | 0 |
-| `graphTypeToSymbolType` | 58-61 | — | 1 | 0 |
-| `classifyImpacts` | 384-388 | ✅ | 1 | 0 |
 | `symbolIcon` | 64-71 | — | 1 | 0 |
+| `classifyImpacts` | 384-388 | ✅ | 1 | 0 |
+| `getRiskLevel` | 496-503 | ✅ | 1 | 0 |
 | `extractTrackedNodes` | 85-111 | — | 1 | 1 |
-| `detectDefaultBranch` | 10-24 | — | 0 | 0 |
+| `graphTypeToSymbolType` | 58-61 | — | 1 | 0 |
 | `diffFileSymbols` | 118-186 | ✅ | 0 | 5 |
-| `printReport` | 390-486 | — | 0 | 4 |
+| `detectDefaultBranch` | 10-24 | — | 0 | 0 |
 | `printSummary` | 488-494 | — | 0 | 0 |
+| `printReport` | 390-486 | — | 0 | 4 |
 
 <details><summary>Call graph details (2 functions)</summary>
 
 #### `diffFileSymbols`
-- **Calls**: get, set, extractTrackedNodes, graphTypeToSymbolType, push
+- **Calls**: get, set, extractTrackedNodes, push, graphTypeToSymbolType
 
 #### `printReport`
-- **Calls**: push, classifyImpacts, symbolIcon, getRiskLevel
+- **Calls**: symbolIcon, getRiskLevel, push, classifyImpacts
 
 </details>
 
@@ -453,7 +453,7 @@
 
 - **Path**: `src/commands/scan.ts`
 - **Language**: typescript
-- **Lines**: 144
+- **Lines**: 145
 
 ---
 
@@ -539,10 +539,10 @@
 
 | Function | Lines | Exported | Callers | Callees |
 |---|---|---|---|---|
+| `getFileDetail` | 44-99 | — | 0 | 0 |
+| `sanitizeFilename` | 37-39 | — | 0 | 0 |
 | `shortPath` | 20-22 | — | 0 | 0 |
 | `extractModule` | 24-35 | — | 0 | 0 |
-| `sanitizeFilename` | 37-39 | — | 0 | 0 |
-| `getFileDetail` | 44-99 | — | 0 | 0 |
 
 ---
 
@@ -564,10 +564,10 @@
 
 | Function | Lines | Exported | Callers | Callees |
 |---|---|---|---|---|
-| `findMcpServerPath` | 25-50 | ✅ | 1 | 0 |
-| `resolveMcpConfigPath` | 105-135 | — | 1 | 3 |
-| `resolveWindsurfConfigPath` | 137-154 | — | 1 | 0 |
 | `resolveAntigravityConfigPath` | 186-218 | — | 1 | 0 |
+| `resolveWindsurfConfigPath` | 137-154 | — | 1 | 0 |
+| `resolveMcpConfigPath` | 105-135 | — | 1 | 3 |
+| `findMcpServerPath` | 25-50 | ✅ | 1 | 0 |
 | `resolveClaudeConfigPath` | 156-184 | — | 1 | 0 |
 | `setupMcpClientConfig` | 52-103 | ✅ | 0 | 2 |
 
@@ -575,7 +575,7 @@
 
 #### `resolveMcpConfigPath`
 - **Called by**: setupMcpClientConfig
-- **Calls**: resolveAntigravityConfigPath, resolveWindsurfConfigPath, resolveClaudeConfigPath
+- **Calls**: resolveClaudeConfigPath, resolveAntigravityConfigPath, resolveWindsurfConfigPath
 
 </details>
 
@@ -592,10 +592,10 @@
 | Function | Lines | Exported | Callers | Callees |
 |---|---|---|---|---|
 | `getConfigPath` | 18-20 | — | 1 | 0 |
-| `readProjectConfig` | 23-32 | ✅ | 0 | 1 |
 | `createProjectNode` | 45-54 | ✅ | 0 | 0 |
 | `writeProjectConfig` | 35-42 | ✅ | 0 | 0 |
 | `defaultProjectName` | 57-59 | ✅ | 0 | 0 |
+| `readProjectConfig` | 23-32 | ✅ | 0 | 1 |
 
 ---
 
@@ -609,10 +609,10 @@
 
 | Function | Lines | Exported | Callers | Callees |
 |---|---|---|---|---|
-| `parseSimpleYaml` | 114-153 | — | 1 | 1 |
 | `parseCustomRulesBlock` | 167-253 | — | 1 | 0 |
-| `loadRulesConfig` | 24-34 | ✅ | 0 | 1 |
+| `parseSimpleYaml` | 114-153 | — | 1 | 1 |
 | `createDefaultRulesConfig` | 39-108 | ✅ | 0 | 0 |
+| `loadRulesConfig` | 24-34 | ✅ | 0 | 1 |
 
 ---
 
@@ -689,7 +689,7 @@
 <details><summary>Call graph details (1 functions)</summary>
 
 #### `getLogger`
-- **Called by**: createNeo4jDriver, createParserEngine, parseTsConfigFile, createGraphService, createWatcher
+- **Called by**: createParserEngine, createGraphService, parseTsConfigFile, createWatcher, createNeo4jDriver
 - **Calls**: createLogger
 
 </details>
@@ -746,17 +746,17 @@
 
 | Function | Lines | Exported | Callers | Callees |
 |---|---|---|---|---|
-| `fetchPRFiles` | 218-248 | ✅ | 0 | 0 |
-| `analyzePR` | 57-129 | ✅ | 0 | 0 |
 | `formatPRComment` | 138-202 | ✅ | 0 | 0 |
+| `analyzePR` | 57-129 | ✅ | 0 | 0 |
 | `postPRComment` | 253-305 | ✅ | 0 | 1 |
+| `fetchPRFiles` | 218-248 | ✅ | 0 | 0 |
 
 ### External API Calls
 
 | Endpoint | Method | Function |
 |---|---|---|
-| `fetch` | `UNKNOWN` | `fetchPRFiles` |
 | `fetch` | `UNKNOWN` | `postPRComment` |
+| `fetch` | `UNKNOWN` | `fetchPRFiles` |
 
 ---
 
@@ -780,10 +780,10 @@
 <details><summary>Call graph details (2 functions)</summary>
 
 #### `get`
-- **Called by**: buildRoutes, diffFileSymbols, cached, scheduleReindex
+- **Called by**: cached, diffFileSymbols, scheduleReindex, buildRoutes
 
 #### `set`
-- **Called by**: cached, diffFileSymbols, scheduleReindex
+- **Called by**: scheduleReindex, cached, diffFileSymbols
 
 </details>
 
@@ -808,37 +808,37 @@
 | Function | Lines | Exported | Callers | Callees |
 |---|---|---|---|---|
 | `connect` | 67-93 | — | 3 | 1 |
-| `getSession` | 103-106 | — | 3 | 0 |
 | `withRetry` | 26-41 | — | 3 | 1 |
+| `getSession` | 103-106 | — | 3 | 0 |
 | `disconnect` | 95-101 | — | 2 | 0 |
-| `runQuery` | 112-125 | — | 2 | 3 |
 | `healthCheck` | 141-149 | — | 2 | 0 |
+| `runQuery` | 112-125 | — | 2 | 3 |
 | `createNeo4jDriver` | 62-152 | ✅ | 1 | 8 |
-| `isTransientNeo4jError` | 8-23 | — | 1 | 0 |
+| `isConnected` | 108-110 | — | 1 | 0 |
 | `runWrite` | 127-139 | — | 1 | 2 |
 | `convertBigInts` | 44-60 | — | 1 | 0 |
-| `isConnected` | 108-110 | — | 1 | 0 |
+| `isTransientNeo4jError` | 8-23 | — | 1 | 0 |
 
 <details><summary>Call graph details (5 functions)</summary>
 
 #### `connect`
-- **Called by**: main, createGraphService, createNeo4jDriver
+- **Called by**: main, createNeo4jDriver, createGraphService
 - **Calls**: withRetry
+
+#### `withRetry`
+- **Called by**: connect, runWrite, runQuery
+- **Calls**: isTransientNeo4jError
 
 #### `getSession`
 - **Called by**: createNeo4jDriver, runWrite, runQuery
 
-#### `withRetry`
-- **Called by**: runWrite, connect, runQuery
-- **Calls**: isTransientNeo4jError
-
 #### `runQuery`
-- **Called by**: createGraphService, createNeo4jDriver
-- **Calls**: convertBigInts, getSession, withRetry
+- **Called by**: createNeo4jDriver, createGraphService
+- **Calls**: getSession, withRetry, convertBigInts
 
 #### `createNeo4jDriver`
 - **Called by**: createGraphService
-- **Calls**: getLogger, getSession, healthCheck, runWrite, isConnected
+- **Calls**: getSession, isConnected, healthCheck, runQuery, runWrite
 
 </details>
 
@@ -854,14 +854,14 @@
 
 | Function | Lines | Exported | Callers | Callees |
 |---|---|---|---|---|
-| `cached` | 61-70 | — | 1 | 2 |
 | `createGraphService` | 55-227 | ✅ | 1 | 38 |
+| `cached` | 61-70 | — | 1 | 2 |
 
 <details><summary>Call graph details (1 functions)</summary>
 
 #### `createGraphService`
 - **Called by**: main
-- **Calls**: explainSymbol, getFileSymbols, findDBImpact, deleteProjectData, getProject
+- **Calls**: initializeSchema, healthCheck, createEdges, listProjects, getLogger
 
 </details>
 
@@ -892,7 +892,7 @@
 <details><summary>Call graph details (1 functions)</summary>
 
 #### `find`
-- **Called by**: postPRComment, detectCommunities, union
+- **Called by**: union, detectCommunities, postPRComment
 
 </details>
 
@@ -951,10 +951,10 @@
 
 | Function | Lines | Exported | Callers | Callees |
 |---|---|---|---|---|
-| `findGodObjects` | 53-74 | ✅ | 1 | 0 |
+| `findDuplicates` | 103-121 | ✅ | 1 | 0 |
 | `findGodFiles` | 79-98 | ✅ | 1 | 0 |
 | `findDeadCode` | 11-48 | ✅ | 1 | 0 |
-| `findDuplicates` | 103-121 | ✅ | 1 | 0 |
+| `findGodObjects` | 53-74 | ✅ | 1 | 0 |
 
 ---
 
@@ -1018,13 +1018,13 @@
 
 | Function | Lines | Exported | Callers | Callees |
 |---|---|---|---|---|
-| `findDependencyChain` | 200-272 | ✅ | 1 | 0 |
-| `impactAnalysis` | 13-66 | ✅ | 1 | 0 |
-| `graphStats` | 389-436 | ✅ | 1 | 0 |
-| `recentChanges` | 439-461 | ✅ | 1 | 0 |
 | `findDetailedPath` | 115-198 | ✅ | 1 | 0 |
-| `getFileSymbols` | 78-100 | ✅ | 1 | 0 |
+| `recentChanges` | 439-461 | ✅ | 1 | 0 |
+| `graphStats` | 389-436 | ✅ | 1 | 0 |
+| `impactAnalysis` | 13-66 | ✅ | 1 | 0 |
 | `findDBImpact` | 293-365 | ✅ | 1 | 0 |
+| `findDependencyChain` | 200-272 | ✅ | 1 | 0 |
+| `getFileSymbols` | 78-100 | ✅ | 1 | 0 |
 
 ---
 
@@ -1038,25 +1038,25 @@
 
 | Function | Lines | Exported | Callers | Callees |
 |---|---|---|---|---|
-| `groupByType` | 37-43 | — | 1 | 0 |
-| `getProject` | 135-143 | ✅ | 1 | 0 |
 | `nodeTypeToLabel` | 145-165 | — | 1 | 0 |
-| `clearFileData` | 65-74 | ✅ | 1 | 0 |
-| `purgeStaleFiles` | 79-98 | ✅ | 1 | 0 |
-| `deleteProjectData` | 111-122 | ✅ | 1 | 0 |
 | `edgeToProps` | 180-191 | — | 1 | 0 |
-| `clearFilesData` | 21-35 | ✅ | 1 | 0 |
-| `upsertProject` | 101-108 | ✅ | 1 | 0 |
 | `listProjects` | 125-132 | ✅ | 1 | 0 |
-| `createEdges` | 46-62 | ✅ | 1 | 1 |
-| `upsertNodes` | 5-18 | ✅ | 1 | 3 |
 | `nodeToProps` | 167-178 | — | 1 | 0 |
+| `upsertProject` | 101-108 | ✅ | 1 | 0 |
+| `groupByType` | 37-43 | — | 1 | 0 |
+| `upsertNodes` | 5-18 | ✅ | 1 | 3 |
+| `deleteProjectData` | 111-122 | ✅ | 1 | 0 |
+| `clearFileData` | 65-74 | ✅ | 1 | 0 |
+| `getProject` | 135-143 | ✅ | 1 | 0 |
+| `purgeStaleFiles` | 79-98 | ✅ | 1 | 0 |
+| `clearFilesData` | 21-35 | ✅ | 1 | 0 |
+| `createEdges` | 46-62 | ✅ | 1 | 1 |
 
 <details><summary>Call graph details (1 functions)</summary>
 
 #### `upsertNodes`
 - **Called by**: createGraphService
-- **Calls**: groupByType, nodeToProps, nodeTypeToLabel
+- **Calls**: groupByType, nodeTypeToLabel, nodeToProps
 
 </details>
 
@@ -1091,7 +1091,7 @@
 <details><summary>Call graph details (1 functions)</summary>
 
 #### `main`
-- **Calls**: getRole, handleListTools, handleReadResource, filterPromptsByRole, connect
+- **Calls**: handleGetPrompt, initSampling, connect, filterResourcesByRole, handleListTools
 
 </details>
 
@@ -1107,8 +1107,8 @@
 
 | Function | Lines | Exported | Callers | Callees |
 |---|---|---|---|---|
-| `handleListPrompts` | 57-59 | ✅ | 1 | 0 |
 | `handleGetPrompt` | 65-200 | ✅ | 1 | 1 |
+| `handleListPrompts` | 57-59 | ✅ | 1 | 0 |
 | `getProjectId` | 61-63 | — | 1 | 0 |
 
 ### Environment Variables
@@ -1127,9 +1127,9 @@
 
 | Function | Lines | Exported | Callers | Callees |
 |---|---|---|---|---|
-| `getProjectId` | 4-6 | — | 1 | 0 |
-| `handleListResources` | 8-65 | ✅ | 1 | 0 |
 | `handleReadResource` | 67-182 | ✅ | 1 | 1 |
+| `handleListResources` | 8-65 | ✅ | 1 | 0 |
+| `getProjectId` | 4-6 | — | 1 | 0 |
 
 ### Environment Variables
 
@@ -1148,14 +1148,14 @@
 | Function | Lines | Exported | Callers | Callees |
 |---|---|---|---|---|
 | `getRole` | 61-65 | ✅ | 4 | 0 |
-| `filterPromptsByRole` | 76-83 | ✅ | 1 | 1 |
 | `filterResourcesByRole` | 85-92 | ✅ | 1 | 1 |
+| `filterPromptsByRole` | 76-83 | ✅ | 1 | 1 |
 | `filterToolsByRole` | 67-74 | ✅ | 1 | 1 |
 
 <details><summary>Call graph details (1 functions)</summary>
 
 #### `getRole`
-- **Called by**: main, filterResourcesByRole, filterToolsByRole, filterPromptsByRole
+- **Called by**: filterPromptsByRole, filterResourcesByRole, filterToolsByRole, main
 
 </details>
 
@@ -1178,9 +1178,9 @@
 | `requestSampling` | 40-66 | ✅ | 3 | 1 |
 | `isSamplingEnabled` | 32-34 | ✅ | 2 | 0 |
 | `initSampling` | 28-30 | ✅ | 1 | 0 |
-| `sampleImpactSummary` | 71-78 | ✅ | 0 | 1 |
-| `sampleHealthSummary` | 80-87 | ✅ | 0 | 1 |
 | `sampleMigrationPlan` | 89-96 | ✅ | 0 | 1 |
+| `sampleHealthSummary` | 80-87 | ✅ | 0 | 1 |
+| `sampleImpactSummary` | 71-78 | ✅ | 0 | 1 |
 
 <details><summary>Call graph details (1 functions)</summary>
 
@@ -1206,16 +1206,16 @@
 
 | Function | Lines | Exported | Callers | Callees |
 |---|---|---|---|---|
+| `extractNodeData` | 282-288 | — | 1 | 0 |
+| `handleListTools` | 277-279 | ✅ | 1 | 0 |
 | `handleCallTool` | 290-774 | ✅ | 1 | 3 |
 | `getProjectId` | 8-10 | — | 1 | 0 |
-| `handleListTools` | 277-279 | ✅ | 1 | 0 |
-| `extractNodeData` | 282-288 | — | 1 | 0 |
 
 <details><summary>Call graph details (1 functions)</summary>
 
 #### `handleCallTool`
 - **Called by**: main
-- **Calls**: getProjectId, evaluateRules, extractNodeData
+- **Calls**: extractNodeData, evaluateRules, getProjectId
 
 </details>
 
@@ -1244,43 +1244,43 @@
 | Function | Lines | Exported | Callers | Callees |
 |---|---|---|---|---|
 | `addContainsEdges` | 98-108 | — | 5 | 0 |
-| `parseGraphQL` | 153-160 | — | 1 | 3 |
-| `buildFileNode` | 85-96 | — | 1 | 2 |
-| `parseConfigFile` | 30-79 | ✅ | 1 | 7 |
 | `parseYAML` | 166-248 | — | 1 | 15 |
-| `parseTerraform` | 138-147 | — | 1 | 6 |
-| `parseJSONConfig` | 254-291 | — | 1 | 7 |
-| `parseDockerfile` | 126-132 | — | 1 | 3 |
 | `parseDotenv` | 114-120 | — | 1 | 2 |
+| `parseGraphQL` | 153-160 | — | 1 | 3 |
+| `parseConfigFile` | 30-79 | ✅ | 1 | 7 |
+| `buildFileNode` | 85-96 | — | 1 | 2 |
+| `parseJSONConfig` | 254-291 | — | 1 | 7 |
+| `parseTerraform` | 138-147 | — | 1 | 6 |
+| `parseDockerfile` | 126-132 | — | 1 | 3 |
 
 <details><summary>Call graph details (7 functions)</summary>
 
 #### `addContainsEdges`
-- **Called by**: parseDockerfile, parseJSONConfig, parseYAML, parseGraphQL, parseTerraform
-
-#### `parseGraphQL`
-- **Called by**: parseConfigFile
-- **Calls**: extractGraphQLSchema, addContainsEdges, buildGraphQLNodes
-
-#### `parseConfigFile`
-- **Called by**: parseFile
-- **Calls**: parseDockerfile, parseJSONConfig, parseDotenv, parseGraphQL, parseYAML
+- **Called by**: parseTerraform, parseDockerfile, parseGraphQL, parseJSONConfig, parseYAML
 
 #### `parseYAML`
 - **Called by**: parseConfigFile
-- **Calls**: buildDockerNodes, buildInfraConfigNodes, extractDockerComposeServices, buildCICDNodes, buildOpenAPIRouteNodes
+- **Calls**: buildDockerNodes, buildCICDNodes, extractDockerComposeServices, buildOpenAPIRouteNodes, extractCFNParameters
 
-#### `parseTerraform`
+#### `parseGraphQL`
 - **Called by**: parseConfigFile
-- **Calls**: buildTerraformNodes, extractTerraformOutputs, extractTerraformResources, extractTerraformModules, extractTerraformVariables
+- **Calls**: buildGraphQLNodes, extractGraphQLSchema, addContainsEdges
+
+#### `parseConfigFile`
+- **Called by**: parseFile
+- **Calls**: parseTerraform, parseGraphQL, parseYAML, parseDotenv, parseJSONConfig
 
 #### `parseJSONConfig`
 - **Called by**: parseConfigFile
-- **Calls**: addContainsEdges, extractGrafanaPanels, extractDependencies, buildInfraConfigNodes, buildDependencyNodes
+- **Calls**: extractOpenAPIRoutesFromJSON, buildOpenAPIRouteNodes, extractDependencies, buildDependencyNodes, addContainsEdges
+
+#### `parseTerraform`
+- **Called by**: parseConfigFile
+- **Calls**: extractTerraformModules, extractTerraformOutputs, extractTerraformResources, extractTerraformVariables, addContainsEdges
 
 #### `parseDockerfile`
 - **Called by**: parseConfigFile
-- **Calls**: addContainsEdges, extractDockerfileInfo, buildDockerNodes
+- **Calls**: buildDockerNodes, addContainsEdges, extractDockerfileInfo
 
 </details>
 
@@ -1304,19 +1304,19 @@
 
 | Function | Lines | Exported | Callers | Callees |
 |---|---|---|---|---|
-| `readJsoncFile` | 59-66 | ✅ | 1 | 0 |
-| `parseTsConfigFile` | 17-57 | ✅ | 1 | 3 |
-| `resolveAliasImportMulti` | 167-236 | ✅ | 1 | 1 |
-| `resolveImportPath` | 118-162 | ✅ | 1 | 0 |
-| `resolveExtendsConfigPath` | 68-77 | — | 1 | 0 |
-| `findAllPathAliases` | 84-113 | ✅ | 1 | 1 |
 | `guessProjectSrcBase` | 238-246 | — | 1 | 0 |
+| `resolveImportPath` | 118-162 | ✅ | 1 | 0 |
+| `findAllPathAliases` | 84-113 | ✅ | 1 | 1 |
+| `resolveExtendsConfigPath` | 68-77 | — | 1 | 0 |
+| `readJsoncFile` | 59-66 | ✅ | 1 | 0 |
+| `resolveAliasImportMulti` | 167-236 | ✅ | 1 | 1 |
+| `parseTsConfigFile` | 17-57 | ✅ | 1 | 3 |
 
 <details><summary>Call graph details (1 functions)</summary>
 
 #### `parseTsConfigFile`
 - **Called by**: findAllPathAliases
-- **Calls**: getLogger, readJsoncFile, resolveExtendsConfigPath
+- **Calls**: readJsoncFile, getLogger, resolveExtendsConfigPath
 
 </details>
 
@@ -1346,24 +1346,24 @@
 
 | Function | Lines | Exported | Callers | Callees |
 |---|---|---|---|---|
-| `visit` | 85-96 | — | 1 | 1 |
-| `extractAPICalls` | 78-100 | ✅ | 1 | 1 |
-| `isAbsoluteUrl` | 223-225 | — | 1 | 0 |
-| `parseAPICall` | 102-161 | — | 1 | 3 |
-| `looksLikeUrl` | 47-49 | — | 1 | 0 |
-| `buildHttpClientIdentifiers` | 55-72 | ✅ | 1 | 0 |
 | `extractBaseUrl` | 227-234 | — | 1 | 0 |
+| `buildHttpClientIdentifiers` | 55-72 | ✅ | 1 | 0 |
+| `visit` | 85-96 | — | 1 | 1 |
 | `buildAPINodesAndEdges` | 168-221 | ✅ | 1 | 3 |
+| `isAbsoluteUrl` | 223-225 | — | 1 | 0 |
+| `looksLikeUrl` | 47-49 | — | 1 | 0 |
+| `extractAPICalls` | 78-100 | ✅ | 1 | 1 |
+| `parseAPICall` | 102-161 | — | 1 | 3 |
 
 <details><summary>Call graph details (2 functions)</summary>
-
-#### `parseAPICall`
-- **Called by**: visit
-- **Calls**: extractFirstStringArg, looksLikeUrl, findEnclosingFunctionName
 
 #### `buildAPINodesAndEdges`
 - **Called by**: parseFile
 - **Calls**: extractBaseUrl, createNodeId, isAbsoluteUrl
+
+#### `parseAPICall`
+- **Called by**: visit
+- **Calls**: findEnclosingFunctionName, extractFirstStringArg, looksLikeUrl
 
 </details>
 
@@ -1382,20 +1382,20 @@
 | `findEnclosingFunctionName` | 25-42 | ✅ | 15 | 0 |
 | `extractFirstStringArg` | 10-22 | ✅ | 14 | 0 |
 | `extractObjectProperty` | 76-87 | ✅ | 3 | 0 |
+| `extractDecorators` | 90-102 | ✅ | 2 | 0 |
 | `resolveFunctionName` | 58-73 | ✅ | 2 | 0 |
 | `isModuleScopeObjectLiteral` | 45-55 | ✅ | 2 | 0 |
-| `extractDecorators` | 90-102 | ✅ | 2 | 0 |
 
 <details><summary>Call graph details (3 functions)</summary>
 
 #### `findEnclosingFunctionName`
-- **Called by**: parseEnvFeatureFlag, parseTRPCCall, visit, parseFlagCall, parseQueueCall
+- **Called by**: parseTRPCCall, parseDBOperation, parseAPICall, parseWorkerConstruction, parseSwaggerCall
 
 #### `extractFirstStringArg`
-- **Called by**: parseSwaggerCall, parseRPCDecorator, extractFromChain, parseWSDecorator, parseAPICall
+- **Called by**: extractFromChain, parseSwaggerCall, parseBrokerCall, parseFlagCall, parseTRPCCall
 
 #### `extractObjectProperty`
-- **Called by**: extractTopicFromArgs, parseSpanCall, parseAWSCommand
+- **Called by**: parseSpanCall, parseAWSCommand, extractTopicFromArgs
 
 </details>
 
@@ -1414,24 +1414,24 @@
 | `push` | 26-32 | — | 21 | 0 |
 | `visit` | 243-273 | — | 3 | 10 |
 | `extractArrayCallbackAliases` | 240-277 | ✅ | 2 | 1 |
+| `unwrapReferenceExpression` | 336-353 | — | 1 | 0 |
+| `buildCallInfo` | 448-486 | — | 1 | 0 |
+| `isLikelyCallbackArgumentContext` | 279-293 | — | 1 | 0 |
+| `isTrackedFunctionScope` | 395-414 | — | 1 | 2 |
+| `isDynamicImportThenContext` | 295-306 | — | 1 | 0 |
+| `isFunctionLike` | 385-393 | — | 1 | 0 |
 | `extractObjectPatternIdentifiers` | 308-334 | — | 1 | 2 |
 | `extractFunctionParamNames` | 416-446 | — | 1 | 0 |
 | `extractCalls` | 19-235 | ✅ | 1 | 2 |
-| `isTrackedFunctionScope` | 395-414 | — | 1 | 2 |
-| `isDynamicImportThenContext` | 295-306 | — | 1 | 0 |
-| `unwrapReferenceExpression` | 336-353 | — | 1 | 0 |
-| `isFunctionLike` | 385-393 | — | 1 | 0 |
-| `isLikelyCallbackArgumentContext` | 279-293 | — | 1 | 0 |
-| `buildCallInfo` | 448-486 | — | 1 | 0 |
 
 <details><summary>Call graph details (2 functions)</summary>
 
 #### `push`
-- **Called by**: extractObjectPatternIdentifiers, visit, extractDecorators, resolveFileCallEdges, resolveVariableDeclarationAliasEdges
+- **Called by**: buildModuleNodes, visit, resolveCrossFileCallEdges, parseFiles, resolveFileCrossFileCallEdges
 
 #### `visit`
-- **Called by**: extractObjectPatternIdentifiers, extractArrayCallbackAliases, extractCalls
-- **Calls**: isDynamicImportThenContext, extractObjectPatternIdentifiers, push, isLikelyCallbackArgumentContext, buildCallInfo
+- **Called by**: extractArrayCallbackAliases, extractObjectPatternIdentifiers, extractCalls
+- **Calls**: isFunctionLike, push, isDynamicImportThenContext, isTrackedFunctionScope, extractObjectPatternIdentifiers
 
 </details>
 
@@ -1464,29 +1464,29 @@
 | Function | Lines | Exported | Callers | Callees |
 |---|---|---|---|---|
 | `findChild` | 196-201 | — | 3 | 0 |
-| `buildTypeAliasNode` | 109-130 | — | 1 | 1 |
-| `extractSuperClass` | 162-170 | — | 1 | 1 |
-| `visit` | 11-32 | — | 1 | 4 |
-| `extractPropertyNames` | 187-194 | — | 1 | 0 |
-| `extractInterfaces` | 172-176 | — | 1 | 1 |
-| `buildInterfaceNode` | 72-106 | — | 1 | 2 |
-| `extractClasses` | 7-36 | ✅ | 1 | 1 |
-| `buildClassNode` | 38-69 | — | 1 | 7 |
 | `buildEnumNode` | 133-160 | — | 1 | 1 |
+| `extractPropertyNames` | 187-194 | — | 1 | 0 |
+| `buildClassNode` | 38-69 | — | 1 | 7 |
+| `extractClasses` | 7-36 | ✅ | 1 | 1 |
+| `extractSuperClass` | 162-170 | — | 1 | 1 |
+| `buildTypeAliasNode` | 109-130 | — | 1 | 1 |
+| `extractInterfaces` | 172-176 | — | 1 | 1 |
 | `extractMethodNames` | 178-185 | — | 1 | 0 |
+| `visit` | 11-32 | — | 1 | 4 |
+| `buildInterfaceNode` | 72-106 | — | 1 | 2 |
 
 <details><summary>Call graph details (3 functions)</summary>
 
 #### `findChild`
-- **Called by**: buildInterfaceNode, extractInterfaces, extractSuperClass
-
-#### `visit`
-- **Called by**: extractClasses
-- **Calls**: buildTypeAliasNode, buildInterfaceNode, buildEnumNode, buildClassNode
+- **Called by**: extractSuperClass, buildInterfaceNode, extractInterfaces
 
 #### `buildClassNode`
 - **Called by**: visit
-- **Calls**: extractPropertyNames, extractMethodNames, createNodeId, extractDecorators, createBodyHash
+- **Calls**: extractDecorators, extractInterfaces, createNodeId, createBodyHash, extractSuperClass
+
+#### `visit`
+- **Called by**: extractClasses
+- **Calls**: buildTypeAliasNode, buildClassNode, buildEnumNode, buildInterfaceNode
 
 </details>
 
@@ -1502,10 +1502,10 @@
 
 | Function | Lines | Exported | Callers | Callees |
 |---|---|---|---|---|
-| `buildCFNNodes` | 165-206 | ✅ | 1 | 1 |
-| `extractCFNOutputs` | 127-159 | ✅ | 1 | 0 |
 | `extractCFNResources` | 40-78 | ✅ | 1 | 0 |
+| `buildCFNNodes` | 165-206 | ✅ | 1 | 1 |
 | `extractCFNParameters` | 84-121 | ✅ | 1 | 0 |
+| `extractCFNOutputs` | 127-159 | ✅ | 1 | 0 |
 
 ---
 
@@ -1519,8 +1519,8 @@
 
 | Function | Lines | Exported | Callers | Callees |
 |---|---|---|---|---|
-| `buildCronNodesAndEdges` | 185-221 | ✅ | 1 | 1 |
 | `extractCronJobs` | 77-179 | ✅ | 1 | 1 |
+| `buildCronNodesAndEdges` | 185-221 | ✅ | 1 | 1 |
 | `visit` | 88-175 | — | 1 | 2 |
 | `buildCronClientIdentifiers` | 49-71 | ✅ | 1 | 0 |
 
@@ -1537,32 +1537,32 @@
 | Function | Lines | Exported | Callers | Callees |
 |---|---|---|---|---|
 | `visit` | 434-460 | — | 3 | 2 |
-| `classifyQBMethod` | 341-347 | — | 2 | 0 |
-| `extractTypeormRepositoryTable` | 299-316 | — | 2 | 2 |
 | `extractFirstIdentifierOrStringArg` | 403-416 | — | 2 | 0 |
 | `normalizeEntityName` | 418-425 | — | 2 | 0 |
-| `parseDBOperation` | 120-271 | — | 1 | 11 |
-| `extractColumnCandidates` | 427-467 | — | 1 | 1 |
-| `extractFromChain` | 375-401 | — | 1 | 1 |
-| `extractTypeormManagerTable` | 318-323 | — | 1 | 2 |
-| `collectRepositoryAliases` | 277-297 | — | 1 | 1 |
-| `classifyTypeOrmMethod` | 325-331 | — | 1 | 0 |
-| `buildDBClientIdentifiers` | 68-90 | ✅ | 1 | 0 |
-| `buildDBNodesAndEdges` | 491-629 | ✅ | 1 | 1 |
-| `classifyChainOperation` | 352-373 | — | 1 | 1 |
-| `findChainRoot` | 469-484 | — | 1 | 0 |
+| `extractTypeormRepositoryTable` | 299-316 | — | 2 | 2 |
+| `classifyQBMethod` | 341-347 | — | 2 | 0 |
 | `extractDBOperations` | 96-118 | ✅ | 1 | 2 |
+| `collectRepositoryAliases` | 277-297 | — | 1 | 1 |
+| `extractFromChain` | 375-401 | — | 1 | 1 |
+| `buildDBClientIdentifiers` | 68-90 | ✅ | 1 | 0 |
+| `extractColumnCandidates` | 427-467 | — | 1 | 1 |
+| `classifyTypeOrmMethod` | 325-331 | — | 1 | 0 |
+| `parseDBOperation` | 120-271 | — | 1 | 11 |
+| `buildDBNodesAndEdges` | 491-629 | ✅ | 1 | 1 |
+| `findChainRoot` | 469-484 | — | 1 | 0 |
+| `extractTypeormManagerTable` | 318-323 | — | 1 | 2 |
 | `classifyPrismaMethod` | 333-339 | — | 1 | 0 |
+| `classifyChainOperation` | 352-373 | — | 1 | 1 |
 
 <details><summary>Call graph details (2 functions)</summary>
 
 #### `visit`
 - **Called by**: collectRepositoryAliases, extractColumnCandidates, extractDBOperations
-- **Calls**: parseDBOperation, extractTypeormRepositoryTable
+- **Calls**: extractTypeormRepositoryTable, parseDBOperation
 
 #### `parseDBOperation`
 - **Called by**: visit
-- **Calls**: classifyQBMethod, classifyChainOperation, classifyPrismaMethod, extractTypeormRepositoryTable, classifyTypeOrmMethod
+- **Calls**: classifyTypeOrmMethod, extractColumnCandidates, findEnclosingFunctionName, classifyQBMethod, classifyPrismaMethod
 
 </details>
 
@@ -1615,20 +1615,20 @@
 | Function | Lines | Exported | Callers | Callees |
 |---|---|---|---|---|
 | `djangoFieldToType` | 204-240 | — | 2 | 0 |
-| `extractDjangoFields` | 159-175 | — | 1 | 1 |
-| `extractAlembicColumns` | 177-196 | — | 1 | 0 |
-| `extractDBSchemaFromAlembicMigration` | 72-114 | ✅ | 1 | 2 |
-| `extractDBSchemaFromPythonMigration` | 119-139 | ✅ | 1 | 2 |
-| `normalizeModelName` | 198-202 | — | 1 | 0 |
-| `extractBalancedBlock` | 148-157 | — | 1 | 0 |
-| `extractDBSchemaFromDjangoMigration` | 23-63 | ✅ | 1 | 3 |
 | `isPythonMigrationFile` | 6-14 | ✅ | 1 | 0 |
+| `extractDBSchemaFromDjangoMigration` | 23-63 | ✅ | 1 | 3 |
+| `normalizeModelName` | 198-202 | — | 1 | 0 |
+| `extractDBSchemaFromAlembicMigration` | 72-114 | ✅ | 1 | 2 |
+| `extractDjangoFields` | 159-175 | — | 1 | 1 |
+| `extractBalancedBlock` | 148-157 | — | 1 | 0 |
+| `extractDBSchemaFromPythonMigration` | 119-139 | ✅ | 1 | 2 |
+| `extractAlembicColumns` | 177-196 | — | 1 | 0 |
 
 <details><summary>Call graph details (1 functions)</summary>
 
 #### `extractDBSchemaFromDjangoMigration`
 - **Called by**: extractDBSchemaFromPythonMigration
-- **Calls**: djangoFieldToType, extractDjangoFields, normalizeModelName
+- **Calls**: extractDjangoFields, normalizeModelName, djangoFieldToType
 
 </details>
 
@@ -1647,8 +1647,8 @@
 | `normalizeIdent` | 93-95 | — | 3 | 0 |
 | `stripSqlComments` | 38-41 | — | 1 | 0 |
 | `extractDBSchemaFromSQL` | 3-36 | ✅ | 1 | 4 |
-| `extractSqlColumnsFromDefinition` | 53-73 | — | 1 | 2 |
 | `parseTableName` | 43-51 | — | 1 | 1 |
+| `extractSqlColumnsFromDefinition` | 53-73 | — | 1 | 2 |
 | `splitCommaAware` | 75-91 | — | 1 | 0 |
 
 <details><summary>Call graph details (2 functions)</summary>
@@ -1658,7 +1658,7 @@
 
 #### `extractDBSchemaFromSQL`
 - **Called by**: parseFile
-- **Calls**: extractSqlColumnsFromDefinition, normalizeIdent, parseTableName, stripSqlComments
+- **Calls**: parseTableName, normalizeIdent, stripSqlComments, extractSqlColumnsFromDefinition
 
 </details>
 
@@ -1682,8 +1682,8 @@
 
 | Function | Lines | Exported | Callers | Callees |
 |---|---|---|---|---|
-| `buildDependencyNodes` | 87-120 | ✅ | 1 | 1 |
 | `extractDependencies` | 24-55 | ✅ | 1 | 0 |
+| `buildDependencyNodes` | 87-120 | ✅ | 1 | 1 |
 | `extractPythonRequirements` | 61-81 | ✅ | 0 | 0 |
 
 ---
@@ -1699,9 +1699,9 @@
 | Function | Lines | Exported | Callers | Callees |
 |---|---|---|---|---|
 | `buildDockerNodes` | 175-246 | ✅ | 2 | 1 |
-| `extractDockerComposeServices` | 79-126 | ✅ | 1 | 0 |
-| `extractK8sResources` | 132-169 | ✅ | 1 | 0 |
 | `extractDockerfileInfo` | 45-73 | ✅ | 1 | 0 |
+| `extractK8sResources` | 132-169 | ✅ | 1 | 0 |
+| `extractDockerComposeServices` | 79-126 | ✅ | 1 | 0 |
 
 ---
 
@@ -1715,8 +1715,8 @@
 
 | Function | Lines | Exported | Callers | Callees |
 |---|---|---|---|---|
-| `extractEnvDefinitions` | 25-56 | ✅ | 1 | 0 |
 | `buildEnvDefinitionNodes` | 62-91 | ✅ | 1 | 1 |
+| `extractEnvDefinitions` | 25-56 | ✅ | 1 | 0 |
 
 ---
 
@@ -1731,12 +1731,12 @@
 | Function | Lines | Exported | Callers | Callees |
 |---|---|---|---|---|
 | `extractDefaultAndRequired` | 150-173 | — | 2 | 0 |
-| `extractPythonEnvVars` | 179-217 | ✅ | 1 | 0 |
 | `visit` | 43-105 | — | 1 | 2 |
-| `tryProcessEnvSubscript` | 129-148 | — | 1 | 1 |
-| `buildEnvVarNodesAndEdges` | 223-269 | ✅ | 1 | 1 |
 | `tryProcessEnvMember` | 111-127 | — | 1 | 1 |
+| `buildEnvVarNodesAndEdges` | 223-269 | ✅ | 1 | 1 |
 | `extractEnvVars` | 37-109 | ✅ | 1 | 1 |
+| `extractPythonEnvVars` | 179-217 | ✅ | 1 | 0 |
+| `tryProcessEnvSubscript` | 129-148 | — | 1 | 1 |
 
 ---
 
@@ -1750,13 +1750,13 @@
 
 | Function | Lines | Exported | Callers | Callees |
 |---|---|---|---|---|
-| `buildEventNodesAndEdges` | 264-328 | ✅ | 1 | 1 |
-| `detectSocketChainContext` | 167-194 | — | 1 | 0 |
-| `extractEvents` | 46-115 | ✅ | 1 | 1 |
 | `tryEventCallExpression` | 117-164 | — | 1 | 1 |
-| `extractPythonEvents` | 226-258 | ✅ | 1 | 0 |
+| `detectSocketChainContext` | 167-194 | — | 1 | 0 |
 | `trySocketJoinLeave` | 197-220 | — | 1 | 0 |
+| `extractEvents` | 46-115 | ✅ | 1 | 1 |
 | `visit` | 52-111 | — | 1 | 2 |
+| `buildEventNodesAndEdges` | 264-328 | ✅ | 1 | 1 |
+| `extractPythonEvents` | 226-258 | ✅ | 1 | 0 |
 
 ---
 
@@ -1771,8 +1771,8 @@
 | Function | Lines | Exported | Callers | Callees |
 |---|---|---|---|---|
 | `buildExportInfo` | 33-73 | — | 1 | 0 |
-| `visit` | 15-27 | — | 1 | 1 |
 | `extractExports` | 11-31 | ✅ | 1 | 1 |
+| `visit` | 15-27 | — | 1 | 1 |
 
 ---
 
@@ -1787,12 +1787,12 @@
 | Function | Lines | Exported | Callers | Callees |
 |---|---|---|---|---|
 | `parseEnvFeatureFlag` | 192-206 | — | 1 | 1 |
-| `parseFlagCall` | 159-190 | — | 1 | 2 |
-| `tryResolve` | 122-154 | — | 1 | 0 |
-| `buildFlagNodesAndEdges` | 212-247 | ✅ | 1 | 1 |
 | `resolveClientInstances` | 115-157 | — | 1 | 1 |
-| `buildFlagClientIdentifiers` | 59-77 | ✅ | 1 | 0 |
+| `parseFlagCall` | 159-190 | — | 1 | 2 |
+| `buildFlagNodesAndEdges` | 212-247 | ✅ | 1 | 1 |
+| `tryResolve` | 122-154 | — | 1 | 0 |
 | `visit` | 96-109 | — | 1 | 2 |
+| `buildFlagClientIdentifiers` | 59-77 | ✅ | 1 | 0 |
 | `extractFeatureFlags` | 83-113 | ✅ | 1 | 2 |
 
 ---
@@ -1808,20 +1808,20 @@
 | Function | Lines | Exported | Callers | Callees |
 |---|---|---|---|---|
 | `isModuleScopeVariableDeclarator` | 68-76 | ✅ | 2 | 0 |
-| `hasModifier` | 136-148 | — | 1 | 0 |
+| `extractReturnType` | 131-134 | — | 1 | 0 |
+| `extractParameters` | 109-129 | — | 1 | 0 |
+| `isFunctionLike` | 28-66 | — | 1 | 2 |
 | `buildFunctionNode` | 78-107 | — | 1 | 8 |
 | `visit` | 10-22 | — | 1 | 2 |
-| `isNodeExported` | 150-165 | — | 1 | 0 |
-| `isFunctionLike` | 28-66 | — | 1 | 2 |
 | `extractFunctions` | 6-26 | ✅ | 1 | 1 |
-| `extractParameters` | 109-129 | — | 1 | 0 |
-| `extractReturnType` | 131-134 | — | 1 | 0 |
+| `isNodeExported` | 150-165 | — | 1 | 0 |
+| `hasModifier` | 136-148 | — | 1 | 0 |
 
 <details><summary>Call graph details (1 functions)</summary>
 
 #### `buildFunctionNode`
 - **Called by**: visit
-- **Calls**: resolveFunctionName, isNodeExported, extractDecorators, extractReturnType, createBodyHash
+- **Calls**: createBodyHash, isNodeExported, hasModifier, extractDecorators, resolveFunctionName
 
 </details>
 
@@ -1837,8 +1837,8 @@
 
 | Function | Lines | Exported | Callers | Callees |
 |---|---|---|---|---|
-| `buildGraphQLNodes` | 112-161 | ✅ | 1 | 1 |
 | `extractGraphQLSchema` | 34-106 | ✅ | 1 | 0 |
+| `buildGraphQLNodes` | 112-161 | ✅ | 1 | 1 |
 
 ---
 
@@ -1852,19 +1852,19 @@
 
 | Function | Lines | Exported | Callers | Callees |
 |---|---|---|---|---|
-| `findPropertyKeyParent` | 203-213 | — | 1 | 0 |
-| `parseTRPCCall` | 100-145 | — | 1 | 3 |
-| `buildRPCNodesAndEdges` | 219-264 | ✅ | 1 | 1 |
-| `visit` | 79-94 | — | 1 | 2 |
-| `extractRPCProcedures` | 69-98 | ✅ | 1 | 1 |
 | `parseRPCDecorator` | 147-200 | — | 1 | 1 |
+| `findPropertyKeyParent` | 203-213 | — | 1 | 0 |
+| `extractRPCProcedures` | 69-98 | ✅ | 1 | 1 |
+| `buildRPCNodesAndEdges` | 219-264 | ✅ | 1 | 1 |
+| `parseTRPCCall` | 100-145 | — | 1 | 3 |
+| `visit` | 79-94 | — | 1 | 2 |
 | `buildRPCClientIdentifiers` | 42-63 | ✅ | 1 | 0 |
 
 <details><summary>Call graph details (1 functions)</summary>
 
 #### `parseTRPCCall`
 - **Called by**: visit
-- **Calls**: findEnclosingFunctionName, findPropertyKeyParent, extractFirstStringArg
+- **Calls**: findEnclosingFunctionName, extractFirstStringArg, findPropertyKeyParent
 
 </details>
 
@@ -1882,16 +1882,16 @@
 |---|---|---|---|---|
 | `tryDynamicImport` | 132-151 | — | 1 | 0 |
 | `buildImportInfo` | 46-89 | — | 1 | 0 |
-| `importsToEdges` | 153-168 | ✅ | 1 | 0 |
-| `visit` | 18-40 | — | 1 | 3 |
-| `buildReExportImportInfo` | 91-130 | — | 1 | 0 |
 | `extractImports` | 14-44 | ✅ | 1 | 1 |
+| `buildReExportImportInfo` | 91-130 | — | 1 | 0 |
+| `visit` | 18-40 | — | 1 | 3 |
+| `importsToEdges` | 153-168 | ✅ | 1 | 0 |
 
 <details><summary>Call graph details (1 functions)</summary>
 
 #### `visit`
 - **Called by**: extractImports
-- **Calls**: buildImportInfo, buildReExportImportInfo, tryDynamicImport
+- **Calls**: tryDynamicImport, buildReExportImportInfo, buildImportInfo
 
 </details>
 
@@ -1947,21 +1947,21 @@
 
 | Function | Lines | Exported | Callers | Callees |
 |---|---|---|---|---|
-| `parseAWSCommand` | 224-257 | — | 1 | 2 |
-| `buildMessageNodesAndEdges` | 276-339 | ✅ | 1 | 1 |
 | `parseBrokerCall` | 167-221 | — | 1 | 3 |
-| `visit` | 87-98 | — | 1 | 2 |
-| `extractTopicFromArgs` | 260-269 | — | 1 | 1 |
 | `tryResolve` | 112-161 | — | 1 | 0 |
-| `resolveBrokerInstances` | 105-165 | — | 1 | 1 |
-| `buildBrokerClientIdentifiers` | 50-66 | ✅ | 1 | 0 |
 | `extractMessageOps` | 72-102 | ✅ | 1 | 2 |
+| `resolveBrokerInstances` | 105-165 | — | 1 | 1 |
+| `parseAWSCommand` | 224-257 | — | 1 | 2 |
+| `buildBrokerClientIdentifiers` | 50-66 | ✅ | 1 | 0 |
+| `visit` | 87-98 | — | 1 | 2 |
+| `buildMessageNodesAndEdges` | 276-339 | ✅ | 1 | 1 |
+| `extractTopicFromArgs` | 260-269 | — | 1 | 1 |
 
 <details><summary>Call graph details (1 functions)</summary>
 
 #### `parseBrokerCall`
 - **Called by**: visit
-- **Calls**: extractFirstStringArg, extractTopicFromArgs, findEnclosingFunctionName
+- **Calls**: extractFirstStringArg, findEnclosingFunctionName, extractTopicFromArgs
 
 </details>
 
@@ -1978,19 +1978,19 @@
 | Function | Lines | Exported | Callers | Callees |
 |---|---|---|---|---|
 | `visit` | 172-215 | — | 3 | 3 |
-| `extractMetrics` | 68-87 | ✅ | 1 | 2 |
-| `collectMetricDefinitions` | 89-139 | — | 1 | 1 |
-| `extractObjectConfig` | 141-165 | — | 1 | 0 |
 | `buildMetricsClientIdentifiers` | 52-62 | ✅ | 1 | 0 |
-| `visitChildren` | 134-136 | — | 1 | 1 |
-| `buildMetricNodesAndEdges` | 224-297 | ✅ | 1 | 1 |
 | `collectMetricUsages` | 167-218 | — | 1 | 1 |
+| `collectMetricDefinitions` | 89-139 | — | 1 | 1 |
+| `extractMetrics` | 68-87 | ✅ | 1 | 2 |
+| `buildMetricNodesAndEdges` | 224-297 | ✅ | 1 | 1 |
+| `extractObjectConfig` | 141-165 | — | 1 | 0 |
+| `visitChildren` | 134-136 | — | 1 | 1 |
 
 <details><summary>Call graph details (1 functions)</summary>
 
 #### `visit`
 - **Called by**: visitChildren, collectMetricUsages, collectMetricDefinitions
-- **Calls**: visitChildren, findEnclosingFunctionName, extractObjectConfig
+- **Calls**: extractObjectConfig, visitChildren, findEnclosingFunctionName
 
 </details>
 
@@ -2022,12 +2022,12 @@
 
 | Function | Lines | Exported | Callers | Callees |
 |---|---|---|---|---|
-| `buildPythonRuntimeNodes` | 219-355 | ✅ | 1 | 1 |
 | `extractPythonCeleryTasks` | 82-114 | ✅ | 1 | 0 |
-| `extractPythonSpans` | 149-163 | ✅ | 1 | 0 |
 | `extractPythonBrokerOps` | 169-213 | ✅ | 1 | 0 |
 | `extractPythonRedisOps` | 55-76 | ✅ | 1 | 0 |
+| `buildPythonRuntimeNodes` | 219-355 | ✅ | 1 | 1 |
 | `extractPythonMetrics` | 120-143 | ✅ | 1 | 0 |
+| `extractPythonSpans` | 149-163 | ✅ | 1 | 0 |
 
 ---
 
@@ -2043,19 +2043,19 @@
 |---|---|---|---|---|
 | `visit` | 184-207 | — | 4 | 4 |
 | `extractDecorators` | 71-82 | — | 2 | 1 |
-| `findEnclosingFunction` | 213-220 | — | 1 | 0 |
 | `buildFunctionNode` | 30-69 | — | 1 | 2 |
+| `findEnclosingFunction` | 213-220 | — | 1 | 0 |
 | `buildClassNode` | 107-142 | — | 1 | 2 |
 | `extractPythonImports` | 145-177 | ✅ | 1 | 1 |
-| `extractPythonFunctions` | 8-28 | ✅ | 1 | 1 |
 | `extractPythonClasses` | 85-105 | ✅ | 1 | 1 |
 | `extractPythonCalls` | 180-211 | ✅ | 1 | 1 |
+| `extractPythonFunctions` | 8-28 | ✅ | 1 | 1 |
 
 <details><summary>Call graph details (1 functions)</summary>
 
 #### `visit`
-- **Called by**: extractPythonImports, extractPythonClasses, extractPythonCalls, extractPythonFunctions
-- **Calls**: push, findEnclosingFunction, buildClassNode, buildFunctionNode
+- **Called by**: extractPythonClasses, extractPythonFunctions, extractPythonImports, extractPythonCalls
+- **Calls**: findEnclosingFunction, push, buildClassNode, buildFunctionNode
 
 </details>
 
@@ -2074,10 +2074,10 @@
 | `visit` | 90-110 | — | 2 | 2 |
 | `buildQueueNodesAndEdges` | 175-241 | ✅ | 1 | 1 |
 | `parseQueueCall` | 114-143 | — | 1 | 2 |
-| `buildQueueClientIdentifiers` | 38-48 | ✅ | 1 | 0 |
-| `collectQueueVariables` | 85-112 | — | 1 | 1 |
-| `extractQueueOperations` | 54-83 | ✅ | 1 | 2 |
 | `parseWorkerConstruction` | 145-169 | — | 1 | 1 |
+| `extractQueueOperations` | 54-83 | ✅ | 1 | 2 |
+| `collectQueueVariables` | 85-112 | — | 1 | 1 |
+| `buildQueueClientIdentifiers` | 38-48 | ✅ | 1 | 0 |
 
 ---
 
@@ -2092,18 +2092,18 @@
 | Function | Lines | Exported | Callers | Callees |
 |---|---|---|---|---|
 | `visit` | 99-130 | — | 2 | 1 |
-| `buildRedisNodesAndEdges` | 175-245 | ✅ | 1 | 1 |
-| `classifyRedisCommand` | 134-140 | — | 1 | 0 |
-| `buildRedisClientIdentifiers` | 52-62 | ✅ | 1 | 0 |
 | `extractRedisOperations` | 68-91 | ✅ | 1 | 2 |
 | `parseRedisCall` | 142-169 | — | 1 | 3 |
+| `classifyRedisCommand` | 134-140 | — | 1 | 0 |
+| `buildRedisNodesAndEdges` | 175-245 | ✅ | 1 | 1 |
 | `resolveRedisInstances` | 94-132 | — | 1 | 1 |
+| `buildRedisClientIdentifiers` | 52-62 | ✅ | 1 | 0 |
 
 <details><summary>Call graph details (1 functions)</summary>
 
 #### `parseRedisCall`
 - **Called by**: visit
-- **Calls**: extractFirstStringArg, classifyRedisCommand, findEnclosingFunctionName
+- **Calls**: classifyRedisCommand, findEnclosingFunctionName, extractFirstStringArg
 
 </details>
 
@@ -2119,13 +2119,13 @@
 
 | Function | Lines | Exported | Callers | Callees |
 |---|---|---|---|---|
-| `visit` | 9-20 | — | 1 | 2 |
-| `tryDecoratorRoute` | 68-102 | — | 1 | 2 |
-| `resolveHandlerName` | 211-233 | — | 1 | 0 |
 | `collectSwaggerDecorators` | 127-198 | — | 1 | 1 |
-| `inferStatusFromDecoratorName` | 200-209 | — | 1 | 0 |
-| `extractRoutes` | 5-24 | ✅ | 1 | 1 |
 | `tryExpressRoute` | 28-66 | — | 1 | 2 |
+| `inferStatusFromDecoratorName` | 200-209 | — | 1 | 0 |
+| `resolveHandlerName` | 211-233 | — | 1 | 0 |
+| `visit` | 9-20 | — | 1 | 2 |
+| `extractRoutes` | 5-24 | ✅ | 1 | 1 |
+| `tryDecoratorRoute` | 68-102 | — | 1 | 2 |
 
 ---
 
@@ -2141,24 +2141,24 @@
 |---|---|---|---|---|
 | `visit` | 228-251 | — | 4 | 6 |
 | `extractAttributes` | 67-75 | — | 4 | 1 |
-| `buildStructNode` | 106-133 | — | 1 | 2 |
+| `buildEnumNode` | 135-162 | — | 1 | 2 |
+| `buildTraitNode` | 164-191 | — | 1 | 2 |
+| `extractRustFunctions` | 8-28 | ✅ | 1 | 1 |
 | `extractRustCalls` | 224-255 | ✅ | 1 | 1 |
 | `findEnclosingFunction` | 257-264 | — | 1 | 0 |
-| `extractRustClasses` | 78-104 | ✅ | 1 | 1 |
-| `buildTraitNode` | 164-191 | — | 1 | 2 |
-| `buildFunctionNode` | 30-65 | — | 1 | 2 |
-| `buildEnumNode` | 135-162 | — | 1 | 2 |
-| `extractRustFunctions` | 8-28 | ✅ | 1 | 1 |
 | `extractRustImports` | 194-221 | ✅ | 1 | 1 |
+| `buildStructNode` | 106-133 | — | 1 | 2 |
+| `buildFunctionNode` | 30-65 | — | 1 | 2 |
+| `extractRustClasses` | 78-104 | ✅ | 1 | 1 |
 
 <details><summary>Call graph details (2 functions)</summary>
 
 #### `visit`
-- **Called by**: extractRustClasses, extractRustFunctions, extractRustImports, extractRustCalls
-- **Calls**: push, buildTraitNode, findEnclosingFunction, buildFunctionNode, buildEnumNode
+- **Called by**: extractRustFunctions, extractRustCalls, extractRustClasses, extractRustImports
+- **Calls**: push, findEnclosingFunction, buildStructNode, buildEnumNode, buildTraitNode
 
 #### `extractAttributes`
-- **Called by**: buildTraitNode, buildFunctionNode, buildStructNode, buildEnumNode
+- **Called by**: buildTraitNode, buildFunctionNode, buildEnumNode, buildStructNode
 - **Calls**: push
 
 </details>
@@ -2190,18 +2190,18 @@
 
 | Function | Lines | Exported | Callers | Callees |
 |---|---|---|---|---|
-| `buildSwaggerClientIdentifiers` | 41-51 | ✅ | 1 | 0 |
-| `enrichRoutesWithSwagger` | 157-176 | ✅ | 1 | 0 |
-| `parseSwaggerCall` | 77-130 | — | 1 | 3 |
-| `extractObjectPropertyFromArgs` | 133-148 | — | 1 | 0 |
 | `extractSwaggerSetups` | 57-75 | ✅ | 1 | 1 |
+| `parseSwaggerCall` | 77-130 | — | 1 | 3 |
 | `visit` | 65-71 | — | 1 | 1 |
+| `extractObjectPropertyFromArgs` | 133-148 | — | 1 | 0 |
+| `enrichRoutesWithSwagger` | 157-176 | ✅ | 1 | 0 |
+| `buildSwaggerClientIdentifiers` | 41-51 | ✅ | 1 | 0 |
 
 <details><summary>Call graph details (1 functions)</summary>
 
 #### `parseSwaggerCall`
 - **Called by**: visit
-- **Calls**: extractFirstStringArg, extractObjectPropertyFromArgs, findEnclosingFunctionName
+- **Calls**: extractFirstStringArg, findEnclosingFunctionName, extractObjectPropertyFromArgs
 
 </details>
 
@@ -2220,14 +2220,14 @@
 | `extractHCLBlock` | 148-157 | — | 4 | 0 |
 | `extractTerraformResources` | 43-77 | ✅ | 1 | 1 |
 | `extractTerraformVariables` | 79-103 | ✅ | 1 | 1 |
-| `extractTerraformModules` | 105-121 | ✅ | 1 | 1 |
 | `extractTerraformOutputs` | 123-145 | ✅ | 1 | 1 |
+| `extractTerraformModules` | 105-121 | ✅ | 1 | 1 |
 | `buildTerraformNodes` | 163-218 | ✅ | 1 | 1 |
 
 <details><summary>Call graph details (1 functions)</summary>
 
 #### `extractHCLBlock`
-- **Called by**: extractTerraformVariables, extractTerraformModules, extractTerraformResources, extractTerraformOutputs
+- **Called by**: extractTerraformOutputs, extractTerraformVariables, extractTerraformModules, extractTerraformResources
 
 </details>
 
@@ -2261,11 +2261,11 @@
 | Function | Lines | Exported | Callers | Callees |
 |---|---|---|---|---|
 | `visit` | 95-111 | — | 2 | 1 |
-| `extractSpans` | 64-87 | ✅ | 1 | 2 |
-| `resolveTracerInstances` | 90-113 | — | 1 | 1 |
-| `parseSpanCall` | 115-155 | — | 1 | 3 |
 | `buildSpanNodesAndEdges` | 162-208 | ✅ | 1 | 1 |
+| `resolveTracerInstances` | 90-113 | — | 1 | 1 |
 | `buildTracingClientIdentifiers` | 48-58 | ✅ | 1 | 0 |
+| `extractSpans` | 64-87 | ✅ | 1 | 2 |
+| `parseSpanCall` | 115-155 | — | 1 | 3 |
 
 <details><summary>Call graph details (1 functions)</summary>
 
@@ -2287,16 +2287,16 @@
 
 | Function | Lines | Exported | Callers | Callees |
 |---|---|---|---|---|
-| `getDeclarationKind` | 62-67 | — | 1 | 0 |
-| `visit` | 13-47 | — | 1 | 3 |
-| `extractVariables` | 8-51 | ✅ | 1 | 1 |
 | `isModuleScopeDeclaration` | 53-60 | — | 1 | 0 |
+| `visit` | 13-47 | — | 1 | 3 |
+| `getDeclarationKind` | 62-67 | — | 1 | 0 |
+| `extractVariables` | 8-51 | ✅ | 1 | 1 |
 
 <details><summary>Call graph details (1 functions)</summary>
 
 #### `visit`
 - **Called by**: extractVariables
-- **Calls**: getDeclarationKind, createNodeId, isModuleScopeDeclaration
+- **Calls**: getDeclarationKind, isModuleScopeDeclaration, createNodeId
 
 </details>
 
@@ -2313,12 +2313,12 @@
 | Function | Lines | Exported | Callers | Callees |
 |---|---|---|---|---|
 | `visit` | 87-106 | — | 2 | 2 |
-| `extractWSEvents` | 52-80 | ✅ | 1 | 2 |
-| `buildWSNodesAndEdges` | 191-240 | ✅ | 1 | 1 |
-| `resolveWSInstances` | 82-108 | — | 1 | 1 |
-| `parseWSCall` | 110-147 | — | 1 | 2 |
 | `parseWSDecorator` | 149-185 | — | 1 | 1 |
+| `buildWSNodesAndEdges` | 191-240 | ✅ | 1 | 1 |
+| `extractWSEvents` | 52-80 | ✅ | 1 | 2 |
 | `buildWSClientIdentifiers` | 36-46 | ✅ | 1 | 0 |
+| `parseWSCall` | 110-147 | — | 1 | 2 |
+| `resolveWSInstances` | 82-108 | — | 1 | 1 |
 
 ---
 
@@ -2332,8 +2332,8 @@
 
 | Function | Lines | Exported | Callers | Callees |
 |---|---|---|---|---|
-| `getGitDiff` | 30-99 | ✅ | 0 | 0 |
 | `findChangedFunctions` | 112-124 | ✅ | 0 | 0 |
+| `getGitDiff` | 30-99 | ✅ | 0 | 0 |
 
 ---
 
@@ -2402,25 +2402,25 @@
 | Function | Lines | Exported | Callers | Callees |
 |---|---|---|---|---|
 | `parseFile` | 64-474 | — | 3 | 89 |
-| `getParser` | 47-59 | — | 1 | 1 |
 | `expandBarrelReExports` | 757-780 | — | 1 | 1 |
 | `idToFilePath` | 745-750 | — | 1 | 0 |
 | `buildModuleNodes` | 720-743 | — | 1 | 2 |
 | `parseFiles` | 476-713 | — | 1 | 14 |
+| `getParser` | 47-59 | — | 1 | 1 |
 | `createParserEngine` | 61-716 | ✅ | 0 | 3 |
 
 <details><summary>Call graph details (3 functions)</summary>
 
 #### `parseFile`
-- **Called by**: handleFileChange, createParserEngine, parseFiles
-- **Calls**: createNodeId, extractPythonEvents, extractEnvVars, extractPythonEnvVars, extractDBOperations
+- **Called by**: createParserEngine, handleFileChange, parseFiles
+- **Calls**: extractDBSchemaFromCSharpMigration, extractFeatureFlags, buildTracingClientIdentifiers, extractRoutes, buildQueueNodesAndEdges
 
 #### `parseFiles`
 - **Called by**: createParserEngine
-- **Calls**: idToFilePath, resolveImportedArrayAliasCallEdges, resolveAliasImportMulti, resolveCrossFileCallEdges, resolveFileCrossFileCallEdges
+- **Calls**: resolveAliasImportMulti, push, resolveCrossFileCallEdges, resolveCrossFileHandlesEdges, buildImportedAliasFunctionIds
 
 #### `createParserEngine`
-- **Calls**: getLogger, parseFiles, parseFile
+- **Calls**: parseFile, getLogger, parseFiles
 
 </details>
 
@@ -2439,23 +2439,23 @@
 | `parseImportSpecifier` | 17-37 | — | 3 | 0 |
 | `filterMethodCandidatesByReceiverImport` | 262-275 | ✅ | 2 | 0 |
 | `normalizeImportSpecifier` | 39-42 | — | 2 | 1 |
-| `resolveReExportTargets` | 169-190 | — | 1 | 1 |
-| `buildImportedAliasFunctionIds` | 67-92 | ✅ | 1 | 1 |
-| `collectExportedNames` | 192-199 | — | 1 | 0 |
-| `buildImportedReceiverFileIds` | 44-65 | ✅ | 1 | 1 |
 | `resolveFileCrossFileCallEdges` | 202-260 | ✅ | 1 | 2 |
 | `resolveCrossFileCallEdges` | 95-167 | ✅ | 1 | 2 |
-| `resolveImportedArrayAliasCallEdges` | 347-428 | ✅ | 1 | 2 |
 | `resolveImportedSymbolReferenceEdges` | 277-337 | ✅ | 1 | 3 |
+| `resolveReExportTargets` | 169-190 | — | 1 | 1 |
+| `buildImportedReceiverFileIds` | 44-65 | ✅ | 1 | 1 |
+| `buildImportedAliasFunctionIds` | 67-92 | ✅ | 1 | 1 |
+| `resolveImportedArrayAliasCallEdges` | 347-428 | ✅ | 1 | 2 |
+| `collectExportedNames` | 192-199 | — | 1 | 0 |
 
 <details><summary>Call graph details (2 functions)</summary>
 
 #### `parseImportSpecifier`
-- **Called by**: buildImportedAliasFunctionIds, normalizeImportSpecifier, resolveImportedSymbolReferenceEdges
+- **Called by**: normalizeImportSpecifier, resolveImportedSymbolReferenceEdges, buildImportedAliasFunctionIds
 
 #### `resolveImportedSymbolReferenceEdges`
 - **Called by**: parseFiles
-- **Calls**: resolveReExportTargets, push, parseImportSpecifier
+- **Calls**: push, resolveReExportTargets, parseImportSpecifier
 
 </details>
 
@@ -2479,10 +2479,10 @@
 
 | Function | Lines | Exported | Callers | Callees |
 |---|---|---|---|---|
-| `resolveVariableDeclarationAliasEdges` | 101-119 | ✅ | 1 | 1 |
-| `resolveFileCallEdges` | 39-64 | ✅ | 1 | 1 |
-| `resolveVariableArrayReferenceEdges` | 70-99 | ✅ | 1 | 1 |
 | `resolveCallEdges` | 9-36 | ✅ | 1 | 1 |
+| `resolveVariableArrayReferenceEdges` | 70-99 | ✅ | 1 | 1 |
+| `resolveFileCallEdges` | 39-64 | ✅ | 1 | 1 |
+| `resolveVariableDeclarationAliasEdges` | 101-119 | ✅ | 1 | 1 |
 
 ---
 
@@ -2498,10 +2498,10 @@
 |---|---|---|---|---|
 | `extractHandlerMethodName` | 133-137 | ✅ | 2 | 0 |
 | `resolveExtendsEdges` | 9-33 | ✅ | 1 | 0 |
+| `resolveFrameworkEntryEdges` | 169-193 | ✅ | 1 | 0 |
 | `resolveRouteHandlesEdges` | 66-90 | ✅ | 1 | 1 |
 | `resolveImplementsEdges` | 36-60 | ✅ | 1 | 0 |
 | `resolveCrossFileHandlesEdges` | 96-130 | ✅ | 1 | 1 |
-| `resolveFrameworkEntryEdges` | 169-193 | ✅ | 1 | 0 |
 
 ---
 
@@ -2531,10 +2531,10 @@
 <details><summary>Call graph details (2 functions)</summary>
 
 #### `createNodeId`
-- **Called by**: parseFile, buildDBSchemaNodesAndEdges, buildPythonRuntimeNodes, buildGraphQLNodes, buildCFNNodes
+- **Called by**: buildModuleNodes, tryDecoratorRoute, buildDBNodesAndEdges, buildEnumNode, tryExpressRoute
 
 #### `createFileHash`
-- **Called by**: buildFileNode, parseMarkdown, parseFile
+- **Called by**: buildFileNode, parseFile, parseMarkdown
 
 </details>
 
@@ -2563,7 +2563,7 @@
 <details><summary>Call graph details (1 functions)</summary>
 
 #### `App`
-- **Calls**: fetchProjects, invalidateCache, GraphViewer, StatsPanel, Graph3DViewer
+- **Calls**: invalidateCache, Graph3DViewer, ProjectSelector, fetchProjects, fetchHealthStats
 
 </details>
 
@@ -2579,8 +2579,8 @@
 
 | Function | Lines | Exported | Callers | Callees |
 |---|---|---|---|---|
-| `handleClick` | 83-85 | — | 1 | 0 |
 | `FilterPanel` | 49-239 | ✅ | 1 | 1 |
+| `handleClick` | 83-85 | — | 1 | 0 |
 
 ---
 
@@ -2594,8 +2594,8 @@
 
 | Function | Lines | Exported | Callers | Callees |
 |---|---|---|---|---|
-| `init` | 85-206 | — | 1 | 2 |
 | `Graph3DViewer` | 62-326 | ✅ | 1 | 2 |
+| `init` | 85-206 | — | 1 | 2 |
 
 ---
 
@@ -2609,16 +2609,16 @@
 
 | Function | Lines | Exported | Callers | Callees |
 |---|---|---|---|---|
-| `extractDirectoryGroup` | 31-56 | — | 1 | 0 |
 | `buildDirectoryInfo` | 65-114 | — | 1 | 1 |
 | `GraphViewer` | 117-472 | ✅ | 1 | 6 |
 | `run` | 144-324 | — | 1 | 4 |
+| `extractDirectoryGroup` | 31-56 | — | 1 | 0 |
 
 <details><summary>Call graph details (2 functions)</summary>
 
 #### `GraphViewer`
 - **Called by**: App
-- **Calls**: FilterPanel, SearchBar, LayoutSelector, run, HelpButton
+- **Calls**: run, NodeDetail, LayoutSelector, SearchBar, HelpButton
 
 #### `run`
 - **Called by**: GraphViewer
@@ -2639,17 +2639,17 @@
 | Function | Lines | Exported | Callers | Callees |
 |---|---|---|---|---|
 | `HelpButton` | 4-110 | ✅ | 2 | 5 |
-| `HelpEdge` | 147-155 | — | 1 | 0 |
-| `InteractionRow` | 167-174 | — | 1 | 0 |
 | `HelpGlow` | 157-165 | — | 1 | 0 |
+| `HelpEdge` | 147-155 | — | 1 | 0 |
 | `HelpSection` | 112-119 | — | 1 | 0 |
 | `HelpRow` | 121-145 | — | 1 | 0 |
+| `InteractionRow` | 167-174 | — | 1 | 0 |
 
 <details><summary>Call graph details (1 functions)</summary>
 
 #### `HelpButton`
-- **Called by**: GraphViewer, Graph3DViewer
-- **Calls**: HelpRow, HelpGlow, HelpSection, HelpEdge, InteractionRow
+- **Called by**: Graph3DViewer, GraphViewer
+- **Calls**: HelpGlow, HelpRow, HelpSection, HelpEdge, InteractionRow
 
 </details>
 
@@ -2680,16 +2680,16 @@
 | Function | Lines | Exported | Callers | Callees |
 |---|---|---|---|---|
 | `NodeDetail` | 30-171 | ✅ | 1 | 4 |
-| `Prop` | 182-189 | — | 1 | 0 |
 | `shortenPath` | 203-207 | — | 1 | 0 |
-| `Section` | 173-180 | — | 1 | 0 |
+| `Prop` | 182-189 | — | 1 | 0 |
 | `NodeList` | 191-201 | — | 1 | 0 |
+| `Section` | 173-180 | — | 1 | 0 |
 
 <details><summary>Call graph details (1 functions)</summary>
 
 #### `NodeDetail`
 - **Called by**: GraphViewer
-- **Calls**: Section, NodeList, shortenPath, Prop
+- **Calls**: shortenPath, Prop, NodeList, Section
 
 </details>
 
@@ -2733,16 +2733,16 @@
 
 | Function | Lines | Exported | Callers | Callees |
 |---|---|---|---|---|
+| `StatsPanel` | 16-201 | ✅ | 1 | 3 |
+| `HealthScore` | 227-254 | — | 1 | 0 |
 | `basename` | 10-13 | — | 1 | 0 |
 | `HealthRow` | 204-222 | — | 1 | 0 |
-| `HealthScore` | 227-254 | — | 1 | 0 |
-| `StatsPanel` | 16-201 | ✅ | 1 | 3 |
 
 <details><summary>Call graph details (1 functions)</summary>
 
 #### `StatsPanel`
 - **Called by**: App
-- **Calls**: HealthRow, HealthScore, basename
+- **Calls**: HealthScore, basename, HealthRow
 
 </details>
 
@@ -2766,39 +2766,39 @@
 
 | Function | Lines | Exported | Callers | Callees |
 |---|---|---|---|---|
-| `setCache` | 32-34 | — | 3 | 0 |
-| `getCached` | 22-30 | — | 3 | 0 |
 | `cacheKey` | 18-20 | — | 3 | 0 |
+| `getCached` | 22-30 | — | 3 | 0 |
+| `setCache` | 32-34 | — | 3 | 0 |
 | `fetchGraphOverview` | 42-123 | ✅ | 2 | 3 |
-| `fetchGraphData` | 126-224 | ✅ | 1 | 3 |
-| `fetchGraphDataPaginated` | 441-544 | ✅ | 1 | 0 |
-| `fetchHealthStats` | 281-437 | ✅ | 1 | 4 |
 | `toNum` | 276-278 | — | 1 | 0 |
-| `invalidateCache` | 37-39 | ✅ | 1 | 0 |
+| `fetchGraphDataPaginated` | 441-544 | ✅ | 1 | 0 |
 | `fetchProjects` | 547-561 | ✅ | 1 | 0 |
+| `fetchGraphData` | 126-224 | ✅ | 1 | 3 |
+| `invalidateCache` | 37-39 | ✅ | 1 | 0 |
+| `fetchHealthStats` | 281-437 | ✅ | 1 | 4 |
 
 <details><summary>Call graph details (6 functions)</summary>
 
-#### `setCache`
-- **Called by**: fetchHealthStats, fetchGraphData, fetchGraphOverview
-
-#### `getCached`
+#### `cacheKey`
 - **Called by**: fetchGraphData, fetchGraphOverview, fetchHealthStats
 
-#### `cacheKey`
-- **Called by**: fetchGraphOverview, fetchGraphData, fetchHealthStats
+#### `getCached`
+- **Called by**: fetchHealthStats, fetchGraphData, fetchGraphOverview
+
+#### `setCache`
+- **Called by**: fetchHealthStats, fetchGraphOverview, fetchGraphData
 
 #### `fetchGraphOverview`
-- **Called by**: run, init
-- **Calls**: setCache, cacheKey, getCached
+- **Called by**: init, run
+- **Calls**: cacheKey, setCache, getCached
 
 #### `fetchGraphData`
 - **Called by**: init
-- **Calls**: setCache, getCached, cacheKey
+- **Calls**: cacheKey, setCache, getCached
 
 #### `fetchHealthStats`
 - **Called by**: App
-- **Calls**: setCache, toNum, cacheKey, getCached
+- **Calls**: setCache, getCached, toNum, cacheKey
 
 </details>
 
@@ -2861,23 +2861,23 @@
 
 | Function | Lines | Exported | Callers | Callees |
 |---|---|---|---|---|
-| `scheduleReindex` | 115-124 | — | 1 | 3 |
-| `start` | 126-149 | — | 1 | 1 |
 | `handleFileChange` | 44-59 | — | 1 | 4 |
 | `isExcludedPath` | 35-41 | — | 1 | 0 |
-| `emitImpactWarnings` | 62-112 | — | 1 | 0 |
 | `stop` | 151-163 | — | 1 | 0 |
+| `start` | 126-149 | — | 1 | 1 |
+| `scheduleReindex` | 115-124 | — | 1 | 3 |
+| `emitImpactWarnings` | 62-112 | — | 1 | 0 |
 | `createWatcher` | 22-170 | ✅ | 0 | 3 |
 
 <details><summary>Call graph details (3 functions)</summary>
 
-#### `scheduleReindex`
-- **Called by**: start
-- **Calls**: handleFileChange, set, get
-
 #### `handleFileChange`
 - **Called by**: scheduleReindex
-- **Calls**: isSupportedFile, parseFile, isExcludedPath, emitImpactWarnings
+- **Calls**: parseFile, isSupportedFile, emitImpactWarnings, isExcludedPath
+
+#### `scheduleReindex`
+- **Called by**: start
+- **Calls**: set, handleFileChange, get
 
 #### `createWatcher`
 - **Calls**: stop, start, getLogger

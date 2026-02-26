@@ -3,7 +3,7 @@ import { createLogger, setLogger } from '@nomik/core';
 import { readProjectConfig } from '../utils/project-config.js';
 import { setupMcpClientConfig } from '../utils/mcp-config.js';
 
-/** Commande setup-windsurf : configure automatiquement le mcp_config.json Windsurf */
+/** setup-windsurf command: auto-configure Windsurf mcp_config.json */
 export const setupWindsurfCommand = new Command('setup-windsurf')
     .description('Auto-configure Windsurf IDE to use NOMIK MCP server')
     .option('--global', 'Kept for compatibility (Windsurf uses user-level mcp_config.json)')
