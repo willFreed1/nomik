@@ -5,8 +5,9 @@ import type { GraphDriver } from '../drivers/driver.interface.js';
 // Split from read.ts to reduce god file size
 // ────────────────────────────────────────────────────────────────────────
 
-/** Detection de dead code — fonctions sans aucun appel entrant
- *  Exclut : constructeurs, methodes de classes, composants React, barrel re-exports
+/** Dead code detection — functions with no incoming calls.
+ *  Excludes: constructors, class methods, React components, barrel re-exports,
+ *  dunder methods, @property descriptors, test functions, registration decorators.
  */
 export async function findDeadCode(driver: GraphDriver, projectId?: string): Promise<Array<{ name: string; filePath: string }>> {
     const projectFilter = projectId ? 'AND f.projectId = $projectId' : '';
@@ -19,22 +20,38 @@ export async function findDeadCode(driver: GraphDriver, projectId?: string): Pro
       AND f.name <> 'constructor'
       ${projectFilter}
     WITH f
+    // Exclude React components, markdown
     WHERE NOT f.filePath ENDS WITH '.tsx'
       AND NOT f.filePath ENDS WITH '.jsx'
       AND NOT f.filePath ENDS WITH '.md'
       AND NOT f.filePath ENDS WITH '.mdx'
+    // Exclude Python dunder methods (__str__, __init__, __repr__, etc.)
+      AND NOT (f.name STARTS WITH '__' AND f.name ENDS WITH '__')
+    // Exclude Python test functions (test_*)
+      AND NOT f.name STARTS WITH 'test_'
+    // Exclude Python @property and decorator-invoked methods
+      AND NOT (f.decorators IS NOT NULL AND (
+          f.decorators CONTAINS 'property'
+          OR f.decorators CONTAINS '.setter'
+          OR f.decorators CONTAINS '.getter'
+          OR f.decorators CONTAINS '.deleter'
+          OR f.decorators CONTAINS 'receiver'
+          OR f.decorators CONTAINS 'register'
+          OR f.decorators CONTAINS 'task'
+          OR f.decorators CONTAINS 'shared_task'
+      ))
     OPTIONAL MATCH (parent:File)-[:CONTAINS]->(f)
     WITH f, parent
     WHERE parent IS NULL
        OR (NOT parent.path ENDS WITH 'index.ts'
            AND NOT parent.path ENDS WITH 'index.js')
-    // Exclure les methodes de classes (appelees via obj.method(), pas directement)
+    // Exclude class methods (called via obj.method(), not directly)
     WITH f, parent
     OPTIONAL MATCH (parent)-[:CONTAINS]->(cls:Class)
     WHERE cls.methods CONTAINS ('"' + f.name + '"')
     WITH f, parent, cls
     WHERE cls IS NULL
-    // Exclure les fonctions re-exportees via barrel (index.ts/js imports parent file)
+    // Exclude functions re-exported via barrel (index.ts/js imports parent file)
     OPTIONAL MATCH (barrel:File)-[:DEPENDS_ON|IMPORTS]->(parent)
     WHERE barrel IS NOT NULL
       AND (barrel.path ENDS WITH 'index.ts' OR barrel.path ENDS WITH 'index.js')

@@ -44,7 +44,6 @@ export interface GraphService {
     getTestImpactForFiles(filePaths: string[], projectId?: string): Promise<Array<{ testFile: string; changedFile: string; reason: string }>>;
     healthCheck(): Promise<boolean>;
     executeQuery<T>(query: string, params?: Record<string, any>): Promise<T[]>;
-    // Project management
     createProject(project: ProjectNode): Promise<void>;
     listProjects(): Promise<ProjectNode[]>;
     getProject(projectId: string): Promise<ProjectNode | null>;
@@ -203,7 +202,6 @@ export function createGraphService(config: GraphConfig): GraphService {
             return driver.runQuery<T>(query, params);
         },
 
-        // Project management
         async createProject(project: ProjectNode) {
             await upsertProject(driver, project);
             cache.invalidateAll();

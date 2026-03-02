@@ -4,9 +4,6 @@ import type { ImportInfo } from '../extractors/imports.js';
 import type { CallInfo } from '../extractors/calls.js';
 import type { ParseResult } from '../parser.js';
 
-// ────────────────────────────────────────────────────────────────────────
-// Cross-file CALLS resolution
-// ────────────────────────────────────────────────────────────────────────
 
 interface ParsedImportSpecifier {
     importedName: string;
@@ -109,13 +106,6 @@ export function resolveCrossFileCallEdges(
         if (call.isLocalIdentifier) continue;
         const callerIds = multiMap.get(call.callerName) ?? [];
         const aliasTargets = importedAliasFunctionIds.get(call.calleeName) ?? [];
-        // When no alias targets exist, fall back to global multiMap but:
-        // 1) For bare calls: if a local function with the same name exists, skip —
-        //    call targets local definition (e.g. local formatNumber vs format.ts::formatNumber)
-        // 2) Otherwise constrain to functions in files actually imported by this file
-        //    (e.g. date-fns::formatDistance vs format.ts::formatDistance)
-        // Note: method calls (obj.method()) skip the shadow check — the receiver
-        // already disambiguates, and filterMethodCandidatesByReceiverImport handles it.
         let calleeIds: string[];
         let resolution: CallResolution;
         if (aliasTargets.length > 0) {
@@ -129,12 +119,9 @@ export function resolveCrossFileCallEdges(
                 : globalIds.filter(id => importedFileIds.has(nodeIdToFileId.get(id) ?? ''));
             resolution = 'global-filtered';
         }
-        // Confidence: import-resolved = 0.95, global-filtered = 0.60
         const confidence = resolution === 'import-resolved' ? 0.95 : 0.60;
 
-        // Seul le caller dans CE fichier est pertinent
         const localCallerIds = callerIds.filter((id) => localIds.has(id));
-        // Seuls les callees dans AUTRES fichiers sont pertinents
         let remoteCalleeIds = calleeIds.filter((id) => !localIds.has(id));
         remoteCalleeIds = filterMethodCandidatesByReceiverImport(
             remoteCalleeIds,
@@ -229,8 +216,7 @@ export function resolveFileCrossFileCallEdges(
                 : globalIds.filter(id => importedFileIds.has(nodeIdToFileId.get(id) ?? ''));
             resolution = 'global-filtered';
         }
-        // File-context: import-resolved = 0.85, global-filtered = 0.50
-        const confidence = resolution === 'import-resolved' ? 0.85 : 0.50;
+                const confidence = resolution === 'import-resolved' ? 0.85 : 0.50;
         calleeIds = filterMethodCandidatesByReceiverImport(
             calleeIds,
             call,
@@ -296,9 +282,6 @@ export function resolveImportedSymbolReferenceEdges(
             if (imp.isReExport) {
                 targets = resolveReExportTargets(targetResult, parsed);
             } else if (parsed.isNamespace || imp.isDefault) {
-                // Namespace import (import * as X) or default import (import X from 'mod'):
-                // only create DEPENDS_ON for exports actually accessed via X.method()
-                // in the consuming file — avoids blanket edges that hide dead code.
                 const accessedNames = new Set<string>();
                 for (const call of calls) {
                     if (call.receiverName === parsed.localName && call.isMethodCall) {
@@ -355,7 +338,6 @@ export function resolveImportedArrayAliasCallEdges(
     const resultByPath = new Map(allResults.map(r => [r.file.path, r] as const));
     const resolvedImports = resolvedImportsByFile.get(current.file.path) ?? [];
 
-    // Build local lookup: imported symbol name -> exporting file parse result
     const importedAliasTargets = new Map<string, ParseResult[]>();
     for (const entry of resolvedImports) {
         const targetResult = resultByPath.get(entry.resolvedPath);
@@ -386,8 +368,7 @@ export function resolveImportedArrayAliasCallEdges(
                 n => n.type === 'variable' && n.name === call.calleeName,
             );
 
-            // Keep a direct usage edge to the imported alias variable when available.
-            if (aliasVarNode) {
+                        if (aliasVarNode) {
                 const varKey = `${sourceId}->${aliasVarNode.id}`;
                 if (!seen.has(varKey)) {
                     seen.add(varKey);

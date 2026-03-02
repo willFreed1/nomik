@@ -46,8 +46,6 @@ const REDIS_DELETE_COMMANDS = new Set([
 ]);
 
 // ────────────────────────────────────────────────────────────────────────
-// Step 1: Build Redis client identifiers from imports
-// ────────────────────────────────────────────────────────────────────────
 
 export function buildRedisClientIdentifiers(imports: ImportInfo[]): Set<string> {
     const ids = new Set<string>();
@@ -60,10 +58,6 @@ export function buildRedisClientIdentifiers(imports: ImportInfo[]): Set<string> 
     }
     return ids;
 }
-
-// ────────────────────────────────────────────────────────────────────────
-// Step 2: Extract Redis operations from AST
-// ────────────────────────────────────────────────────────────────────────
 
 export function extractRedisOperations(
     tree: Parser.Tree,
@@ -167,10 +161,6 @@ function parseRedisCall(
         line: callNode.startPosition.row + 1,
     };
 }
-
-// ────────────────────────────────────────────────────────────────────────
-// Step 3: Build nodes and edges from Redis operations
-// ────────────────────────────────────────────────────────────────────────
 
 export function buildRedisNodesAndEdges(
     ops: RedisOpInfo[],

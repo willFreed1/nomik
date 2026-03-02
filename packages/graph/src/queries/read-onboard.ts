@@ -105,12 +105,21 @@ export async function getOnboardSummary(
         { projectId },
     );
 
-    // Dead code count
+    // Dead code count (aligned with findDeadCode exclusions)
     const [deadCodeResult] = await driver.runQuery<{ cnt: number }>(
         `MATCH (f:Function)
          WHERE NOT (f)<-[:CALLS]-() AND NOT (f)<-[:HANDLES]-() AND NOT (f)<-[:DEPENDS_ON]-(:File)
            AND f.name <> 'constructor' ${pfF}
            AND NOT f.filePath ENDS WITH '.tsx' AND NOT f.filePath ENDS WITH '.jsx'
+           AND NOT (f.name STARTS WITH '__' AND f.name ENDS WITH '__')
+           AND NOT f.name STARTS WITH 'test_'
+           AND NOT (f.decorators IS NOT NULL AND (
+               f.decorators CONTAINS 'property'
+               OR f.decorators CONTAINS '.setter'
+               OR f.decorators CONTAINS 'receiver'
+               OR f.decorators CONTAINS 'task'
+               OR f.decorators CONTAINS 'shared_task'
+           ))
          RETURN count(f) as cnt`,
         { projectId },
     );

@@ -30,8 +30,6 @@ const WS_PACKAGES = new Set([
 ]);
 
 // ────────────────────────────────────────────────────────────────────────
-// Step 1: Build WebSocket client identifiers from imports
-// ────────────────────────────────────────────────────────────────────────
 
 export function buildWSClientIdentifiers(imports: ImportInfo[]): Set<string> {
     const ids = new Set<string>();
@@ -44,10 +42,6 @@ export function buildWSClientIdentifiers(imports: ImportInfo[]): Set<string> {
     // Also resolve new WebSocketServer() / new WebSocket.Server() patterns
     return ids;
 }
-
-// ────────────────────────────────────────────────────────────────────────
-// Step 2: Extract WebSocket events from AST
-// ────────────────────────────────────────────────────────────────────────
 
 export function extractWSEvents(
     tree: Parser.Tree,
@@ -183,10 +177,6 @@ function parseWSDecorator(
 
     return null;
 }
-
-// ────────────────────────────────────────────────────────────────────────
-// Step 3: Build nodes and edges
-// ────────────────────────────────────────────────────────────────────────
 
 export function buildWSNodesAndEdges(
     events: WebSocketEventInfo[],

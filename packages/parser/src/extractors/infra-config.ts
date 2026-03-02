@@ -26,10 +26,6 @@ export interface GrafanaPanelInfo {
     datasource?: string;
 }
 
-// ────────────────────────────────────────────────────────────────────────
-// Prometheus alert rules (YAML-like regex parsing)
-// ────────────────────────────────────────────────────────────────────────
-
 export function extractAlertRules(content: string, _filePath: string): AlertRuleInfo[] {
     const rules: AlertRuleInfo[] = [];
 
@@ -59,10 +55,6 @@ export function extractAlertRules(content: string, _filePath: string): AlertRule
 
     return rules;
 }
-
-// ────────────────────────────────────────────────────────────────────────
-// Grafana dashboard JSON parsing
-// ────────────────────────────────────────────────────────────────────────
 
 export function extractGrafanaPanels(content: string, _filePath: string): GrafanaPanelInfo[] {
     const panels: GrafanaPanelInfo[] = [];
@@ -104,10 +96,6 @@ export function extractGrafanaPanels(content: string, _filePath: string): Grafan
     return panels;
 }
 
-// ────────────────────────────────────────────────────────────────────────
-// Prometheus.yml scrape config detection
-// ────────────────────────────────────────────────────────────────────────
-
 export interface ScrapeConfigInfo {
     jobName: string;
     metricsPath?: string;
@@ -141,10 +129,6 @@ export function extractScrapeConfigs(content: string): ScrapeConfigInfo[] {
 
     return configs;
 }
-
-// ────────────────────────────────────────────────────────────────────────
-// PromQL metric name extraction (simplified)
-// ────────────────────────────────────────────────────────────────────────
 
 function extractMetricNamesFromPromQL(expr: string): string[] {
     const names: string[] = [];
@@ -180,10 +164,6 @@ function extractMetricNamesFromPromQL(expr: string): string[] {
 
     return [...new Set(names)];
 }
-
-// ────────────────────────────────────────────────────────────────────────
-// Build nodes/edges from infra config
-// ────────────────────────────────────────────────────────────────────────
 
 export function buildInfraConfigNodes(
     alerts: AlertRuleInfo[],

@@ -29,21 +29,19 @@ export interface DBOperationInfo {
     columns: string[];
 }
 
-// ── Known npm packages that are DB clients (universal) ──
 const PRISMA_PACKAGES = new Set(['@prisma/client']);
 const SUPABASE_PACKAGES = new Set(['@supabase/supabase-js', '@supabase/ssr']);
 const QUERY_BUILDER_PACKAGES = new Set(['knex', 'better-sqlite3', 'pg', 'mysql2', 'tedious']);
 const DRIZZLE_PACKAGES = new Set(['drizzle-orm']);
 const TYPEORM_PACKAGES = new Set(['typeorm']);
 
-// ── Prisma method classification ──
 const PRISMA_READ_METHODS = new Set(['findMany', 'findFirst', 'findUnique', 'findFirstOrThrow', 'findUniqueOrThrow', 'count', 'aggregate', 'groupBy']);
 const PRISMA_INSERT_METHODS = new Set(['create', 'createMany', 'createManyAndReturn']);
 const PRISMA_UPDATE_METHODS = new Set(['update', 'updateMany', 'upsert']);
 const PRISMA_DELETE_METHODS = new Set(['delete', 'deleteMany']);
 const ALL_PRISMA_METHODS = new Set([...PRISMA_READ_METHODS, ...PRISMA_INSERT_METHODS, ...PRISMA_UPDATE_METHODS, ...PRISMA_DELETE_METHODS]);
 
-// ── Supabase/query-builder method classification ──
+
 const QB_READ_METHODS = new Set(['select', 'rpc', 'where', 'first', 'pluck', 'count']);
 const QB_INSERT_METHODS = new Set(['insert']);
 const QB_UPDATE_METHODS = new Set(['update', 'upsert']);
@@ -54,9 +52,6 @@ const TYPEORM_INSERT_METHODS = new Set(['insert']);
 const TYPEORM_UPDATE_METHODS = new Set(['update', 'save', 'upsert', 'softDelete', 'restore']);
 const TYPEORM_DELETE_METHODS = new Set(['delete', 'remove']);
 
-// ────────────────────────────────────────────────────────────────────────
-// Step 1: Build dynamic DB client identifier sets from file imports
-// ────────────────────────────────────────────────────────────────────────
 
 export interface DBClientIds {
     prismaIds: Set<string>;
@@ -89,9 +84,6 @@ export function buildDBClientIdentifiers(imports: ImportInfo[]): DBClientIds {
     return { prismaIds, supabaseIds, queryBuilderIds, typeormIds };
 }
 
-// ────────────────────────────────────────────────────────────────────────
-// Step 2: Extract DB operations from AST using dynamic identifiers
-// ────────────────────────────────────────────────────────────────────────
 
 export function extractDBOperations(
     tree: Parser.Tree,
@@ -140,7 +132,7 @@ function parseDBOperation(
         const tableProp = obj.childForFieldName('property');
         if (outerObj && tableProp && outerObj.type === 'identifier') {
             const receiverName = outerObj.text;
-            // Known Prisma import OR structural match (unique method names)
+
             if (dbClientIds.prismaIds.has(receiverName) || ALL_PRISMA_METHODS.has(methodName)) {
                 const operation = classifyPrismaMethod(methodName);
                 if (operation) {
@@ -366,15 +358,12 @@ function classifyChainOperation(callNode: Parser.SyntaxNode): DBOperationInfo['o
         } else if (op && !readOp) {
             readOp = op;
         }
-        // Descend into the object (inner call)
         current = fn.childForFieldName('object') ?? null;
     }
     return writeOp ?? readOp;
 }
 
 function extractFromChain(node: Parser.SyntaxNode): string | null {
-    // Walk DOWNWARD through the chain only (no parent traversal)
-    // Looking for .from('table') anywhere in the object chain
     let current: Parser.SyntaxNode | null = node;
     while (current) {
         if (current.type === 'call_expression') {
@@ -384,11 +373,9 @@ function extractFromChain(node: Parser.SyntaxNode): string | null {
                 if (prop && prop.text === 'from') {
                     return extractFirstStringArg(current);
                 }
-                // Go deeper into the object of this member_expression
                 current = func.childForFieldName('object');
                 continue;
             }
-            // Function is not member_expression (e.g. bare identifier) — stop
             break;
         }
         if (current.type === 'member_expression') {
@@ -419,7 +406,6 @@ function normalizeEntityName(name: string | null): string | null {
     if (!name) return null;
     const trimmed = name.trim();
     if (!trimmed) return null;
-    // Common TypeORM entity naming fallback: User -> user
     const bare = trimmed.replace(/["'`]/g, '');
     return bare.charAt(0).toLowerCase() + bare.slice(1);
 }
@@ -484,9 +470,6 @@ function findChainRoot(node: Parser.SyntaxNode): string | null {
 }
 
 
-// ────────────────────────────────────────────────────────────────────────
-// Node & Edge creation from extracted DB operations
-// ────────────────────────────────────────────────────────────────────────
 
 export function buildDBNodesAndEdges(
     dbOps: DBOperationInfo[],
@@ -503,7 +486,6 @@ export function buildDBNodesAndEdges(
     for (const op of dbOps) {
         const tableNodeId = createNodeId('db_table', filePath, op.tableName);
 
-        // Create or update DBTableNode
         if (!seenNodes.has(tableNodeId)) {
             const tableNode: DBTableNode = {
                 id: tableNodeId,
@@ -520,7 +502,6 @@ export function buildDBNodesAndEdges(
             }
         }
 
-        // Determine source function
         const sourceId = op.callerName === '__file__'
             ? fileId
             : funcMap.get(op.callerName) ?? fileId;
@@ -553,8 +534,8 @@ export function buildDBNodesAndEdges(
         } else {
             const edgeOp = op.operation === 'INSERT' ? 'INSERT'
                 : op.operation === 'UPDATE' ? 'UPDATE'
-                : op.operation === 'DELETE' ? 'DELETE'
-                : 'UPSERT';
+                    : op.operation === 'DELETE' ? 'DELETE'
+                        : 'UPSERT';
             const edge: WritesToEdge = {
                 id: `${sourceId}->writes_to->${tableNodeId}`,
                 type: 'WRITES_TO',
@@ -610,8 +591,8 @@ export function buildDBNodesAndEdges(
             } else {
                 const edgeOp = op.operation === 'INSERT' ? 'INSERT'
                     : op.operation === 'UPDATE' ? 'UPDATE'
-                    : op.operation === 'DELETE' ? 'DELETE'
-                    : 'UPSERT';
+                        : op.operation === 'DELETE' ? 'DELETE'
+                            : 'UPSERT';
                 const writeColEdge: WritesToEdge = {
                     id: `${sourceId}->writes_to->${columnNodeId}`,
                     type: 'WRITES_TO',

@@ -46,8 +46,6 @@ const METRIC_OPS = new Set(['inc', 'dec', 'set', 'observe', 'startTimer', 'label
 const TRACKED_OPS = new Set<MetricUsageInfo['operation']>(['inc', 'dec', 'set', 'observe', 'startTimer']);
 
 // ────────────────────────────────────────────────────────────────────────
-// Step 1: Build metrics client identifiers from imports
-// ────────────────────────────────────────────────────────────────────────
 
 export function buildMetricsClientIdentifiers(imports: ImportInfo[]): Set<string> {
     const ids = new Set<string>();
@@ -60,10 +58,6 @@ export function buildMetricsClientIdentifiers(imports: ImportInfo[]): Set<string
     }
     return ids;
 }
-
-// ────────────────────────────────────────────────────────────────────────
-// Step 2: Extract metric definitions and usages from AST
-// ────────────────────────────────────────────────────────────────────────
 
 export function extractMetrics(
     tree: Parser.Tree,
@@ -216,10 +210,6 @@ function collectMetricUsages(
 
     visit(root);
 }
-
-// ────────────────────────────────────────────────────────────────────────
-// Step 3: Build nodes and edges
-// ────────────────────────────────────────────────────────────────────────
 
 export function buildMetricNodesAndEdges(
     definitions: MetricInfo[],

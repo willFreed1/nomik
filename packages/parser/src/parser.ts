@@ -38,7 +38,7 @@ import type { ImportInfo } from './extractors/imports';
 import type { ExportInfo } from './extractors/exports';
 import type { CallInfo } from './extractors/calls';
 import { resolveCallEdges, resolveFileCallEdges, resolveVariableArrayReferenceEdges, resolveVariableDeclarationAliasEdges, resolveCrossFileCallEdges, resolveFileCrossFileCallEdges, buildImportedAliasFunctionIds, buildImportedReceiverFileIds, resolveImportedSymbolReferenceEdges, resolveImportedArrayAliasCallEdges, resolveExtendsEdges, resolveImplementsEdges, resolveRouteHandlesEdges, resolveCrossFileHandlesEdges, resolveFrameworkEntryEdges, } from './resolvers/index';
-import { findAllPathAliases, resolveImportPath, resolveAliasImportMulti, } from './config/index';
+import { findAllPathAliases, resolveImportPath, resolveAliasImportMulti, resolvePythonImportPath, } from './config/index';
 
 export type { ParseResult, ParserEngine } from './types';
 
@@ -68,14 +68,12 @@ export function createParserEngine(): ParserEngine {
 
         const content = fs.readFileSync(absolutePath, 'utf-8');
 
-        // Markdown files: parse without tree-sitter
         if (language === 'markdown') {
             const md = parseMarkdown(absolutePath, content);
             logger.debug({ filePath: absolutePath, nodes: md.nodes.length, edges: md.edges.length }, 'parsed markdown');
             return { file: md.file, nodes: md.nodes, edges: md.edges, imports: [], exports: [], calls: [], arrayAliases: {} };
         }
 
-        // Config files: dispatch to config-file-parser module (no tree-sitter)
         if (isConfigFile(language)) {
             const result = parseConfigFile(absolutePath, content, language);
             logger.debug({ filePath: absolutePath, language, nodes: result.nodes.length, edges: result.edges.length }, 'parsed config file');
@@ -119,7 +117,6 @@ export function createParserEngine(): ParserEngine {
             lastParsed: new Date().toISOString(),
         };
 
-        // Dispatch to language-specific extractors
         let functions: FunctionNode[], classes: ClassNode[], variables: VariableNode[], imports: ImportInfo[], exports: ExportInfo[], calls: CallInfo[], routes: GraphNode[];
         let arrayAliases: Record<string, string[]> = {};
 
@@ -142,7 +139,7 @@ export function createParserEngine(): ParserEngine {
             exports = [];
             arrayAliases = {};
         } else {
-            // typescript, tsx, javascript — same extractors (tsx uses tree-sitter TSX grammar)
+            // typescript, tsx, javascript
             functions = extractFunctions(tree, absolutePath);
             classes = extractClasses(tree, absolutePath);
             variables = extractVariables(tree, absolutePath);
@@ -155,7 +152,6 @@ export function createParserEngine(): ParserEngine {
 
         const moduleNodes = buildModuleNodes(imports);
 
-        // Edges CONTAINS: File → Function/Class/Route
         const containsEdges: GraphEdge[] = [...functions, ...classes, ...variables, ...routes].map((n) => ({
             id: `${fileNode.id}->contains->${n.id}`,
             type: 'CONTAINS' as const,
@@ -164,18 +160,15 @@ export function createParserEngine(): ParserEngine {
             confidence: 1.0,
         }));
 
-        // Edges IMPORTS: File → Module
         const importEdges = importsToEdges(imports, fileNode.id, (source) =>
             createNodeId('module', source, ''),
         );
 
-        // Edges CALLS: intra-file resolution
         const localFuncMap = new Map<string, string>();
         for (const fn of functions) {
             localFuncMap.set(fn.name, fn.id);
         }
 
-        // API & DB tracking (TS/JS only for runtime DB operations)
         let apiNodes: GraphNode[] = [];
         let apiEdges: GraphEdge[] = [];
         let dbNodes: GraphNode[] = [];
@@ -197,7 +190,6 @@ export function createParserEngine(): ParserEngine {
             }
         }
 
-        // Python migration enrichment: extract DB schema from Django/Alembic migration files
         let migrationSchemaNodes: GraphNode[] = [];
         let migrationSchemaEdges: GraphEdge[] = [];
         if (language === 'python' && isPythonMigrationFile(content)) {
@@ -210,7 +202,6 @@ export function createParserEngine(): ParserEngine {
             }
         }
 
-        // Environment variable tracking (TS/JS + Python)
         let envNodes: GraphNode[] = [];
         let envEdges: GraphEdge[] = [];
         if (language !== 'rust') {
@@ -224,7 +215,6 @@ export function createParserEngine(): ParserEngine {
             }
         }
 
-        // Event / message bus tracking (TS/JS + Python)
         let eventNodes: GraphNode[] = [];
         let eventEdges: GraphEdge[] = [];
         if (language !== 'rust') {
@@ -238,7 +228,6 @@ export function createParserEngine(): ParserEngine {
             }
         }
 
-        // Redis tracking (TS/JS only)
         let redisNodes: GraphNode[] = [];
         let redisEdges: GraphEdge[] = [];
         if (language !== 'python' && language !== 'rust') {
@@ -251,7 +240,6 @@ export function createParserEngine(): ParserEngine {
             }
         }
 
-        // Queue job tracking — Bull/BullMQ/Bee-Queue (TS/JS only)
         let queueNodes: GraphNode[] = [];
         let queueEdges: GraphEdge[] = [];
         if (language !== 'python' && language !== 'rust') {
@@ -264,7 +252,6 @@ export function createParserEngine(): ParserEngine {
             }
         }
 
-        // Prometheus / prom-client metrics tracking (TS/JS only)
         let metricNodes: GraphNode[] = [];
         let metricEdges: GraphEdge[] = [];
         if (language !== 'python' && language !== 'rust') {
@@ -277,7 +264,6 @@ export function createParserEngine(): ParserEngine {
             }
         }
 
-        // OpenTelemetry / tracing tracking (TS/JS only)
         let spanNodes: GraphNode[] = [];
         let spanEdges: GraphEdge[] = [];
         if (language !== 'python' && language !== 'rust') {
@@ -290,7 +276,6 @@ export function createParserEngine(): ParserEngine {
             }
         }
 
-        // Message broker tracking — Kafka/RabbitMQ/NATS/SQS/SNS (TS/JS only)
         let messageNodes: GraphNode[] = [];
         let messageEdges: GraphEdge[] = [];
         if (language !== 'python' && language !== 'rust') {
@@ -303,7 +288,6 @@ export function createParserEngine(): ParserEngine {
             }
         }
 
-        // Swagger/OpenAPI setup detection (TS/JS only)
         if (language !== 'python' && language !== 'rust') {
             const swaggerClientIds = buildSwaggerClientIdentifiers(imports);
             const swaggerSetups = extractSwaggerSetups(tree, absolutePath, swaggerClientIds);
@@ -312,7 +296,6 @@ export function createParserEngine(): ParserEngine {
             }
         }
 
-        // gRPC / tRPC / GraphQL procedure tracking (TS/JS only)
         let rpcNodes: GraphNode[] = [];
         let rpcEdges: GraphEdge[] = [];
         if (language !== 'python' && language !== 'rust') {
@@ -325,7 +308,6 @@ export function createParserEngine(): ParserEngine {
             }
         }
 
-        // WebSocket tracking — ws, @nestjs/websockets (TS/JS only)
         let wsNodes: GraphNode[] = [];
         let wsEdges: GraphEdge[] = [];
         if (language !== 'python' && language !== 'rust') {
@@ -338,7 +320,6 @@ export function createParserEngine(): ParserEngine {
             }
         }
 
-        // Feature flag tracking — LaunchDarkly, Unleash, Flagsmith, Split, GrowthBook (TS/JS only)
         let flagNodes: GraphNode[] = [];
         let flagEdges: GraphEdge[] = [];
         if (language !== 'python' && language !== 'rust') {
@@ -351,7 +332,6 @@ export function createParserEngine(): ParserEngine {
             }
         }
 
-        // Secret/credential detection (all languages)
         let secretNodes: GraphNode[] = [];
         let secretEdges: GraphEdge[] = [];
         const secrets = extractSecrets(content, absolutePath);
@@ -361,7 +341,6 @@ export function createParserEngine(): ParserEngine {
             secretEdges = secretResult.edges;
         }
 
-        // Cron job detection — node-cron, node-schedule, @nestjs/schedule (TS/JS only)
         let cronNodes: GraphNode[] = [];
         let cronEdges: GraphEdge[] = [];
         if (language !== 'python' && language !== 'rust') {
@@ -374,7 +353,6 @@ export function createParserEngine(): ParserEngine {
             }
         }
 
-        // Python runtime tracking — Redis, Celery, Prometheus, OTel, message brokers
         let pyRuntimeNodes: GraphNode[] = [];
         let pyRuntimeEdges: GraphEdge[] = [];
         if (language === 'python') {
@@ -398,29 +376,19 @@ export function createParserEngine(): ParserEngine {
         }
         const localCallEdges = resolveCallEdges(calls, localFuncMap);
 
-        // Edges CALLS from file context (calls in anonymous callbacks, top-level)
         const fileCallEdges = resolveFileCallEdges(calls, localFuncMap, fileNode.id);
 
-        // Edges DEPENDS_ON for variable-array references -> functions
-        // Ex: sanitizeInputs -> sanitizeBodyParams
         const variableRefEdges = resolveVariableArrayReferenceEdges(arrayAliases, localVarMap, localFuncMap);
-        // Edges DEPENDS_ON for const/let declarations wrapping a same-name function
-        // Ex: export const sanitizeBodyParams = (...) => ...
         const variableDeclEdges = resolveVariableDeclarationAliasEdges(localVarMap, localFuncMap);
 
-        // Edges EXTENDS: Class → parent Class
         const extendsEdges = resolveExtendsEdges(classes, localFuncMap, absolutePath);
 
-        // Edges IMPLEMENTS: Class → Interface (by name)
         const implementsEdges = resolveImplementsEdges(classes, absolutePath);
 
-        // Edges HANDLES: Route → handler function (Express router.get('/path', handler))
         const handlesEdges = resolveRouteHandlesEdges(routes, localFuncMap);
 
-        // Edges framework: File → Function for Next.js, Nuxt, etc. entry points
         const frameworkEdges = resolveFrameworkEntryEdges(fileNode, functions);
 
-        // Edges EXPORTS: File → exported Function/Class/Variable
         const localClassMap = new Map<string, string>();
         for (const c of classes) localClassMap.set(c.name, c.id);
         const exportEdges: GraphEdge[] = [];
@@ -507,8 +475,6 @@ export function createParserEngine(): ParserEngine {
             }
         }
 
-        // Resolution of path aliases (tsconfig.json paths: { "@/*": ["./src/*"] })
-        // Supports monorepos with multiple tsconfig (web-app/, backend/, etc.)
         const allAliasConfigs = findAllPathAliases(filePaths);
         if (allAliasConfigs.length > 0) {
             logger.info(
@@ -517,15 +483,17 @@ export function createParserEngine(): ParserEngine {
             );
         }
 
-        // DEPENDS_ON resolution: File → File via relative imports AND aliases
         const resolvedImportsByFile = new Map<string, Array<{ imp: ImportInfo; resolvedPath: string }>>();
         let dependsOnCount = 0;
         for (const r of results) {
             const resolvedImports: Array<{ imp: ImportInfo; resolvedPath: string }> = [];
+            const isPythonFile = r.file.language === 'python';
             for (const imp of r.imports) {
                 let resolved: string | null = null;
 
-                if (imp.source.startsWith('.')) {
+                if (isPythonFile) {
+                    resolved = resolvePythonImportPath(r.file.path, imp.source, filePathToId);
+                } else if (imp.source.startsWith('.')) {
                     resolved = resolveImportPath(r.file.path, imp.source, filePathToId);
                 } else if (allAliasConfigs.length > 0) {
                     resolved = resolveAliasImportMulti(imp.source, r.file.path, allAliasConfigs, filePathToId);
@@ -570,8 +538,6 @@ export function createParserEngine(): ParserEngine {
                 resultByPath,
             );
 
-            // Build set of all file IDs this file imports from (static + dynamic)
-            // Then transitively expand through barrel re-exports (export * from './foo')
             const importedFileIds = new Set<string>();
             for (const { resolvedPath } of resolvedImportsByFile.get(r.file.path) ?? []) {
                 const fid = filePathToId.get(resolvedPath);
@@ -579,7 +545,6 @@ export function createParserEngine(): ParserEngine {
             }
             expandBarrelReExports(importedFileIds, filePathToId, resolvedImportsByFile);
 
-            // Cross-file CALLS (named functions → functions in other files)
             const crossCallEdges = resolveCrossFileCallEdges(
                 r.calls,
                 localIds,
@@ -611,7 +576,6 @@ export function createParserEngine(): ParserEngine {
                 }
             }
 
-            // Cross-file CALLS from file context (__file__ → functions in other files)
             const crossFileEdges = resolveFileCrossFileCallEdges(
                 r.calls,
                 localIds,
@@ -630,8 +594,6 @@ export function createParserEngine(): ParserEngine {
                 }
             }
 
-            // CALLS cross-fichier via alias tableaux importes:
-            // import { sanitizeInputs } from './sanitizeMiddleware'; app.use(sanitizeInputs)
             const localFuncMap = new Map<string, string>();
             for (const n of r.nodes) {
                 if (n.type === 'function') localFuncMap.set(n.name, n.id);
@@ -650,7 +612,6 @@ export function createParserEngine(): ParserEngine {
                 }
             }
 
-            // Cross-file EXTENDS
             for (const n of r.nodes) {
                 if (n.type === 'class' && n.superClass) {
                     const parentId = globalClassMap.get(n.superClass);
@@ -672,7 +633,6 @@ export function createParserEngine(): ParserEngine {
                 }
             }
 
-            // Cross-file HANDLES: Route → Function handler in another file
             const crossHandlesEdges = resolveCrossFileHandlesEdges(r.nodes, localIds, globalFuncMultiMap);
             for (const edge of crossHandlesEdges) {
                 if (!existingEdgeIds.has(edge.id)) {
@@ -682,7 +642,6 @@ export function createParserEngine(): ParserEngine {
             }
         }
 
-        // Count unresolved non-relative imports for diagnostic purposes
         let unresolvedAliasImports = 0;
         for (const r of results) {
             for (const imp of r.imports) {
@@ -714,8 +673,6 @@ export function createParserEngine(): ParserEngine {
 
     return { parseFile, parseFiles };
 }
-
-// ── Local helpers (not extracted to modules) ──────────────────────────
 
 function buildModuleNodes(imports: ImportInfo[]): ModuleNode[] {
     const nodes: ModuleNode[] = [];

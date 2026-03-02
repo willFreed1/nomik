@@ -42,9 +42,6 @@ const CRON_METHODS: Record<string, string[]> = {
     'bree': ['add'],
 };
 
-// ────────────────────────────────────────────────────────────────────────
-// Build client identifiers from imports
-// ────────────────────────────────────────────────────────────────────────
 
 export function buildCronClientIdentifiers(imports: ImportInfo[]): {
     ids: Set<string>;
@@ -70,9 +67,6 @@ export function buildCronClientIdentifiers(imports: ImportInfo[]): {
     return { ids, frameworkMap };
 }
 
-// ────────────────────────────────────────────────────────────────────────
-// Extract cron job definitions from AST
-// ────────────────────────────────────────────────────────────────────────
 
 export function extractCronJobs(
     tree: Parser.Tree | null,
@@ -88,7 +82,6 @@ export function extractCronJobs(
     function visit(): void {
         const node = cursor.currentNode;
 
-        // Detect @Cron('expression') decorator
         if (node.type === 'decorator') {
             const callExpr = node.childForFieldName('value') ?? node.children[1];
             if (callExpr?.type === 'call_expression') {
@@ -96,7 +89,6 @@ export function extractCronJobs(
                 if (fn?.text === 'Cron') {
                     const schedule = extractFirstStringArg(callExpr);
                     if (schedule) {
-                        // Find the method this decorates
                         const parent = node.parent;
                         let methodName = 'anonymous';
                         if (parent) {
@@ -144,8 +136,7 @@ export function extractCronJobs(
             }
         }
 
-        // new CronJob('expr', handler)
-        if (node.type === 'new_expression') {
+                if (node.type === 'new_expression') {
             const constructor = node.childForFieldName('constructor');
             if (constructor && clientIds.has(constructor.text)) {
                 const framework = frameworkMap.get(constructor.text);
@@ -178,9 +169,6 @@ export function extractCronJobs(
     return jobs;
 }
 
-// ────────────────────────────────────────────────────────────────────────
-// Build graph nodes from cron job findings
-// ────────────────────────────────────────────────────────────────────────
 
 export function buildCronNodesAndEdges(
     jobs: CronInfo[],
@@ -202,7 +190,6 @@ export function buildCronNodesAndEdges(
             filePath,
         });
 
-        // Edge from caller function (or file) → cron job
         const sourceId = job.callerFunction
             ? (localFuncMap.get(job.callerFunction) ?? fileId)
             : fileId;

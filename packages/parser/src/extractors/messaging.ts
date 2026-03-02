@@ -43,9 +43,6 @@ for (const p of PUBSUB_PACKAGES) ALL_BROKER_PACKAGES.set(p, 'pubsub');
 const PRODUCE_METHODS = new Set(['send', 'sendBatch', 'publish', 'sendMessage', 'assertQueue']);
 const CONSUME_METHODS = new Set(['subscribe', 'consume', 'on', 'run', 'receiveMessage']);
 
-// ────────────────────────────────────────────────────────────────────────
-// Step 1: Build broker client identifiers from imports
-// ────────────────────────────────────────────────────────────────────────
 
 export function buildBrokerClientIdentifiers(imports: ImportInfo[]): { ids: Set<string>; brokerMap: Map<string, TopicNode['broker']> } {
     const ids = new Set<string>();
@@ -65,9 +62,6 @@ export function buildBrokerClientIdentifiers(imports: ImportInfo[]): { ids: Set<
     return { ids, brokerMap };
 }
 
-// ────────────────────────────────────────────────────────────────────────
-// Step 2: Extract message operations from AST
-// ────────────────────────────────────────────────────────────────────────
 
 export function extractMessageOps(
     tree: Parser.Tree,
@@ -267,11 +261,6 @@ function extractTopicFromArgs(callNode: Parser.SyntaxNode): string | null {
     }
     return null;
 }
-
-
-// ────────────────────────────────────────────────────────────────────────
-// Step 3: Build TopicNode + PRODUCES_MESSAGE / CONSUMES_MESSAGE edges
-// ────────────────────────────────────────────────────────────────────────
 
 export function buildMessageNodesAndEdges(
     ops: MessageOpInfo[],

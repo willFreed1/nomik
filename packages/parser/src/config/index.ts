@@ -5,4 +5,5 @@ export {
     findAllPathAliases,
     resolveImportPath,
     resolveAliasImportMulti,
+    resolvePythonImportPath,
 } from './tsconfig-resolver.js';

@@ -22,10 +22,6 @@ export interface OpenAPIRouteInfo {
 
 const HTTP_METHODS = new Set(['get', 'post', 'put', 'delete', 'patch', 'options', 'head']);
 
-// ────────────────────────────────────────────────────────────────────────
-// JSON spec parsing
-// ────────────────────────────────────────────────────────────────────────
-
 export function extractOpenAPIRoutesFromJSON(content: string, _filePath: string): OpenAPIRouteInfo[] {
     const routes: OpenAPIRouteInfo[] = [];
 
@@ -60,10 +56,6 @@ export function extractOpenAPIRoutesFromJSON(content: string, _filePath: string)
 
     return routes;
 }
-
-// ────────────────────────────────────────────────────────────────────────
-// YAML spec parsing (regex-based, simplified)
-// ────────────────────────────────────────────────────────────────────────
 
 export function extractOpenAPIRoutesFromYAML(content: string, _filePath: string): OpenAPIRouteInfo[] {
     const routes: OpenAPIRouteInfo[] = [];
@@ -126,10 +118,6 @@ export function extractOpenAPIRoutesFromYAML(content: string, _filePath: string)
 
     return routes;
 }
-
-// ────────────────────────────────────────────────────────────────────────
-// Build RouteNodes from OpenAPI spec
-// ────────────────────────────────────────────────────────────────────────
 
 export function buildOpenAPIRouteNodes(
     apiRoutes: OpenAPIRouteInfo[],

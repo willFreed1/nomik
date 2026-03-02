@@ -17,9 +17,6 @@ export interface DependencyInfo {
     type: 'production' | 'dev' | 'peer' | 'optional';
 }
 
-// ────────────────────────────────────────────────────────────────────────
-// Parse package.json content
-// ────────────────────────────────────────────────────────────────────────
 
 export function extractDependencies(content: string, _filePath: string): DependencyInfo[] {
     const deps: DependencyInfo[] = [];
@@ -54,9 +51,6 @@ export function extractDependencies(content: string, _filePath: string): Depende
     return deps;
 }
 
-// ────────────────────────────────────────────────────────────────────────
-// Parse requirements.txt (Python)
-// ────────────────────────────────────────────────────────────────────────
 
 export function extractPythonRequirements(content: string, _filePath: string): DependencyInfo[] {
     const deps: DependencyInfo[] = [];
@@ -66,8 +60,7 @@ export function extractPythonRequirements(content: string, _filePath: string): D
         const trimmed = line.trim();
         if (!trimmed || trimmed.startsWith('#') || trimmed.startsWith('-')) continue;
 
-        // package==1.0.0, package>=1.0.0, package~=1.0.0, package
-        const match = trimmed.match(/^([a-zA-Z0-9_-]+(?:\[[^\]]+\])?)\s*([<>=~!]+\s*\S+)?/);
+                const match = trimmed.match(/^([a-zA-Z0-9_-]+(?:\[[^\]]+\])?)\s*([<>=~!]+\s*\S+)?/);
         if (match?.[1]) {
             deps.push({
                 name: match[1].replace(/\[.*\]/, ''),
@@ -80,9 +73,6 @@ export function extractPythonRequirements(content: string, _filePath: string): D
     return deps;
 }
 
-// ────────────────────────────────────────────────────────────────────────
-// Build graph nodes from dependencies
-// ────────────────────────────────────────────────────────────────────────
 
 export function buildDependencyNodes(
     deps: DependencyInfo[],

@@ -31,9 +31,6 @@ const QUEUE_CLASSES = new Set(['Queue', 'Worker', 'Bull', 'FlowProducer']);
 const PRODUCER_METHODS = new Set(['add', 'addBulk', 'addFlow', 'schedule', 'every', 'now']);
 const CONSUMER_METHODS = new Set(['process', 'define']);
 
-// ────────────────────────────────────────────────────────────────────────
-// Step 1: Build queue client identifiers from imports
-// ────────────────────────────────────────────────────────────────────────
 
 export function buildQueueClientIdentifiers(imports: ImportInfo[]): Set<string> {
     const ids = new Set<string>();
@@ -46,10 +43,6 @@ export function buildQueueClientIdentifiers(imports: ImportInfo[]): Set<string> 
     }
     return ids;
 }
-
-// ────────────────────────────────────────────────────────────────────────
-// Step 2: Extract queue operations from AST
-// ────────────────────────────────────────────────────────────────────────
 
 export function extractQueueOperations(
     tree: Parser.Tree,
@@ -167,10 +160,6 @@ function parseWorkerConstruction(
         line: node.startPosition.row + 1,
     };
 }
-
-// ────────────────────────────────────────────────────────────────────────
-// Step 3: Build nodes and edges
-// ────────────────────────────────────────────────────────────────────────
 
 export function buildQueueNodesAndEdges(
     ops: QueueOpInfo[],

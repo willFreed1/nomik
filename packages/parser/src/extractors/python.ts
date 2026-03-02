@@ -141,7 +141,7 @@ function buildClassNode(node: Parser.SyntaxNode, filePath: string): ClassNode | 
     };
 }
 
-/** Extrait les imports Python (import x, from x import y) */
+/** Extract Python imports (import x, from x import y, from .x import y) */
 export function extractPythonImports(tree: Parser.Tree, _filePath: string): ImportInfo[] {
     const results: ImportInfo[] = [];
     const cursor = tree.walk();
@@ -153,16 +153,49 @@ export function extractPythonImports(tree: Parser.Tree, _filePath: string): Impo
             const names = node.namedChildren.filter(c => c.type === 'dotted_name' || c.type === 'aliased_import');
             for (const n of names) {
                 const source = n.type === 'aliased_import' ? (n.childForFieldName('name')?.text ?? n.text) : n.text;
-                results.push({ source, specifiers: [source.split('.').pop() ?? source], isDefault: false, isDynamic: false, isTypeOnly: false, line: node.startPosition.row + 1 });
+                results.push({ source, specifiers: [source.split('.').pop() ?? source], isDefault: false, isDynamic: false, isReExport: false, isTypeOnly: false, line: node.startPosition.row + 1 });
             }
         } else if (node.type === 'import_from_statement') {
-            const module = node.childForFieldName('module_name')?.text ?? node.children.find(c => c.type === 'dotted_name' || c.type === 'relative_import')?.text ?? '';
-            const names = node.namedChildren
-                .filter(c => c.type === 'dotted_name' || c.type === 'aliased_import')
-                .slice(1)
-                .map(c => c.type === 'aliased_import' ? (c.childForFieldName('name')?.text ?? c.text) : c.text);
+            // Determine if this is a relative import (from .x / from ..x / from . import x)
+            const relativeImportNode = node.children.find(c => c.type === 'relative_import');
+
+            // Get module source
+            let module: string;
+            if (relativeImportNode) {
+                module = relativeImportNode.text; // ".models", "..utils", "."
+            } else {
+                module = node.childForFieldName('module_name')?.text
+                    ?? node.children.find(c => c.type === 'dotted_name')?.text
+                    ?? '';
+            }
+
+            // Get imported names.
+            // For absolute imports (from search.utils import X): first dotted_name is the module source, skip it.
+            // For relative imports (from .models import X): source is a relative_import node, all dotted_name children are imported names.
+            const allNameNodes = node.namedChildren.filter(
+                c => c.type === 'dotted_name' || c.type === 'aliased_import',
+            );
+            const importedNameNodes = relativeImportNode ? allNameNodes : allNameNodes.slice(1);
+
+            // Check for wildcard import (from x import *)
+            const hasWildcard = node.children.some(c => c.type === 'wildcard_import');
+
+            const names = importedNameNodes.map(c => {
+                if (c.type === 'aliased_import') {
+                    // Preserve "original as alias" format for cross-file resolver
+                    const original = c.childForFieldName('name')?.text ?? c.text;
+                    const alias = c.childForFieldName('alias')?.text;
+                    return alias && alias !== original ? `${original} as ${alias}` : original;
+                }
+                return c.text;
+            });
+
+            if (hasWildcard) {
+                names.push('*');
+            }
+
             if (names.length > 0) {
-                results.push({ source: module, specifiers: names, isDefault: false, isDynamic: false, isTypeOnly: false, line: node.startPosition.row + 1 });
+                results.push({ source: module, specifiers: names, isDefault: false, isDynamic: false, isReExport: false, isTypeOnly: false, line: node.startPosition.row + 1 });
             }
         }
 
@@ -176,7 +209,7 @@ export function extractPythonImports(tree: Parser.Tree, _filePath: string): Impo
     return results;
 }
 
-/** Extrait les appels de fonctions Python */
+/** Extract Python function calls with proper receiver splitting */
 export function extractPythonCalls(tree: Parser.Tree, _filePath: string): CallInfo[] {
     const results: CallInfo[] = [];
     const cursor = tree.walk();
@@ -188,14 +221,37 @@ export function extractPythonCalls(tree: Parser.Tree, _filePath: string): CallIn
             const funcNode = node.childForFieldName('function');
             if (funcNode) {
                 const callerNode = findEnclosingFunction(node);
-                const calleeName = funcNode.text;
+                const rawCalleeName = funcNode.text;
+
+                // Split method calls: obj.method() → receiver + callee
+                const isAttribute = funcNode.type === 'attribute';
+                let calleeName: string;
+                let receiverName: string | undefined;
+                let isSelfCall = false;
+
+                if (isAttribute) {
+                    const parts = rawCalleeName.split('.');
+                    calleeName = parts.pop() ?? rawCalleeName;
+                    const receiver = parts.join('.');
+                    // self/cls calls are intra-class, not cross-file
+                    if (receiver === 'self' || receiver === 'cls' || receiver === 'super()') {
+                        isSelfCall = true;
+                    } else if (receiver) {
+                        receiverName = receiver;
+                    }
+                } else {
+                    calleeName = rawCalleeName;
+                }
+
                 results.push({
-                    callerName: callerNode?.childForFieldName('name')?.text ?? '<module>',
+                    callerName: callerNode?.childForFieldName('name')?.text ?? '__file__',
                     calleeName,
+                    receiverName,
+                    isLocalIdentifier: isSelfCall,
                     line: node.startPosition.row + 1,
                     column: node.startPosition.column,
-                    isMethodCall: calleeName.includes('.'),
-                    isConstructor: /^[A-Z]/.test(calleeName.split('.').pop() ?? ''),
+                    isMethodCall: isAttribute && receiverName !== undefined,
+                    isConstructor: /^[A-Z]/.test(calleeName),
                 });
             }
         }

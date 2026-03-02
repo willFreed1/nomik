@@ -38,10 +38,6 @@ export interface K8sResourceInfo {
     ports: number[];
 }
 
-// ────────────────────────────────────────────────────────────────────────
-// Dockerfile parsing
-// ────────────────────────────────────────────────────────────────────────
-
 export function extractDockerfileInfo(content: string): DockerfileInfo {
     const info: DockerfileInfo = { baseImage: '', exposedPorts: [], stages: [] };
 
@@ -71,10 +67,6 @@ export function extractDockerfileInfo(content: string): DockerfileInfo {
 
     return info;
 }
-
-// ────────────────────────────────────────────────────────────────────────
-// docker-compose.yml parsing (YAML-like regex)
-// ────────────────────────────────────────────────────────────────────────
 
 export function extractDockerComposeServices(content: string): DockerServiceInfo[] {
     const services: DockerServiceInfo[] = [];
@@ -125,10 +117,6 @@ export function extractDockerComposeServices(content: string): DockerServiceInfo
     return services;
 }
 
-// ────────────────────────────────────────────────────────────────────────
-// Kubernetes manifest parsing (YAML-like regex)
-// ────────────────────────────────────────────────────────────────────────
-
 export function extractK8sResources(content: string): K8sResourceInfo[] {
     const resources: K8sResourceInfo[] = [];
 
@@ -167,10 +155,6 @@ export function extractK8sResources(content: string): K8sResourceInfo[] {
 
     return resources;
 }
-
-// ────────────────────────────────────────────────────────────────────────
-// Build graph nodes from Docker/K8s config
-// ────────────────────────────────────────────────────────────────────────
 
 export function buildDockerNodes(
     dockerfile: DockerfileInfo | null,

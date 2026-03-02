@@ -30,9 +30,6 @@ export interface EnvVarInfo {
     line: number;
 }
 
-// ────────────────────────────────────────────────────────────────────────
-// Step 1: Extract env var accesses from tree-sitter AST (TS/JS)
-// ────────────────────────────────────────────────────────────────────────
 
 export function extractEnvVars(tree: Parser.Tree, _filePath: string): EnvVarInfo[] {
     const results: EnvVarInfo[] = [];
@@ -88,10 +85,10 @@ export function extractEnvVars(tree: Parser.Tree, _filePath: string): EnvVarInfo
         // Pop function scope
         if (
             (node.type === 'function_declaration' ||
-             node.type === 'method_definition' ||
-             node.type === 'arrow_function' ||
-             node.type === 'function_expression' ||
-             node.type === 'generator_function_declaration') &&
+                node.type === 'method_definition' ||
+                node.type === 'arrow_function' ||
+                node.type === 'function_expression' ||
+                node.type === 'generator_function_declaration') &&
             functionStack.length > 0
         ) {
             const name = node.childForFieldName('name')?.text
@@ -172,9 +169,6 @@ function extractDefaultAndRequired(node: Parser.SyntaxNode): { defaultValue?: st
     return { required: false };
 }
 
-// ────────────────────────────────────────────────────────────────────────
-// Step 1b: Extract env var accesses from Python source (regex-based)
-// ────────────────────────────────────────────────────────────────────────
 
 export function extractPythonEnvVars(content: string): EnvVarInfo[] {
     const results: EnvVarInfo[] = [];
@@ -216,15 +210,12 @@ export function extractPythonEnvVars(content: string): EnvVarInfo[] {
     return results;
 }
 
-// ────────────────────────────────────────────────────────────────────────
-// Step 2: Build EnvVarNode + USES_ENV edges
-// ────────────────────────────────────────────────────────────────────────
 
 export function buildEnvVarNodesAndEdges(
     envVars: EnvVarInfo[],
     funcMap: Map<string, string>,
     fileId: string,
-    filePath: string,
+    _filePath: string,
 ): { nodes: GraphNode[]; edges: GraphEdge[] } {
     const nodes: GraphNode[] = [];
     const edges: GraphEdge[] = [];

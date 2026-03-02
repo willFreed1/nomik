@@ -185,10 +185,6 @@ export function extractSecrets(content: string, filePath: string): SecretFinding
     return findings;
 }
 
-// ────────────────────────────────────────────────────────────────────────
-// Build graph nodes from secret findings
-// ────────────────────────────────────────────────────────────────────────
-
 export function buildSecretNodes(
     findings: SecretFinding[],
     fileId: string,

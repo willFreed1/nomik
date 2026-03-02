@@ -39,9 +39,6 @@ const ROOM_METHODS = new Set(['to', 'in']);
 const NAMESPACE_METHOD = 'of';
 const JOIN_METHODS = new Set(['join', 'leave']);
 
-// ────────────────────────────────────────────────────────────────────────
-// Step 1: Extract event emit/listen patterns from tree-sitter AST
-// ────────────────────────────────────────────────────────────────────────
 
 export function extractEvents(tree: Parser.Tree, _filePath: string): EventInfo[] {
     const results: EventInfo[] = [];
@@ -94,10 +91,10 @@ export function extractEvents(tree: Parser.Tree, _filePath: string): EventInfo[]
         // Pop function scope
         if (
             (node.type === 'function_declaration' ||
-             node.type === 'method_definition' ||
-             node.type === 'arrow_function' ||
-             node.type === 'function_expression' ||
-             node.type === 'generator_function_declaration') &&
+                node.type === 'method_definition' ||
+                node.type === 'arrow_function' ||
+                node.type === 'function_expression' ||
+                node.type === 'generator_function_declaration') &&
             functionStack.length > 0
         ) {
             const name = node.childForFieldName('name')?.text
@@ -219,9 +216,6 @@ function trySocketJoinLeave(node: Parser.SyntaxNode, callerName: string): EventI
     };
 }
 
-// ────────────────────────────────────────────────────────────────────────
-// Step 1b: Extract event patterns from Python source (regex-based)
-// ────────────────────────────────────────────────────────────────────────
 
 export function extractPythonEvents(content: string): EventInfo[] {
     const results: EventInfo[] = [];
@@ -257,9 +251,6 @@ export function extractPythonEvents(content: string): EventInfo[] {
     return results;
 }
 
-// ────────────────────────────────────────────────────────────────────────
-// Step 2: Build EventNode + EMITS / LISTENS_TO edges
-// ────────────────────────────────────────────────────────────────────────
 
 export function buildEventNodesAndEdges(
     events: EventInfo[],

@@ -76,10 +76,6 @@ export function buildFlagClientIdentifiers(imports: ImportInfo[]): {
     return { ids, providerMap };
 }
 
-// ────────────────────────────────────────────────────────────────────────
-// Step 2: Extract feature flag usages from AST
-// ────────────────────────────────────────────────────────────────────────
-
 export function extractFeatureFlags(
     tree: Parser.Tree,
     _filePath: string,
@@ -204,10 +200,6 @@ function parseEnvFeatureFlag(node: Parser.SyntaxNode): FeatureFlagInfo | null {
         line: node.startPosition.row + 1,
     };
 }
-
-// ────────────────────────────────────────────────────────────────────────
-// Step 3: Build nodes and edges
-// ────────────────────────────────────────────────────────────────────────
 
 export function buildFlagNodesAndEdges(
     flags: FeatureFlagInfo[],

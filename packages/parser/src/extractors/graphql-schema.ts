@@ -27,9 +27,6 @@ export interface GraphQLOperationInfo {
     args?: string[];
 }
 
-// ────────────────────────────────────────────────────────────────────────
-// Parse .graphql / .gql content (regex-based)
-// ────────────────────────────────────────────────────────────────────────
 
 export function extractGraphQLSchema(content: string, _filePath: string): {
     types: GraphQLTypeInfo[];
@@ -38,10 +35,9 @@ export function extractGraphQLSchema(content: string, _filePath: string): {
     const types: GraphQLTypeInfo[] = [];
     const operations: GraphQLOperationInfo[] = [];
 
-    // Remove comments
     const cleaned = content.replace(/#.*$/gm, '').replace(/"""[\s\S]*?"""/g, '').replace(/"[^"]*"/g, '""');
 
-    // Extract type definitions
+    // type/input/interface blocks
     const typePattern = /\b(type|input|interface)\s+(\w+)(?:\s+implements\s+([^\{]+))?\s*\{([^}]*)\}/g;
     let match: RegExpExecArray | null;
 
@@ -62,7 +58,6 @@ export function extractGraphQLSchema(content: string, _filePath: string): {
             ? implementsStr.split('&').map(s => s.trim()).filter(Boolean)
             : undefined;
 
-        // Check if it's a root operation type
         if (name === 'Query' || name === 'Mutation' || name === 'Subscription') {
             const opKind = name.toLowerCase() as GraphQLOperationInfo['kind'];
             for (const field of fields) {
@@ -79,7 +74,6 @@ export function extractGraphQLSchema(content: string, _filePath: string): {
         }
     }
 
-    // Extract enum definitions
     const enumPattern = /\benum\s+(\w+)\s*\{([^}]*)\}/g;
     while ((match = enumPattern.exec(cleaned)) !== null) {
         const name = match[1] ?? '';
@@ -88,7 +82,6 @@ export function extractGraphQLSchema(content: string, _filePath: string): {
         types.push({ name, kind: 'enum', fields: values });
     }
 
-    // Extract union definitions
     const unionPattern = /\bunion\s+(\w+)\s*=\s*([^}\n]+)/g;
     while ((match = unionPattern.exec(cleaned)) !== null) {
         const name = match[1] ?? '';
@@ -96,7 +89,6 @@ export function extractGraphQLSchema(content: string, _filePath: string): {
         types.push({ name, kind: 'union', fields: members });
     }
 
-    // Extract scalar definitions
     const scalarPattern = /\bscalar\s+(\w+)/g;
     while ((match = scalarPattern.exec(cleaned)) !== null) {
         types.push({ name: match[1] ?? '', kind: 'scalar', fields: [] });
@@ -105,9 +97,6 @@ export function extractGraphQLSchema(content: string, _filePath: string): {
     return { types, operations };
 }
 
-// ────────────────────────────────────────────────────────────────────────
-// Build graph nodes from GraphQL schema
-// ────────────────────────────────────────────────────────────────────────
 
 export function buildGraphQLNodes(
     types: GraphQLTypeInfo[],
@@ -121,7 +110,7 @@ export function buildGraphQLNodes(
     for (const op of operations) {
         const method = op.kind === 'query' ? 'GET'
             : op.kind === 'mutation' ? 'POST'
-            : 'WS';
+                : 'WS';
         const nodeId = createNodeId('route', filePath, `graphql:${op.kind}:${op.name}`);
         const routeNode: RouteNode = {
             id: nodeId,

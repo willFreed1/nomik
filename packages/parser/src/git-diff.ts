@@ -1,9 +1,6 @@
 import { execSync } from 'node:child_process';
 import path from 'node:path';
 
-// ────────────────────────────────────────────────────────────────────────
-// Git Diff Parser — extracts changed files and line ranges from git diff
-// ────────────────────────────────────────────────────────────────────────
 
 export interface DiffFile {
     filePath: string;
@@ -30,7 +27,6 @@ export interface DiffSummary {
 export function getGitDiff(base: string = 'main', cwd?: string, direct?: boolean): DiffSummary {
     const opts: { encoding: 'utf-8'; stdio: ['pipe', 'pipe', 'pipe']; cwd?: string } = { encoding: 'utf-8', stdio: ['pipe', 'pipe', 'pipe'], cwd };
 
-    // Get merge-base to handle diverged branches (skip for direct/commit mode)
     let mergeBase: string;
     if (direct) {
         mergeBase = base;
@@ -38,12 +34,10 @@ export function getGitDiff(base: string = 'main', cwd?: string, direct?: boolean
         try {
             mergeBase = execSync(`git merge-base ${base} HEAD`, opts).trim();
         } catch {
-            // If merge-base fails (e.g., no common ancestor), fall back to direct diff
             mergeBase = base;
         }
     }
 
-    // Get list of changed files with status
     const nameStatus = execSync(`git diff --name-status ${mergeBase}`, opts).trim();
     if (!nameStatus) {
         return { baseBranch: base, files: [], totalChangedFiles: 0, totalChangedLines: 0 };
@@ -56,7 +50,7 @@ export function getGitDiff(base: string = 'main', cwd?: string, direct?: boolean
         if (!line.trim()) continue;
         const parts = line.split('\t');
         const statusChar = parts[0]!.charAt(0);
-        const filePath = parts[parts.length - 1]!; // For renames, take the new path
+        const filePath = parts[parts.length - 1]!;
 
         let status: DiffFile['status'];
         switch (statusChar) {
@@ -66,7 +60,6 @@ export function getGitDiff(base: string = 'main', cwd?: string, direct?: boolean
             default: status = 'modified'; break;
         }
 
-        // Get changed line numbers from unified diff
         const changedLines: number[] = [];
         if (status !== 'deleted') {
             try {
@@ -81,8 +74,7 @@ export function getGitDiff(base: string = 'main', cwd?: string, direct?: boolean
                     }
                 }
             } catch {
-                // File might be binary or unavailable
-            }
+                            }
         }
 
         totalChangedLines += changedLines.length;

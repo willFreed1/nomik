@@ -33,9 +33,6 @@ export interface CFNOutputInfo {
     line: number;
 }
 
-// ────────────────────────────────────────────────────────────────────────
-// Extract CloudFormation resources from YAML content
-// ────────────────────────────────────────────────────────────────────────
 
 export function extractCFNResources(content: string, _filePath: string): CFNResourceInfo[] {
     const resources: CFNResourceInfo[] = [];
@@ -46,7 +43,6 @@ export function extractCFNResources(content: string, _filePath: string): CFNReso
     for (let i = 0; i < lines.length; i++) {
         const line = lines[i]!;
 
-        // Top-level section headers (no indentation)
         if (/^\S/.test(line)) {
             inResources = line.startsWith('Resources:');
             currentLogicalId = null;
@@ -55,14 +51,12 @@ export function extractCFNResources(content: string, _filePath: string): CFNReso
 
         if (!inResources) continue;
 
-        // Resource logical ID (2-space indent)
         const idMatch = line.match(/^  (\w+):\s*$/);
         if (idMatch) {
             currentLogicalId = idMatch[1]!;
             continue;
         }
 
-        // Type property (4+ space indent)
         if (currentLogicalId) {
             const typeMatch = line.match(/^\s+Type:\s*['"]?([^\s'"#]+)/);
             if (typeMatch) {
@@ -77,9 +71,6 @@ export function extractCFNResources(content: string, _filePath: string): CFNReso
     return resources;
 }
 
-// ────────────────────────────────────────────────────────────────────────
-// Extract CloudFormation parameters from YAML content
-// ────────────────────────────────────────────────────────────────────────
 
 export function extractCFNParameters(content: string, _filePath: string): CFNParameterInfo[] {
     const params: CFNParameterInfo[] = [];
@@ -98,7 +89,6 @@ export function extractCFNParameters(content: string, _filePath: string): CFNPar
 
         if (!inParameters) continue;
 
-        // Parameter name (2-space indent)
         const nameMatch = line.match(/^  (\w+):\s*$/);
         if (nameMatch) {
             if (currentParam) params.push({ ...currentParam, type: currentParam.type ?? 'String', line: currentParam.line });
@@ -120,9 +110,6 @@ export function extractCFNParameters(content: string, _filePath: string): CFNPar
     return params;
 }
 
-// ────────────────────────────────────────────────────────────────────────
-// Extract CloudFormation outputs from YAML content
-// ────────────────────────────────────────────────────────────────────────
 
 export function extractCFNOutputs(content: string, _filePath: string): CFNOutputInfo[] {
     const outputs: CFNOutputInfo[] = [];
@@ -158,9 +145,6 @@ export function extractCFNOutputs(content: string, _filePath: string): CFNOutput
     return outputs;
 }
 
-// ────────────────────────────────────────────────────────────────────────
-// Build graph nodes from CloudFormation template
-// ────────────────────────────────────────────────────────────────────────
 
 export function buildCFNNodes(
     resources: CFNResourceInfo[],
@@ -171,7 +155,6 @@ export function buildCFNNodes(
     const nodes: GraphNode[] = [];
     const edges: GraphEdge[] = [];
 
-    // Resources → Class nodes
     for (const res of resources) {
         const nodeId = createNodeId('class', filePath, `cfn:${res.type}.${res.logicalId}`);
         nodes.push({
@@ -190,7 +173,6 @@ export function buildCFNNodes(
         });
     }
 
-    // Parameters → EnvVar nodes
     for (const param of parameters) {
         const nodeId = createNodeId('env_var', filePath, `cfn-param:${param.name}`);
         nodes.push({

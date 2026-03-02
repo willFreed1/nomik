@@ -1,9 +1,6 @@
 import type { CallsEdge, CallResolution, GraphEdge } from '@nomik/core';
 import type { CallInfo } from '../extractors/calls.js';
 
-// ────────────────────────────────────────────────────────────────────────
-// Intra-file edge resolution
-// ────────────────────────────────────────────────────────────────────────
 
 /** Resolve intra-file calls into CALLS edges (caller and callee in the same file) */
 export function resolveCallEdges(calls: CallInfo[], funcMap: Map<string, string>): CallsEdge[] {

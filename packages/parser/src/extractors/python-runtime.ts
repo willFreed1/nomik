@@ -46,10 +46,6 @@ export interface PythonBrokerOp {
     line: number;
 }
 
-// ────────────────────────────────────────────────────────────────────────
-// Redis detection
-// ────────────────────────────────────────────────────────────────────────
-
 const REDIS_READ_METHODS = new Set(['get', 'mget', 'hget', 'hgetall', 'lrange', 'smembers', 'zrange', 'exists', 'ttl', 'keys', 'scan']);
 
 export function extractPythonRedisOps(content: string): PythonRedisOp[] {
@@ -74,10 +70,6 @@ export function extractPythonRedisOps(content: string): PythonRedisOp[] {
 
     return ops;
 }
-
-// ────────────────────────────────────────────────────────────────────────
-// Celery task detection
-// ────────────────────────────────────────────────────────────────────────
 
 export function extractPythonCeleryTasks(content: string): PythonCeleryTask[] {
     const tasks: PythonCeleryTask[] = [];
@@ -113,10 +105,6 @@ export function extractPythonCeleryTasks(content: string): PythonCeleryTask[] {
     return tasks;
 }
 
-// ────────────────────────────────────────────────────────────────────────
-// Prometheus metrics detection (prometheus_client)
-// ────────────────────────────────────────────────────────────────────────
-
 export function extractPythonMetrics(content: string): PythonMetricDef[] {
     const metrics: PythonMetricDef[] = [];
     const lines = content.split('\n');
@@ -142,10 +130,6 @@ export function extractPythonMetrics(content: string): PythonMetricDef[] {
     return metrics;
 }
 
-// ────────────────────────────────────────────────────────────────────────
-// OpenTelemetry span detection
-// ────────────────────────────────────────────────────────────────────────
-
 export function extractPythonSpans(content: string): PythonSpanDef[] {
     const spans: PythonSpanDef[] = [];
     const lines = content.split('\n');
@@ -161,10 +145,6 @@ export function extractPythonSpans(content: string): PythonSpanDef[] {
 
     return spans;
 }
-
-// ────────────────────────────────────────────────────────────────────────
-// Message broker detection (Kafka, RabbitMQ, NATS)
-// ────────────────────────────────────────────────────────────────────────
 
 export function extractPythonBrokerOps(content: string): PythonBrokerOp[] {
     const ops: PythonBrokerOp[] = [];
@@ -211,10 +191,6 @@ export function extractPythonBrokerOps(content: string): PythonBrokerOp[] {
 
     return ops;
 }
-
-// ────────────────────────────────────────────────────────────────────────
-// Build graph nodes from Python runtime extractions
-// ────────────────────────────────────────────────────────────────────────
 
 export function buildPythonRuntimeNodes(
     redisOps: PythonRedisOp[],

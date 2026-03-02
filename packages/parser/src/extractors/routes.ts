@@ -101,10 +101,6 @@ function tryDecoratorRoute(node: Parser.SyntaxNode, filePath: string): RouteNode
     };
 }
 
-// ────────────────────────────────────────────────────────────────────────
-// Swagger / OpenAPI decorator extraction
-// ────────────────────────────────────────────────────────────────────────
-
 const SWAGGER_DECORATORS: Record<string, string> = {
     apitags: 'tags',
     apioperation: 'operation',

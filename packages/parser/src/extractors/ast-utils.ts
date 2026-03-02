@@ -1,10 +1,5 @@
 import type Parser from 'tree-sitter';
 
-// ────────────────────────────────────────────────────────────────────────
-// Shared AST utility functions used across multiple extractors.
-// Consolidates duplicate helpers from api-calls, db-operations,
-// functions, calls, and classes extractors.
-// ────────────────────────────────────────────────────────────────────────
 
 /** Extract the first string literal argument from a call_expression */
 export function extractFirstStringArg(callNode: Parser.SyntaxNode): string | null {

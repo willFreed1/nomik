@@ -36,8 +36,6 @@ const GRAPHQL_PACKAGES = new Set([
 ]);
 
 // ────────────────────────────────────────────────────────────────────────
-// Step 1: Build RPC client identifiers from imports
-// ────────────────────────────────────────────────────────────────────────
 
 export function buildRPCClientIdentifiers(imports: ImportInfo[]): {
     ids: Set<string>;
@@ -61,10 +59,6 @@ export function buildRPCClientIdentifiers(imports: ImportInfo[]): {
     }
     return { ids, frameworkMap };
 }
-
-// ────────────────────────────────────────────────────────────────────────
-// Step 2: Extract RPC procedures from AST
-// ────────────────────────────────────────────────────────────────────────
 
 export function extractRPCProcedures(
     tree: Parser.Tree,
@@ -212,10 +206,6 @@ function findPropertyKeyParent(node: Parser.SyntaxNode): string | null {
     return null;
 }
 
-// ────────────────────────────────────────────────────────────────────────
-// Step 3: Build nodes and edges
-// ────────────────────────────────────────────────────────────────────────
-
 export function buildRPCNodesAndEdges(
     procedures: RPCProcedureInfo[],
     funcMap: Map<string, string>,
@@ -229,8 +219,8 @@ export function buildRPCNodesAndEdges(
     for (const proc of procedures) {
         const method = proc.kind === 'query' ? 'GET'
             : proc.kind === 'mutation' ? 'POST'
-            : proc.kind === 'subscription' ? 'WS'
-            : 'RPC';
+                : proc.kind === 'subscription' ? 'WS'
+                    : 'RPC';
         const nodeId = createNodeId('route', filePath, `${method}:${proc.framework}:${proc.name}`);
 
         if (!seenNodes.has(nodeId)) {

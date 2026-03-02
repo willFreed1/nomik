@@ -1,11 +1,8 @@
 import type { CallsEdge, ClassNode, ExtendsEdge, HandlesEdge, ImplementsEdge } from '@nomik/core';
 import type { GraphNode, RouteNode } from '@nomik/core';
 
-// ────────────────────────────────────────────────────────────────────────
-// Route handling, extends, implements, framework entry
-// ────────────────────────────────────────────────────────────────────────
 
-/** Resolution des edges EXTENDS (heritage de classe) */
+/** Resolve intra-file EXTENDS edges (class inheritance) */
 export function resolveExtendsEdges(
     classes: ClassNode[],
     _funcMap: Map<string, string>,
@@ -32,7 +29,7 @@ export function resolveExtendsEdges(
     return edges;
 }
 
-/** Resolution des edges IMPLEMENTS (interfaces) */
+/** Resolve intra-file IMPLEMENTS edges (interfaces) */
 export function resolveImplementsEdges(
     classes: ClassNode[],
     _filePath: string,
@@ -109,7 +106,6 @@ export function resolveCrossFileHandlesEdges(
         const methodName = extractHandlerMethodName(route.handlerName);
         const candidateIds = multiMap.get(methodName) ?? [];
 
-        // Only target functions in OTHER files (cross-file)
         const remoteIds = candidateIds.filter((id) => !localIds.has(id));
         for (const targetId of remoteIds) {
             const key = `${route.id}->${targetId}`;
@@ -129,62 +125,133 @@ export function resolveCrossFileHandlesEdges(
     return edges;
 }
 
-/** Extrait le nom de methode depuis un handlerName (supporte "controller.method" et "method") */
 export function extractHandlerMethodName(handlerName: string): string {
     return handlerName.includes('.')
         ? handlerName.split('.').pop()!
         : handlerName;
 }
 
-// ────────────────────────────────────────────────────────────────────────
-// Framework Entry Point Detection (Next.js, Nuxt, etc.)
-// ────────────────────────────────────────────────────────────────────────
 
-/** Framework entry point patterns — functions automatically invoked by the framework */
+/**
+ * File-based framework entry point patterns.
+ * Only used for cases where the file path convention is strong AND specific
+ * function names are mandated by the framework API.
+ *
+ * Python/Django class methods (get, post, save, clean, etc.) are NOT listed
+ * here — they are already excluded from dead-code detection via the
+ * cls.methods check in the Cypher query. Decorator-based detection below
+ * handles @property, @receiver, @register, @task, etc. dynamically.
+ */
 const FRAMEWORK_ENTRY_PATTERNS: Array<{
     filePattern: RegExp;
     functionNames: string[];
 }> = [
-    // Next.js middleware (src/middleware.ts or middleware.ts)
-    { filePattern: /[\\/]middleware\.(ts|js|tsx|jsx)$/, functionNames: ['middleware'] },
-    // Next.js API routes (app/**/route.ts — GET, POST, PUT, DELETE, PATCH exports)
-    { filePattern: /[\\/]route\.(ts|js|tsx|jsx)$/, functionNames: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'HEAD', 'OPTIONS'] },
-    // Next.js page components (app/**/page.tsx — default export)
-    { filePattern: /[\\/]page\.(ts|js|tsx|jsx)$/, functionNames: ['default', 'Page'] },
-    // Next.js layout components (app/**/layout.tsx)
-    { filePattern: /[\\/]layout\.(ts|js|tsx|jsx)$/, functionNames: ['default', 'Layout', 'RootLayout'] },
-    // Next.js loading/error/not-found
-    { filePattern: /[\\/](loading|error|not-found|global-error)\.(ts|js|tsx|jsx)$/, functionNames: ['default'] },
-    // next.config.js lifecycle hooks
-    { filePattern: /[\\/]next\.config\.(js|mjs|ts)$/, functionNames: ['rewrites', 'redirects', 'headers'] },
-    // Nuxt plugins/middleware
-    { filePattern: /[\\/]plugins[\\/]/, functionNames: ['default'] },
-    // Express/Fastify main app entry
-    { filePattern: /[\\/](app|server|index)\.(ts|js)$/, functionNames: ['default', 'app', 'server'] },
-];
+        // ── JavaScript / TypeScript ──────────────────────────────────────
+        { filePattern: /[\\/]middleware\.(ts|js|tsx|jsx)$/, functionNames: ['middleware'] },
+        { filePattern: /[\\/]route\.(ts|js|tsx|jsx)$/, functionNames: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'HEAD', 'OPTIONS'] },
+        { filePattern: /[\\/]page\.(ts|js|tsx|jsx)$/, functionNames: ['default', 'Page'] },
+        { filePattern: /[\\/]layout\.(ts|js|tsx|jsx)$/, functionNames: ['default', 'Layout', 'RootLayout'] },
+        { filePattern: /[\\/](loading|error|not-found|global-error)\.(ts|js|tsx|jsx)$/, functionNames: ['default'] },
+        { filePattern: /[\\/]next\.config\.(js|mjs|ts)$/, functionNames: ['rewrites', 'redirects', 'headers'] },
+        { filePattern: /[\\/]plugins[\\/]/, functionNames: ['default'] },
+        { filePattern: /[\\/](app|server|index)\.(ts|js)$/, functionNames: ['default', 'app', 'server'] },
 
-/** Cree des edges File → CALLS → Function pour les fonctions auto-invoquees par le framework
- *  Empeche les entry points framework d'etre flag dead code
+        // ── Python — minimal convention-mandated patterns only ───────────
+        // Django template tags: every public function IS a tag/filter (convention)
+        { filePattern: /[\\/]templatetags[\\/][^/\\]+\.py$/, functionNames: ['*'] },
+        // Django management commands: framework calls handle() / add_arguments()
+        { filePattern: /[\\/]management[\\/]commands[\\/]/, functionNames: ['handle', 'add_arguments'] },
+        // Django AppConfig: framework calls ready() at startup
+        { filePattern: /[\\/]apps\.py$/, functionNames: ['ready'] },
+        // Django entry point
+        { filePattern: /[\\/]manage\.py$/, functionNames: ['main'] },
+        // pytest: every function in conftest.py is a fixture (convention)
+        { filePattern: /[\\/]conftest\.py$/, functionNames: ['*'] },
+        // WSGI/ASGI entry
+        { filePattern: /[\\/](wsgi|asgi)\.py$/, functionNames: ['application'] },
+    ];
+
+/**
+ * Detect if a Python decorator indicates the function is registered with
+ * a framework (and therefore auto-invoked at runtime).
+ *
+ * This is intentionally pattern-based and NOT hardcoded to specific
+ * framework names — it detects registration semantics generically.
+ */
+function isPythonRegistrationDecorator(decorator: string): boolean {
+    // @property and property descriptors
+    if (decorator === 'property' || decorator === 'cached_property') return true;
+    if (/\.(setter|getter|deleter)$/.test(decorator)) return true;
+
+    // Signal/event registration: @receiver(...), @<name>.connect
+    if (decorator.startsWith('receiver')) return true;
+
+    // Template tag/filter/admin registration: @register.filter, @register.simple_tag, @admin.register
+    if (/^register\b/.test(decorator)) return true;
+
+    // Route registration: @app.route, @router.get, @bp.post (any .route/.get/.post/.put/.delete/.patch)
+    if (/\.(route|get|post|put|delete|patch|head|options|websocket)\b/.test(decorator)) return true;
+
+    // Task registration: @task, @shared_task, @periodic_task, @app.task
+    if (/^(task|shared_task|periodic_task)\b/.test(decorator)) return true;
+    if (/\.task\b/.test(decorator)) return true;
+
+    // View decorators that wrap entry points: @api_view, @action, @require_http_methods
+    if (/^(api_view|action|require_http_methods|require_GET|require_POST|require_safe)\b/.test(decorator)) return true;
+
+    return false;
+}
+
+/** Create File → CALLS → Function edges for framework-invoked entry points.
+ *  Prevents framework entry points from being flagged as dead code.
  */
 export function resolveFrameworkEntryEdges(
     fileNode: { id: string; path: string },
-    functions: { id: string; name: string }[],
+    functions: { id: string; name: string; decorators?: string[]; params?: Array<{ name: string }> }[],
 ): CallsEdge[] {
     const edges: CallsEdge[] = [];
+    const seen = new Set<string>();
+
+    function addEdge(fnId: string, confidence: number): void {
+        const edgeId = `${fileNode.id}->framework->${fnId}`;
+        if (seen.has(edgeId)) return;
+        seen.add(edgeId);
+        edges.push({
+            id: edgeId,
+            type: 'CALLS' as const,
+            sourceId: fileNode.id,
+            targetId: fnId,
+            confidence,
+            line: 0,
+        });
+    }
 
     for (const pattern of FRAMEWORK_ENTRY_PATTERNS) {
         if (!pattern.filePattern.test(fileNode.path)) continue;
+        const isWildcard = pattern.functionNames.length === 1 && pattern.functionNames[0] === '*';
 
         for (const fn of functions) {
-            if (pattern.functionNames.includes(fn.name)) {
-                edges.push({
-                    id: `${fileNode.id}->framework->${fn.id}`,
-                    type: 'CALLS' as const,
-                    sourceId: fileNode.id,
-                    targetId: fn.id,
-                    confidence: 0.95,
-                    line: 0,
-                });
+            if (!isWildcard && !pattern.functionNames.includes(fn.name)) continue;
+            if (isWildcard && fn.name.startsWith('_') && !fn.name.startsWith('__')) continue;
+            addEdge(fn.id, 0.95);
+        }
+    }
+
+    if (fileNode.path.endsWith('.py')) {
+        for (const fn of functions) {
+            if (fn.name.startsWith('__') && fn.name.endsWith('__')) {
+                addEdge(fn.id, 0.95);
+                continue;
+            }
+
+            if (fn.decorators?.some(isPythonRegistrationDecorator)) {
+                addEdge(fn.id, 0.90);
+                continue;
+            }
+
+            const firstParam = fn.params?.[0]?.name;
+            if (firstParam === 'request' || firstParam === 'req') {
+                addEdge(fn.id, 0.80);
             }
         }
     }

@@ -18,9 +18,6 @@ export interface EnvDefinition {
     isComment: boolean;
 }
 
-// ────────────────────────────────────────────────────────────────────────
-// Parse .env file content
-// ────────────────────────────────────────────────────────────────────────
 
 export function extractEnvDefinitions(content: string, _filePath: string): EnvDefinition[] {
     const defs: EnvDefinition[] = [];
@@ -55,9 +52,6 @@ export function extractEnvDefinitions(content: string, _filePath: string): EnvDe
     return defs;
 }
 
-// ────────────────────────────────────────────────────────────────────────
-// Build graph nodes from .env definitions
-// ────────────────────────────────────────────────────────────────────────
 
 export function buildEnvDefinitionNodes(
     defs: EnvDefinition[],

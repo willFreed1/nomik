@@ -42,8 +42,6 @@ const TRACER_FACTORY_METHODS = new Set([
 ]);
 
 // ────────────────────────────────────────────────────────────────────────
-// Step 1: Build tracing client identifiers from imports
-// ────────────────────────────────────────────────────────────────────────
 
 export function buildTracingClientIdentifiers(imports: ImportInfo[]): Set<string> {
     const ids = new Set<string>();
@@ -56,10 +54,6 @@ export function buildTracingClientIdentifiers(imports: ImportInfo[]): Set<string
     }
     return ids;
 }
-
-// ────────────────────────────────────────────────────────────────────────
-// Step 2: Extract span operations from AST
-// ────────────────────────────────────────────────────────────────────────
 
 export function extractSpans(
     tree: Parser.Tree,
@@ -153,11 +147,6 @@ function parseSpanCall(
 
     return null;
 }
-
-
-// ────────────────────────────────────────────────────────────────────────
-// Step 3: Build SpanNode + STARTS_SPAN edges
-// ────────────────────────────────────────────────────────────────────────
 
 export function buildSpanNodesAndEdges(
     spans: SpanInfo[],

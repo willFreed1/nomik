@@ -146,12 +146,110 @@ describe('extractPythonImports', () => {
 });
 
 describe('extractPythonCalls', () => {
-    it('extrait les appels de fonctions', async () => {
+    it('extracts function calls', async () => {
         const tree = await parse(SAMPLE_PY);
         const calls = extractPythonCalls(tree, '/app/main.py');
 
         const callNames = calls.map(c => c.calleeName);
         expect(callNames).toContain('UserService');
         expect(callNames).toContain('print');
+    });
+
+    it('uses __file__ for module-level calls (not <module>)', async () => {
+        const code = `
+import os
+result = os.path.exists("/tmp")
+helper()
+`;
+        const tree = await parse(code);
+        const calls = extractPythonCalls(tree, '/app/main.py');
+        const moduleLevelCalls = calls.filter(c => c.callerName === '__file__');
+        expect(moduleLevelCalls.length).toBeGreaterThan(0);
+        // No calls should use <module>
+        expect(calls.every(c => c.callerName !== '<module>')).toBe(true);
+    });
+
+    it('splits method calls into receiver + callee', async () => {
+        const code = `
+def process():
+    utils.helper()
+    search_utils.get_results()
+`;
+        const tree = await parse(code);
+        const calls = extractPythonCalls(tree, '/app/views.py');
+
+        const helperCall = calls.find(c => c.calleeName === 'helper');
+        expect(helperCall).toBeDefined();
+        expect(helperCall?.receiverName).toBe('utils');
+        expect(helperCall?.isMethodCall).toBe(true);
+
+        const resultsCall = calls.find(c => c.calleeName === 'get_results');
+        expect(resultsCall?.receiverName).toBe('search_utils');
+    });
+
+    it('marks self/cls calls as local identifiers', async () => {
+        const code = `
+class MyView:
+    def get(self):
+        self.render()
+        cls.create()
+`;
+        const tree = await parse(code);
+        const calls = extractPythonCalls(tree, '/app/views.py');
+
+        const selfCall = calls.find(c => c.calleeName === 'render');
+        expect(selfCall?.isLocalIdentifier).toBe(true);
+        expect(selfCall?.receiverName).toBeUndefined();
+
+        const clsCall = calls.find(c => c.calleeName === 'create');
+        expect(clsCall?.isLocalIdentifier).toBe(true);
+    });
+});
+
+describe('extractPythonImports — relative imports', () => {
+    it('extracts specifiers from relative imports (from .models import X)', async () => {
+        const code = `from .models import Product, Category`;
+        const tree = await parse(code);
+        const imports = extractPythonImports(tree, '/app/views.py');
+
+        expect(imports.length).toBe(1);
+        expect(imports[0].source).toBe('.models');
+        expect(imports[0].specifiers).toContain('Product');
+        expect(imports[0].specifiers).toContain('Category');
+    });
+
+    it('extracts specifiers from multi-dot relative imports (from ..utils import X)', async () => {
+        const code = `from ..utils import helper_func`;
+        const tree = await parse(code);
+        const imports = extractPythonImports(tree, '/app/sub/views.py');
+
+        expect(imports[0].source).toBe('..utils');
+        expect(imports[0].specifiers).toContain('helper_func');
+    });
+
+    it('extracts bare dot imports (from . import models)', async () => {
+        const code = `from . import models, utils`;
+        const tree = await parse(code);
+        const imports = extractPythonImports(tree, '/app/__init__.py');
+
+        expect(imports[0].source).toBe('.');
+        expect(imports[0].specifiers).toContain('models');
+        expect(imports[0].specifiers).toContain('utils');
+    });
+
+    it('preserves alias format for cross-file resolver', async () => {
+        const code = `from search.utils import get_results as fetch_results`;
+        const tree = await parse(code);
+        const imports = extractPythonImports(tree, '/app/views.py');
+
+        expect(imports[0].specifiers).toContain('get_results as fetch_results');
+    });
+
+    it('handles wildcard imports', async () => {
+        const code = `from search.utils import *`;
+        const tree = await parse(code);
+        const imports = extractPythonImports(tree, '/app/views.py');
+
+        expect(imports[0].specifiers).toContain('*');
     });
 });

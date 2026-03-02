@@ -48,9 +48,6 @@ function looksLikeUrl(s: string): boolean {
     return s.startsWith('/') || s.startsWith('http://') || s.startsWith('https://');
 }
 
-// ────────────────────────────────────────────────────────────────────────
-// Step 1: Build dynamic HTTP client identifier set from file imports
-// ────────────────────────────────────────────────────────────────────────
 
 export function buildHttpClientIdentifiers(imports: ImportInfo[]): Set<string> {
     const identifiers = new Set<string>();
@@ -71,9 +68,6 @@ export function buildHttpClientIdentifiers(imports: ImportInfo[]): Set<string> {
     return identifiers;
 }
 
-// ────────────────────────────────────────────────────────────────────────
-// Step 2: Extract API calls from AST using dynamic identifiers
-// ────────────────────────────────────────────────────────────────────────
 
 export function extractAPICalls(
     tree: Parser.Tree,
@@ -160,10 +154,6 @@ function parseAPICall(
     return null;
 }
 
-
-// ────────────────────────────────────────────────────────────────────────
-// Node & Edge creation from extracted API calls
-// ────────────────────────────────────────────────────────────────────────
 
 export function buildAPINodesAndEdges(
     apiCalls: APICallInfo[],

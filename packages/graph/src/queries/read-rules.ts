@@ -80,6 +80,16 @@ export async function evaluateRules(
            AND NOT f.filePath ENDS WITH '.jsx'
            AND NOT f.name = 'constructor'
            AND NOT (f.isExported = true AND EXISTS { MATCH (f)<-[:CONTAINS]-(:File)-[:DEPENDS_ON]->(:File) })
+           AND NOT (f.name STARTS WITH '__' AND f.name ENDS WITH '__')
+           AND NOT f.name STARTS WITH 'test_'
+           AND NOT (f.decorators IS NOT NULL AND (
+               f.decorators CONTAINS 'property'
+               OR f.decorators CONTAINS '.setter'
+               OR f.decorators CONTAINS 'receiver'
+               OR f.decorators CONTAINS 'register'
+               OR f.decorators CONTAINS 'task'
+               OR f.decorators CONTAINS 'shared_task'
+           ))
          RETURN f.name as name, f.filePath as filePath
          LIMIT 100`,
         { projectId },

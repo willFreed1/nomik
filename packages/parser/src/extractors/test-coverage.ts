@@ -33,17 +33,9 @@ const TEST_FILE_PATTERNS = [
     /\.test$/,
 ];
 
-// ────────────────────────────────────────────────────────────────────────
-// Detect if a file is a test file
-// ────────────────────────────────────────────────────────────────────────
-
 export function isTestFile(filePath: string): boolean {
     return TEST_FILE_PATTERNS.some(p => p.test(filePath));
 }
-
-// ────────────────────────────────────────────────────────────────────────
-// Extract test file metadata from content
-// ────────────────────────────────────────────────────────────────────────
 
 export function extractTestFileInfo(content: string, filePath: string): TestFileInfo {
     const info: TestFileInfo = {
@@ -91,10 +83,6 @@ export function extractTestFileInfo(content: string, filePath: string): TestFile
     return info;
 }
 
-// ────────────────────────────────────────────────────────────────────────
-// Build TESTED_BY edges from test file info during cross-file resolution
-// ────────────────────────────────────────────────────────────────────────
-
 export function buildTestCoverageEdges(
     testInfos: TestFileInfo[],
     filePathToId: Map<string, string>,
@@ -133,10 +121,6 @@ export function buildTestCoverageEdges(
 
     return edges;
 }
-
-// ────────────────────────────────────────────────────────────────────────
-// Enrich file nodes with test metadata
-// ────────────────────────────────────────────────────────────────────────
 
 export function getTestSummary(
     testInfos: TestFileInfo[],

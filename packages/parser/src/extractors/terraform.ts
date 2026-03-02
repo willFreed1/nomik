@@ -36,10 +36,6 @@ export interface TerraformOutputInfo {
     description?: string;
 }
 
-// ────────────────────────────────────────────────────────────────────────
-// Parse .tf file content (HCL-like regex parsing)
-// ────────────────────────────────────────────────────────────────────────
-
 export function extractTerraformResources(content: string, _filePath: string): TerraformResourceInfo[] {
     const resources: TerraformResourceInfo[] = [];
 
@@ -155,10 +151,6 @@ function extractHCLBlock(content: string, startIdx: number): string {
     }
     return content.slice(startIdx, i - 1);
 }
-
-// ────────────────────────────────────────────────────────────────────────
-// Build graph nodes from Terraform config
-// ────────────────────────────────────────────────────────────────────────
 
 export function buildTerraformNodes(
     resources: TerraformResourceInfo[],

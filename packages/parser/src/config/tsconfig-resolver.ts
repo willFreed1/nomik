@@ -243,3 +243,76 @@ function guessProjectSrcBase(importerPath: string, rest: string): string | null 
     if (!projectRoot) return null;
     return path.join(projectRoot, 'src', rest);
 }
+
+// ────────────────────────────────────────────────────────────────────────
+// Python import path resolution
+// ────────────────────────────────────────────────────────────────────────
+
+/**
+ * Resolve a Python import to the target file's ID.
+ *
+ * Handles:
+ *  - Relative imports: ".models" → same-dir/models.py, "..utils" → parent-dir/utils.py
+ *  - Absolute imports: "search.utils" → suffix-match search/utils.py in known files
+ */
+export function resolvePythonImportPath(
+    importerPath: string,
+    importSource: string,
+    filePathToId: Map<string, string>,
+): string | null {
+    // Count leading dots for relative imports
+    let dotCount = 0;
+    while (dotCount < importSource.length && importSource[dotCount] === '.') {
+        dotCount++;
+    }
+
+    const isRelative = dotCount > 0;
+    const modulePart = importSource.slice(dotCount); // "models", "utils", "search.utils", or "" (bare ".")
+    const segments = modulePart ? modulePart.split('.') : [];
+
+    if (isRelative) {
+        // Relative import: 1 dot = same dir, 2 dots = parent dir, etc.
+        let dir = path.dirname(importerPath);
+        for (let i = 1; i < dotCount; i++) {
+            dir = path.dirname(dir);
+        }
+        const base = segments.length > 0 ? path.join(dir, ...segments) : dir;
+        return findPythonFile(base, filePathToId);
+    }
+
+    // Absolute import: suffix-match against known file paths
+    return findPythonFileByModuleSuffix(segments, filePathToId);
+}
+
+/** Try base.py, base/__init__.py */
+function findPythonFile(base: string, filePathToId: Map<string, string>): string | null {
+    const candidates = [
+        base + '.py',
+        path.join(base, '__init__.py'),
+    ];
+    for (const candidate of candidates) {
+        const normalized = path.resolve(candidate);
+        const id = filePathToId.get(normalized);
+        if (id) return id;
+    }
+    return null;
+}
+
+/**
+ * Suffix-match: "search.utils" → find any file path ending in /search/utils.py
+ * or /search/utils/__init__.py among known files.
+ */
+function findPythonFileByModuleSuffix(segments: string[], filePathToId: Map<string, string>): string | null {
+    if (segments.length === 0) return null;
+    const joined = segments.join('/');
+    const pySuffix = '/' + joined + '.py';
+    const initSuffix = '/' + joined + '/__init__.py';
+
+    for (const [fp, id] of filePathToId) {
+        const normalized = fp.replace(/\\/g, '/');
+        if (normalized.endsWith(pySuffix) || normalized.endsWith(initSuffix)) {
+            return id;
+        }
+    }
+    return null;
+}

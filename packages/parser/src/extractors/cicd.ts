@@ -21,27 +21,21 @@ export interface CICDJobInfo {
     triggers: string[];
 }
 
-// ────────────────────────────────────────────────────────────────────────
-// GitHub Actions workflow parsing
-// ────────────────────────────────────────────────────────────────────────
 
 export function extractGitHubActionsJobs(content: string, _filePath: string): CICDJobInfo[] {
     const jobs: CICDJobInfo[] = [];
 
-    // Extract triggers (on: push, pull_request, etc.)
     const triggers: string[] = [];
     const onMatch = content.match(/^on:\s*\n((?:\s+\w+.*\n?)*)/m);
     if (onMatch?.[1]) {
         const triggerMatches = [...onMatch[1].matchAll(/^\s{2}(\w[\w-]*):/gm)];
         for (const m of triggerMatches) if (m[1]) triggers.push(m[1]);
     }
-    // Simple on: [push, pull_request]
     const onSimple = content.match(/^on:\s*\[([^\]]+)\]/m);
     if (onSimple?.[1]) {
         triggers.push(...onSimple[1].split(',').map(s => s.trim()).filter(Boolean));
     }
 
-    // Extract jobs
     const jobsMatch = content.match(/^jobs:\s*$/m);
     if (!jobsMatch) return jobs;
 
@@ -64,7 +58,6 @@ export function extractGitHubActionsJobs(content: string, _filePath: string): CI
         const runsOnMatch = block.match(/runs-on:\s*['"]?([^\s'"]+)['"]?/);
         const steps: string[] = [];
 
-        // Extract step names or uses
         const stepNameMatches = [...block.matchAll(/- name:\s*['"]?([^'"\n]+)['"]?/g)];
         for (const m of stepNameMatches) if (m[1]) steps.push(m[1].trim());
 
@@ -83,14 +76,10 @@ export function extractGitHubActionsJobs(content: string, _filePath: string): CI
     return jobs;
 }
 
-// ────────────────────────────────────────────────────────────────────────
-// GitLab CI parsing
-// ────────────────────────────────────────────────────────────────────────
 
 export function extractGitLabCIJobs(content: string, _filePath: string): CICDJobInfo[] {
     const jobs: CICDJobInfo[] = [];
 
-    // Extract stages
     const stagesMatch = content.match(/^stages:\s*\n((?:\s+- .+\n?)*)/m);
     const stages: string[] = [];
     if (stagesMatch?.[1]) {
@@ -98,7 +87,6 @@ export function extractGitLabCIJobs(content: string, _filePath: string): CICDJob
         for (const m of stageMatches) if (m[1]) stages.push(m[1]);
     }
 
-    // Extract jobs (top-level keys that aren't reserved)
     const reserved = new Set(['stages', 'variables', 'image', 'before_script', 'after_script', 'cache', 'services', 'include', 'default', 'workflow']);
     const jobPattern = /^(\w[\w-]*):\s*$/gm;
     let match: RegExpExecArray | null;
@@ -128,9 +116,6 @@ export function extractGitLabCIJobs(content: string, _filePath: string): CICDJob
     return jobs;
 }
 
-// ────────────────────────────────────────────────────────────────────────
-// Build graph nodes from CI/CD config
-// ────────────────────────────────────────────────────────────────────────
 
 export function buildCICDNodes(
     cicdJobs: CICDJobInfo[],

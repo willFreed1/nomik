@@ -11,7 +11,7 @@
   "homepage": "https://nomik.co",
   "repository": {
     "type": "git",
-    "url": "https://github.com/willFreed1/NOMIK"
+    "url": "git+https://github.com/willFreed1/NOMIK.git"
   },
   "bugs": {
     "url": "https://github.com/willFreed1/NOMIK/issues"
