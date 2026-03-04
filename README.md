@@ -1,5 +1,7 @@
 # NOMIK — The Living Blueprint
 
+> **⭐⭐ If you find NOMIK useful, please consider giving it a star on GitHub! It helps the project grow! ⭐⭐**
+
 > **AI-native code intelligence graph. Scan once, query everything.**
 
 NOMIK builds a persistent **Knowledge Graph** of your entire codebase in Neo4j, then exposes it to AI assistants via **MCP** (Model Context Protocol). Instead of dumping files into a prompt, the AI queries a graph to retrieve exactly the relationships it needs — functions, classes, imports, call chains, DB operations, infrastructure, and more.
@@ -219,6 +221,12 @@ pnpm nomik doctor             # Verify setup
 | [MCP Integration](documentations/docs/05-MCP-INTEGRATION.md) | IDE connection guide |
 | [Graph Schema](documentations/docs/07-GRAPH-SCHEMA.md) | All node/edge types with Cypher examples |
 | [Progress Tracker](documentations/docs/10-PROGRESS-TRACKER.md) | Version history and changelog |
+
+## Contributors
+
+Nomik is an evolving tool built to supercharge AI coding. We welcome all contributions! 
+
+Whether it's fixing bugs, adding support for new languages, creating new graph insights, or improving documentation—feel free to open an issue or submit a Pull Request.
 
 ## License & Contributions
 
