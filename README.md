@@ -220,6 +220,13 @@ pnpm nomik doctor             # Verify setup
 | [Graph Schema](documentations/docs/07-GRAPH-SCHEMA.md) | All node/edge types with Cypher examples |
 | [Progress Tracker](documentations/docs/10-PROGRESS-TRACKER.md) | Version history and changelog |
 
-## License
+## License & Contributions
 
-MIT
+Nomik is licensed under the **Functional Source License (FSL) v1.1**.
+
+- **Can I use Nomik for free?** Yes, for personal projects, academic research, or internal company tools.
+- **Can I contribute?** Yes! We welcome pull requests and community contributions.
+- **What can't I do?** You cannot use the Software to provide a product or service that competes with Nomik itself (e.g., offering "Nomik as a Service").
+- **What happens later?** After 2 years, the code automatically transitions to the Apache 2.0 license.
+
+For the full legal terms, see the [LICENSE](LICENSE) file.
