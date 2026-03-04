@@ -26,5 +26,9 @@
   "devDependencies": {
     "tsup": "^8.0.0",
     "typescript": "^5.7.0"
+  },
+  "author": {
+    "name": "willFreed1",
+    "url": "https://x.com/willfreed01"
   }
 }

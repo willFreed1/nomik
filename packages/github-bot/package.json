@@ -2,7 +2,7 @@
   "name": "@nomik/github-bot",
   "version": "1.0.0",
   "private": true,
-  "description": "NOMIK GitHub App — PR impact analysis bot",
+  "description": "NOMIK GitHub App \u2014 PR impact analysis bot",
   "type": "module",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
@@ -17,5 +17,9 @@
   "devDependencies": {
     "tsup": "^8.0.0",
     "typescript": "^5.3.0"
+  },
+  "author": {
+    "name": "willFreed1",
+    "url": "https://x.com/willfreed01"
   }
 }

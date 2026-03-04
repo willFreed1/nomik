@@ -1,6 +1,7 @@
 # NOMIK — The Living Blueprint
 
 > **⭐⭐ If you find NOMIK useful, please consider giving it a star on GitHub! It helps the project grow! ⭐⭐**
+> **Follow the creator on X: [@willfreed01](https://x.com/willfreed01)**
 
 > **AI-native code intelligence graph. Scan once, query everything.**
 
