@@ -2,6 +2,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { execSync } from 'node:child_process';
 
 export type MpcClient = 'cursor' | 'windsurf' | 'antigravity' | 'claude';
 
@@ -21,36 +22,63 @@ export interface SetupMcpClientResult {
     mcpPath: string;
 }
 
-/** Detect the MCP server path (globally installed or local) */
-export function findMcpServerPath(): string {
-    // Prefer paths relative to the running CLI bundle.
+export interface McpServerCommand {
+    command: string;
+    args: string[];
+}
+
+/** Check if a command is available in PATH */
+function isCommandAvailable(cmd: string): boolean {
+    try {
+        const whichCmd = process.platform === 'win32' ? `where ${cmd}` : `which ${cmd}`;
+        execSync(whichCmd, { stdio: 'pipe', encoding: 'utf-8' });
+        return true;
+    } catch {
+        return false;
+    }
+}
+
+/**
+ * Detect how to invoke the MCP server.
+ *
+ * Priority:
+ *   1. `nomik-mcp` global binary (portable — works after `npm i -g @nomik-ai/cli`)
+ *   2. `mcp-server.js` bundled alongside the running CLI entry point
+ *   3. `npx -y @nomik-ai/cli mcp` as last resort
+ *
+ * Monorepo/CWD-relative paths are intentionally NOT checked — they produce
+ * machine-specific absolute paths that break for other users.
+ */
+export function findMcpServerCommand(): McpServerCommand {
+    // 1. Prefer the global binary (most portable for open-source users)
+    if (isCommandAvailable('nomik-mcp')) {
+        return { command: 'nomik-mcp', args: [] };
+    }
+
+    // 2. Bundled alongside CLI dist (`dist/mcp-server.js`)
     const cliDir = path.dirname(fileURLToPath(import.meta.url));
     const entryDir = process.argv[1] ? path.dirname(path.resolve(process.argv[1])) : cliDir;
     const candidates = [
-        // Bundled alongside CLI dist by tsup (`dist/mcp-server.js`).
         path.resolve(entryDir, 'mcp-server.js'),
         path.resolve(cliDir, 'mcp-server.js'),
-        // Monorepo dev layout from GENOME root.
-        path.resolve(cliDir, '..', '..', '..', 'packages', 'mcp-server', 'dist', 'index.js'),
-        path.resolve(process.cwd(), 'packages', 'mcp-server', 'dist', 'index.js'),
     ];
     for (const p of candidates) {
-        if (fs.existsSync(p)) return p;
+        if (fs.existsSync(p)) return { command: 'node', args: [p] };
     }
 
-    // Fallback — resolve from node_modules when available.
-    try {
-        const resolved = import.meta.resolve?.('@nomik/mcp-server');
-        if (resolved) return new URL(resolved).pathname.replace(/^\/([A-Z]:)/, '$1');
-    } catch {
-        // ignore
-    }
+    // 3. Last resort — npx (always works if npm is installed)
+    return { command: 'npx', args: ['-y', '@nomik-ai/cli', 'mcp'] };
+}
 
-    return candidates[0] ?? path.resolve(process.cwd(), 'mcp-server.js');
+/** @deprecated Use findMcpServerCommand() instead */
+export function findMcpServerPath(): string {
+    const cmd = findMcpServerCommand();
+    if (cmd.command === 'node' && cmd.args.length > 0) return cmd.args[0] ?? cmd.command;
+    return cmd.command;
 }
 
 export function setupMcpClientConfig(opts: SetupMcpClientOptions): SetupMcpClientResult {
-    const mcpPath = findMcpServerPath();
+    const mcpCmd = findMcpServerCommand();
 
     const envBlock: Record<string, string> = {
         NOMIK_GRAPH_URI: opts.graphUri,
@@ -64,8 +92,8 @@ export function setupMcpClientConfig(opts: SetupMcpClientOptions): SetupMcpClien
     const config = {
         mcpServers: {
             nomik: {
-                command: 'node',
-                args: [mcpPath],
+                command: mcpCmd.command,
+                args: mcpCmd.args,
                 env: envBlock,
             },
         },
@@ -99,6 +127,7 @@ export function setupMcpClientConfig(opts: SetupMcpClientOptions): SetupMcpClien
     };
 
     fs.writeFileSync(configPath, JSON.stringify(merged, null, 2) + '\n', 'utf-8');
+    const mcpPath = mcpCmd.command === 'node' && mcpCmd.args[0] ? mcpCmd.args[0] : mcpCmd.command;
     return { configPath, configDir, mcpPath };
 }
 
